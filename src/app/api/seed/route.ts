@@ -2,11 +2,40 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const force = searchParams.get('force') === 'true'
+
   // Check if already seeded
   const existingUsers = await prisma.user.count()
-  if (existingUsers > 0) {
-    return NextResponse.json({ message: 'Database already seeded', users: existingUsers })
+  if (existingUsers > 0 && !force) {
+    return NextResponse.json({ message: 'Database already seeded. Add ?force=true to reseed.', users: existingUsers })
+  }
+
+  // If force reseed, clear all data in correct order
+  if (force) {
+    await prisma.auditLog.deleteMany()
+    await prisma.dAMASPrescription.deleteMany()
+    await prisma.remake.deleteMany()
+    await prisma.supplierInvoice.deleteMany()
+    await prisma.invoiceLine.deleteMany()
+    await prisma.invoice.deleteMany()
+    await prisma.statement.deleteMany()
+    await prisma.emailMessage.deleteMany()
+    await prisma.emailThread.deleteMany()
+    await prisma.outsourceOrder.deleteMany()
+    await prisma.caseItem.deleteMany()
+    await prisma.case.deleteMany()
+    await prisma.patient.deleteMany()
+    await prisma.pricingRule.deleteMany()
+    await prisma.product.deleteMany()
+    await prisma.emailTemplate.deleteMany()
+    await prisma.departmentStatusConfig.deleteMany()
+    await prisma.userInvite.deleteMany()
+    await prisma.user.deleteMany()
+    await prisma.dentist.deleteMany()
+    await prisma.referralCentre.deleteMany()
+    await prisma.clinic.deleteMany()
   }
 
   // Create Super Admin
