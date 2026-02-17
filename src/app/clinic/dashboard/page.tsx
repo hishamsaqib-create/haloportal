@@ -1,0 +1,158 @@
+import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { redirect } from 'next/navigation'
+import { formatDate, formatCurrency, getDueStatus } from '@/lib/utils'
+import { CASE_STATUS_LABELS, DEPARTMENT_LABELS } from '@/lib/constants'
+import Link from 'next/link'
+
+export default async function ClinicDashboard() {
+  const session = await getServerSession(authOptions)
+  if (!session || session.user.userType !== 'CLINIC') redirect('/auth/login')
+
+  const clinicId = session.user.clinicId!
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const in48h = new Date(todayStart.getTime() + 48 * 60 * 60 * 1000)
+
+  const [
+    clinic,
+    dentistCount,
+    activeCases,
+    dueSoonCases,
+    completedThisMonth,
+    recentCases,
+    unpaidInvoices,
+  ] = await Promise.all([
+    prisma.clinic.findUnique({ where: { id: clinicId } }),
+    prisma.dentist.count({ where: { clinicId, active: true } }),
+    prisma.case.count({
+      where: { clinicId, status: { notIn: ['COMPLETED', 'CANCELLED'] } },
+    }),
+    prisma.case.count({
+      where: {
+        clinicId,
+        status: { notIn: ['COMPLETED', 'CANCELLED'] },
+        dueDate: { lte: in48h },
+      },
+    }),
+    prisma.case.count({
+      where: {
+        clinicId,
+        status: 'COMPLETED',
+        updatedAt: { gte: new Date(now.getFullYear(), now.getMonth(), 1) },
+      },
+    }),
+    prisma.case.findMany({
+      where: { clinicId, status: { notIn: ['CANCELLED'] } },
+      include: { dentist: true, patient: true, items: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 15,
+    }),
+    prisma.invoice.aggregate({
+      where: { clinicId, status: { in: ['SENT', 'OVERDUE'] } },
+      _sum: { total: true },
+      _count: true,
+    }),
+  ])
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">{clinic?.name || 'Clinic'} Dashboard</h1>
+        <p className="text-sm text-gray-500">Overview of your clinic&apos;s lab work</p>
+      </div>
+
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard title="Dentists" value={dentistCount} href="/clinic/dentists" />
+        <StatCard title="Active Cases" value={activeCases} href="/clinic/cases" />
+        <StatCard title="Due Soon" value={dueSoonCases} variant="warning" />
+        <StatCard title="Completed (Month)" value={completedThisMonth} variant="success" />
+        <StatCard
+          title="Outstanding"
+          value={formatCurrency(unpaidInvoices._sum.total || 0)}
+          subtitle={`${unpaidInvoices._count} invoices`}
+          href="/clinic/billing"
+        />
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+          <h2 className="text-lg font-semibold text-gray-900">Recent Cases</h2>
+          <Link href="/clinic/cases" className="text-sm font-medium text-brand-700 hover:text-brand-800">
+            View all
+          </Link>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Case</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Dentist</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Patient</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Dept</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Due</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {recentCases.map((c) => {
+                const dueStatus = getDueStatus(c.dueDate)
+                return (
+                  <tr key={c.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-3">
+                      <Link href={`/clinic/cases/${c.id}`} className="text-sm font-medium text-brand-700 hover:underline">
+                        {c.caseNumber}
+                      </Link>
+                    </td>
+                    <td className="px-6 py-3 text-sm text-gray-900">{c.dentist.name}</td>
+                    <td className="px-6 py-3 text-sm text-gray-600">
+                      {c.patient?.initials || c.patient?.reference || '—'}
+                    </td>
+                    <td className="px-6 py-3 text-xs font-medium text-gray-600">
+                      {DEPARTMENT_LABELS[c.department as keyof typeof DEPARTMENT_LABELS]}
+                    </td>
+                    <td className="px-6 py-3">
+                      <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700">
+                        {CASE_STATUS_LABELS[c.status as keyof typeof CASE_STATUS_LABELS]}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3">
+                      <span className={`text-sm ${
+                        dueStatus === 'overdue' ? 'font-semibold text-red-600' :
+                        dueStatus === 'today' ? 'font-semibold text-orange-600' :
+                        'text-gray-600'
+                      }`}>
+                        {formatDate(c.dueDate)}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+              {recentCases.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">No cases yet</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StatCard({ title, value, subtitle, href, variant = 'default' }: {
+  title: string; value: string | number; subtitle?: string; href?: string
+  variant?: 'default' | 'warning' | 'success'
+}) {
+  const colors = { default: '', warning: 'border-orange-200 bg-orange-50', success: 'border-green-200 bg-green-50' }
+  const Wrapper = href ? Link : 'div'
+  return (
+    <Wrapper href={href || ''} className={`rounded-xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-sm ${colors[variant]}`}>
+      <p className="text-sm font-medium text-gray-500">{title}</p>
+      <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
+      {subtitle && <p className="mt-0.5 text-xs text-gray-500">{subtitle}</p>}
+    </Wrapper>
+  )
+}

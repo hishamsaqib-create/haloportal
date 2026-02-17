@@ -1,0 +1,466 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS via string fields (SQLite doesn't support enums) ───
+
+// UserType: INTERNAL | DENTIST | CLINIC
+// Role: SUPER_ADMIN | LAB_MANAGER | LAB_STAFF | CLINIC_ADMIN | CLINIC_FINANCE | DENTIST_USER
+// Department: CERAMICS | APPLIANCES | DSD
+// CaseStatus: NEW | REVIEWED | IN_PRODUCTION | SENT_OUTSOURCE | RECEIVED | QC | READY | DISPATCHED | COMPLETED | CANCELLED
+// InvoiceStatus: DRAFT | SENT | PAID | OVERDUE | CANCELLED
+// OutsourceStatus: QUEUED | SENT | RECEIVED | RETURNED
+// SupplierInvoiceStatus: UNPAID | PAID | DISPUTED
+// StatementStatus: DRAFT | ISSUED | PAID
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  name          String
+  passwordHash  String
+  userType      String   @default("INTERNAL") // INTERNAL | DENTIST | CLINIC
+  role          String   @default("LAB_STAFF") // SUPER_ADMIN | LAB_MANAGER | LAB_STAFF | CLINIC_ADMIN | CLINIC_FINANCE | DENTIST_USER
+  active        Boolean  @default(true)
+  lastLogin     DateTime?
+  clinicId      String?
+  dentistId     String?
+  inviteToken   String?  @unique
+  inviteExpires DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  clinic        Clinic?   @relation(fields: [clinicId], references: [id])
+  dentist       Dentist?  @relation(fields: [dentistId], references: [id])
+
+  auditLogs         AuditLog[]
+  createdRemakes    Remake[]
+  generatedDamas    DAMASPrescription[]
+  sentMessages      EmailMessage[]   @relation("SentMessages")
+  createdInvites    UserInvite[]
+
+  @@index([clinicId])
+  @@index([dentistId])
+  @@index([userType])
+  @@index([role])
+}
+
+model UserInvite {
+  id          String   @id @default(uuid())
+  email       String
+  userType    String   // INTERNAL | DENTIST | CLINIC
+  role        String
+  clinicId    String?
+  dentistId   String?
+  token       String   @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  clinic      Clinic?  @relation(fields: [clinicId], references: [id])
+  dentist     Dentist? @relation(fields: [dentistId], references: [id])
+}
+
+model Clinic {
+  id              String   @id @default(uuid())
+  name            String
+  address         String?
+  phone           String?
+  email           String?
+  billingName     String?
+  billingAddress  String?
+  billingEmail    String?
+  vatNumber       String?
+  paymentTermDays Int      @default(30)
+  notes           String?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  dentists        Dentist[]
+  cases           Case[]
+  invoices        Invoice[]
+  statements      Statement[]
+  users           User[]
+  invites         UserInvite[]
+  pricingRules    PricingRule[]
+}
+
+model Dentist {
+  id              String   @id @default(uuid())
+  clinicId        String
+  name            String
+  email           String?
+  phone           String?
+  gdcNumber       String?
+  paymentTermDays Int?
+  notes           String?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  clinic          Clinic   @relation(fields: [clinicId], references: [id])
+  cases           Case[]
+  invoices        Invoice[]
+  statements      Statement[]
+  users           User[]
+  invites         UserInvite[]
+  pricingRules    PricingRule[]
+
+  @@index([clinicId])
+}
+
+model Patient {
+  id            String   @id @default(uuid())
+  reference     String   @unique // Lab reference number
+  initials      String?  // GDPR: minimise PHI
+  dob           String?  // Optional, stored as string for flexibility
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cases         Case[]
+}
+
+model Product {
+  id                    String   @id @default(uuid())
+  department            String   // CERAMICS | APPLIANCES | DSD
+  name                  String
+  sku                   String?  @unique
+  description           String?
+  basePrice             Float
+  requiresToothCount    Boolean  @default(false)
+  requiresToothSelection Boolean @default(false)
+  parameterSchema       String?  // JSON schema for additional parameters
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  caseItems             CaseItem[]
+  pricingRules          PricingRule[]
+
+  @@index([department])
+}
+
+model PricingRule {
+  id          String   @id @default(uuid())
+  productId   String
+  clinicId    String?  // null = default
+  dentistId   String?  // null = default
+  price       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product     Product  @relation(fields: [productId], references: [id])
+  clinic      Clinic?  @relation(fields: [clinicId], references: [id])
+  dentist     Dentist? @relation(fields: [dentistId], references: [id])
+
+  @@index([productId, dentistId, clinicId])
+}
+
+model Case {
+  id            String   @id @default(uuid())
+  caseNumber    String   @unique // Human-readable case number (e.g. HL-2024-0001)
+  clinicId      String
+  dentistId     String
+  patientId     String?
+  department    String   // CERAMICS | APPLIANCES | DSD
+  status        String   @default("NEW")
+  priority      String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  dueDate       DateTime?
+  notes         String?
+  source        String   @default("MANUAL") // MANUAL | WEBSITE | JOTFORM
+  externalRef   String?  // External reference (Jotform ID, Monday item ID, etc.)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  clinic        Clinic   @relation(fields: [clinicId], references: [id])
+  dentist       Dentist  @relation(fields: [dentistId], references: [id])
+  patient       Patient? @relation(fields: [patientId], references: [id])
+
+  items             CaseItem[]
+  outsourceOrders   OutsourceOrder[]
+  emailThreads      EmailThread[]
+  invoiceLines      InvoiceLine[]
+  supplierInvoices  SupplierInvoice[]
+  remakes           Remake[]
+  prescriptions     DAMASPrescription[]
+  auditLogs         AuditLog[]
+
+  @@index([clinicId])
+  @@index([dentistId])
+  @@index([status])
+  @@index([department])
+  @@index([dueDate])
+}
+
+model CaseItem {
+  id            String   @id @default(uuid())
+  caseId        String
+  productId     String?
+  description   String   // Product name or custom description
+  qty           Int      @default(1)
+  toothNumbers  String?  // JSON array of tooth numbers
+  material      String?
+  shade         String?
+  notes         String?
+  parameters    String?  // JSON for additional parameters
+  unitPrice     Float    @default(0)
+  lineTotal     Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  case          Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  product       Product? @relation(fields: [productId], references: [id])
+
+  invoiceLines  InvoiceLine[]
+  remakes       Remake[]
+
+  @@index([caseId])
+}
+
+model ReferralCentre {
+  id                  String   @id @default(uuid())
+  name                String
+  email               String?
+  phone               String?
+  address             String?
+  defaultLeadTimeDays Int      @default(5)
+  specialties         String?  // JSON array
+  billingTerms        String?
+  notes               String?
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  outsourceOrders     OutsourceOrder[]
+  supplierInvoices    SupplierInvoice[]
+}
+
+model OutsourceOrder {
+  id                  String   @id @default(uuid())
+  caseId              String
+  referralCentreId    String
+  status              String   @default("QUEUED") // QUEUED | SENT | RECEIVED | RETURNED
+  sentAt              DateTime?
+  expectedReturnDate  DateTime?
+  actualReturnDate    DateTime?
+  trackingRef         String?
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  case                Case           @relation(fields: [caseId], references: [id])
+  referralCentre      ReferralCentre @relation(fields: [referralCentreId], references: [id])
+
+  @@index([caseId])
+  @@index([referralCentreId])
+  @@index([status])
+}
+
+model EmailThread {
+  id        String   @id @default(uuid())
+  caseId    String?
+  subject   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  case      Case?          @relation(fields: [caseId], references: [id])
+  messages  EmailMessage[]
+
+  @@index([caseId])
+}
+
+model EmailMessage {
+  id          String   @id @default(uuid())
+  threadId    String
+  fromAddress String
+  toAddress   String
+  ccAddress   String?
+  subject     String
+  bodyHtml    String?
+  bodyText    String?
+  direction   String   // INBOUND | OUTBOUND
+  providerId  String?  // External email provider message ID
+  sentById    String?
+  attachments String?  // JSON metadata for attachments
+  createdAt   DateTime @default(now())
+
+  thread      EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sentBy      User?       @relation("SentMessages", fields: [sentById], references: [id])
+
+  @@index([threadId])
+}
+
+model EmailTemplate {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  subject   String
+  bodyHtml  String
+  bodyText  String?
+  variables String?  // JSON array of variable names
+  category  String?  // outsource | update | general
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  invoiceNo   String   @unique
+  clinicId    String
+  dentistId   String?
+  periodStart DateTime?
+  periodEnd   DateTime?
+  status      String   @default("DRAFT") // DRAFT | SENT | PAID | OVERDUE | CANCELLED
+  subtotal    Float    @default(0)
+  vatRate     Float    @default(0)
+  vatAmount   Float    @default(0)
+  total       Float    @default(0)
+  dueDate     DateTime?
+  paidDate    DateTime?
+  pdfUrl      String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clinic      Clinic   @relation(fields: [clinicId], references: [id])
+  dentist     Dentist? @relation(fields: [dentistId], references: [id])
+  lines       InvoiceLine[]
+
+  @@index([clinicId])
+  @@index([dentistId])
+  @@index([status])
+}
+
+model InvoiceLine {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  caseId      String?
+  caseItemId  String?
+  description String
+  qty         Int      @default(1)
+  unitPrice   Float
+  total       Float
+  createdAt   DateTime @default(now())
+
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  case        Case?    @relation(fields: [caseId], references: [id])
+  caseItem    CaseItem? @relation(fields: [caseItemId], references: [id])
+
+  @@index([invoiceId])
+}
+
+model SupplierInvoice {
+  id                String   @id @default(uuid())
+  referralCentreId  String
+  caseId            String?
+  supplierInvoiceNo String
+  status            String   @default("UNPAID") // UNPAID | PAID | DISPUTED
+  amount            Float
+  vatAmount         Float    @default(0)
+  total             Float
+  date              DateTime
+  dueDate           DateTime?
+  paidDate          DateTime?
+  attachmentUrl     String?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  referralCentre    ReferralCentre @relation(fields: [referralCentreId], references: [id])
+  case              Case?          @relation(fields: [caseId], references: [id])
+
+  @@index([referralCentreId])
+  @@index([caseId])
+  @@index([status])
+}
+
+model Statement {
+  id          String   @id @default(uuid())
+  clinicId    String
+  dentistId   String?
+  periodStart DateTime
+  periodEnd   DateTime
+  totalDue    Float    @default(0)
+  status      String   @default("DRAFT") // DRAFT | ISSUED | PAID
+  pdfUrl      String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clinic      Clinic   @relation(fields: [clinicId], references: [id])
+  dentist     Dentist? @relation(fields: [dentistId], references: [id])
+
+  @@index([clinicId])
+  @@index([dentistId])
+}
+
+model Remake {
+  id            String   @id @default(uuid())
+  caseId        String
+  caseItemId    String?
+  reasonCode    String   // MATERIAL_DEFECT | FIT_ISSUE | SHADE_MISMATCH | BREAKAGE | DESIGN_ERROR | OTHER
+  reasonText    String?
+  costEstimate  Float?
+  createdById   String
+  createdAt     DateTime @default(now())
+
+  case          Case     @relation(fields: [caseId], references: [id])
+  caseItem      CaseItem? @relation(fields: [caseItemId], references: [id])
+  createdBy     User     @relation(fields: [createdById], references: [id])
+
+  @@index([caseId])
+  @@index([reasonCode])
+}
+
+model DAMASPrescription {
+  id              String   @id @default(uuid())
+  caseId          String
+  version         Int      @default(1)
+  generatedById   String
+  structuredData  String   // JSON
+  pdfUrl          String?
+  generatedAt     DateTime @default(now())
+
+  case            Case @relation(fields: [caseId], references: [id])
+  generatedBy     User @relation(fields: [generatedById], references: [id])
+
+  @@index([caseId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  caseId      String?
+  userId      String?
+  action      String   // STATUS_CHANGE | CREATED | UPDATED | DELETED | EMAIL_SENT | INVOICE_GENERATED etc.
+  entityType  String?  // Case, Invoice, OutsourceOrder, etc.
+  entityId    String?
+  oldValue    String?  // JSON
+  newValue    String?  // JSON
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  case        Case? @relation(fields: [caseId], references: [id])
+  user        User? @relation(fields: [userId], references: [id])
+
+  @@index([caseId])
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model DepartmentStatusConfig {
+  id          String  @id @default(uuid())
+  department  String  // CERAMICS | APPLIANCES | DSD
+  statuses    String  // JSON array of ordered statuses
+  active      Boolean @default(true)
+
+  @@unique([department])
+}
