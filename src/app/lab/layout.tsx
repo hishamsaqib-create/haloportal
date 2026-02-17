@@ -11,10 +11,10 @@ export default async function LabLayout({ children }: { children: React.ReactNod
   if (session.user.userType !== 'INTERNAL') redirect('/')
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f5f5f7]">
       <LabSidebar />
       <TopBar />
-      <main className="ml-64 pt-16">
+      <main className="ml-64 pt-14">
         <div className="p-6">{children}</div>
       </main>
     </div>

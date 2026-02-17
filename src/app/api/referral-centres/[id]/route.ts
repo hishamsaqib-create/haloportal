@@ -27,6 +27,18 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   try {
     await requireInternal()
     const body = await req.json()
+    // specialties comes as a JSON string from frontend or as an array - handle both
+    let specialties: string | undefined = undefined
+    if (body.specialties !== undefined) {
+      if (typeof body.specialties === 'string') {
+        specialties = body.specialties
+      } else if (Array.isArray(body.specialties)) {
+        specialties = JSON.stringify(body.specialties)
+      } else {
+        specialties = undefined
+      }
+    }
+
     const centre = await prisma.referralCentre.update({
       where: { id: params.id },
       data: {
@@ -35,7 +47,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         phone: body.phone,
         address: body.address,
         defaultLeadTimeDays: body.defaultLeadTimeDays,
-        specialties: body.specialties ? JSON.stringify(body.specialties) : undefined,
+        specialties,
         billingTerms: body.billingTerms,
         notes: body.notes,
         active: body.active,

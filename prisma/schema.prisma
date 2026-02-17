@@ -192,6 +192,7 @@ model Case {
   remakes           Remake[]
   prescriptions     DAMASPrescription[]
   auditLogs         AuditLog[]
+  whatsappMessages  WhatsAppMessage[]
 
   @@index([clinicId])
   @@index([dentistId])
@@ -463,4 +464,33 @@ model DepartmentStatusConfig {
   active      Boolean @default(true)
 
   @@unique([department])
+}
+
+model SystemSettings {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  label     String?
+  category  String   @default("general") // general | billing | branding | integrations
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WhatsAppMessage {
+  id            String   @id @default(uuid())
+  contactName   String
+  contactPhone  String
+  direction     String   // INBOUND | OUTBOUND
+  messageType   String   @default("text") // text | image | document
+  content       String
+  waMessageId   String?  // WhatsApp message ID
+  status        String   @default("sent") // sent | delivered | read | failed
+  caseId        String?
+  createdAt     DateTime @default(now())
+
+  case          Case?    @relation(fields: [caseId], references: [id])
+
+  @@index([contactPhone])
+  @@index([caseId])
+  @@index([createdAt])
 }

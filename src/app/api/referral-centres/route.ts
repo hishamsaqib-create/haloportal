@@ -11,7 +11,7 @@ export async function GET() {
       },
       orderBy: { name: 'asc' },
     })
-    return NextResponse.json({ centres })
+    return NextResponse.json({ data: centres })
   } catch (error) {
     return handleAuthError(error)
   }
@@ -22,6 +22,17 @@ export async function POST(req: NextRequest) {
     await requireInternal()
     const body = await req.json()
 
+    // specialties comes as a JSON string from frontend or as an array - handle both
+    let specialties: string | null = null
+    if (body.specialties) {
+      if (typeof body.specialties === 'string') {
+        // Already a JSON string
+        specialties = body.specialties
+      } else if (Array.isArray(body.specialties)) {
+        specialties = JSON.stringify(body.specialties)
+      }
+    }
+
     const centre = await prisma.referralCentre.create({
       data: {
         name: body.name,
@@ -29,13 +40,13 @@ export async function POST(req: NextRequest) {
         phone: body.phone || null,
         address: body.address || null,
         defaultLeadTimeDays: body.defaultLeadTimeDays || 5,
-        specialties: body.specialties ? JSON.stringify(body.specialties) : null,
+        specialties,
         billingTerms: body.billingTerms || null,
         notes: body.notes || null,
       },
     })
 
-    return NextResponse.json({ centre }, { status: 201 })
+    return NextResponse.json({ data: centre }, { status: 201 })
   } catch (error) {
     return handleAuthError(error)
   }
