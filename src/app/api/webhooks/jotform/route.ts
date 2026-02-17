@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createAuditLog } from '@/lib/audit'
 import { resolvePrice, calculateLineTotal } from '@/lib/pricing'
+import { syncCaseToMonday } from '@/lib/monday'
 
 // Known Jotform field name mappings
 const FIELD_MAP: Record<string, string> = {
@@ -269,6 +270,20 @@ export async function POST(req: NextRequest) {
         dentistName: parsed.dentistName,
       },
     })
+
+    // Sync to Monday.com as backup (non-blocking — don't fail the webhook if Monday sync fails)
+    syncCaseToMonday({
+      caseNumber: newCase.caseNumber,
+      clinicName: newCase.clinic.name,
+      dentistName: newCase.dentist.name,
+      patientRef: newCase.patient?.reference || undefined,
+      department: finalDepartment,
+      status: 'NEW',
+      priority: parsed.priority?.toUpperCase() || 'NORMAL',
+      dueDate: parsed.dueDate || null,
+      notes: parsed.notes || null,
+      totalValue: lineTotal,
+    }).catch(() => { /* silently ignore Monday sync failures */ })
 
     return NextResponse.json({ data: newCase }, { status: 201 })
   } catch (error) {

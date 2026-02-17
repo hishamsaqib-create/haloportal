@@ -236,12 +236,32 @@ model ReferralCentre {
   specialties         String?  // JSON array
   billingTerms        String?
   notes               String?
+  rating              Float?   // Rating out of 10
   active              Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   outsourceOrders     OutsourceOrder[]
   supplierInvoices    SupplierInvoice[]
+  pricing             ReferralCentrePricing[]
+}
+
+model ReferralCentrePricing {
+  id                String   @id @default(uuid())
+  referralCentreId  String
+  itemName          String   // e.g. "Porcelain Veneer", "Zirconia Crown"
+  itemCategory      String?  // e.g. "Ceramics", "Appliances", "DSD"
+  costPerUnit       Float
+  currency          String   @default("GBP")
+  notes             String?
+  updatedAt         DateTime @updatedAt
+  createdAt         DateTime @default(now())
+
+  referralCentre    ReferralCentre @relation(fields: [referralCentreId], references: [id], onDelete: Cascade)
+
+  @@unique([referralCentreId, itemName])
+  @@index([referralCentreId])
+  @@index([itemName])
 }
 
 model OutsourceOrder {

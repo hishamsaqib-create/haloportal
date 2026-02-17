@@ -38,146 +38,7 @@ async function main() {
   })
   console.log('Created manager:', manager.email)
 
-  // Create Clinics
-  const clinic1 = await prisma.clinic.upsert({
-    where: { id: 'clinic-1' },
-    update: {},
-    create: {
-      id: 'clinic-1',
-      name: 'Smile Dental Clinic',
-      address: '123 High Street, London, W1A 1AA',
-      phone: '020 7123 4567',
-      email: 'info@smiledental.co.uk',
-      billingName: 'Smile Dental Ltd',
-      billingAddress: '123 High Street, London, W1A 1AA',
-      billingEmail: 'accounts@smiledental.co.uk',
-      paymentTermDays: 30,
-    },
-  })
-
-  const clinic2 = await prisma.clinic.upsert({
-    where: { id: 'clinic-2' },
-    update: {},
-    create: {
-      id: 'clinic-2',
-      name: 'Park Lane Dental',
-      address: '45 Park Lane, Manchester, M1 2AB',
-      phone: '0161 234 5678',
-      email: 'info@parklanedental.co.uk',
-      billingName: 'Park Lane Dental Practice',
-      billingAddress: '45 Park Lane, Manchester, M1 2AB',
-      billingEmail: 'billing@parklanedental.co.uk',
-      paymentTermDays: 14,
-    },
-  })
-  console.log('Created clinics')
-
-  // Create Dentists
-  const dentist1 = await prisma.dentist.upsert({
-    where: { id: 'dentist-1' },
-    update: {},
-    create: {
-      id: 'dentist-1',
-      clinicId: clinic1.id,
-      name: 'Dr Sarah Johnson',
-      email: 'sarah@smiledental.co.uk',
-      phone: '07700 900001',
-      gdcNumber: '123456',
-    },
-  })
-
-  const dentist2 = await prisma.dentist.upsert({
-    where: { id: 'dentist-2' },
-    update: {},
-    create: {
-      id: 'dentist-2',
-      clinicId: clinic1.id,
-      name: 'Dr James Wright',
-      email: 'james@smiledental.co.uk',
-      phone: '07700 900002',
-      gdcNumber: '234567',
-    },
-  })
-
-  const dentist3 = await prisma.dentist.upsert({
-    where: { id: 'dentist-3' },
-    update: {},
-    create: {
-      id: 'dentist-3',
-      clinicId: clinic2.id,
-      name: 'Dr Emily Chen',
-      email: 'emily@parklanedental.co.uk',
-      phone: '07700 900003',
-      gdcNumber: '345678',
-    },
-  })
-  console.log('Created dentists')
-
-  // Create Dentist Portal Users
-  const dentistPassword = await bcrypt.hash('dentist123', 10)
-  await prisma.user.upsert({
-    where: { email: 'sarah@smiledental.co.uk' },
-    update: {},
-    create: {
-      email: 'sarah@smiledental.co.uk',
-      name: 'Dr Sarah Johnson',
-      passwordHash: dentistPassword,
-      userType: 'DENTIST',
-      role: 'DENTIST_USER',
-      clinicId: clinic1.id,
-      dentistId: dentist1.id,
-      active: true,
-    },
-  })
-
-  // Create Clinic Admin User
-  const clinicPassword = await bcrypt.hash('clinic123', 10)
-  await prisma.user.upsert({
-    where: { email: 'admin@smiledental.co.uk' },
-    update: {},
-    create: {
-      email: 'admin@smiledental.co.uk',
-      name: 'Clinic Admin',
-      passwordHash: clinicPassword,
-      userType: 'CLINIC',
-      role: 'CLINIC_ADMIN',
-      clinicId: clinic1.id,
-      active: true,
-    },
-  })
-  console.log('Created portal users')
-
-  // Create Referral Centres
-  const rc1 = await prisma.referralCentre.upsert({
-    where: { id: 'rc-1' },
-    update: {},
-    create: {
-      id: 'rc-1',
-      name: 'Premier Ceramics Lab',
-      email: 'orders@premierceramics.co.uk',
-      phone: '020 8555 1234',
-      address: '10 Industrial Estate, Birmingham, B1 1AA',
-      defaultLeadTimeDays: 5,
-      specialties: JSON.stringify(['Ceramics', 'Veneers', 'Crowns']),
-    },
-  })
-
-  const rc2 = await prisma.referralCentre.upsert({
-    where: { id: 'rc-2' },
-    update: {},
-    create: {
-      id: 'rc-2',
-      name: 'DSD Design Centre',
-      email: 'cases@dsddesign.co.uk',
-      phone: '020 8555 5678',
-      address: '20 Tech Park, Leeds, LS1 1AA',
-      defaultLeadTimeDays: 7,
-      specialties: JSON.stringify(['DSD', 'Digital Design', 'Smile Makeover']),
-    },
-  })
-  console.log('Created referral centres')
-
-  // Create Products
+  // Create Products (lab items - kept for actual use)
   const products = [
     { id: 'prod-1', department: 'CERAMICS', name: 'Porcelain Crown', sku: 'CER-001', basePrice: 120, requiresToothSelection: true },
     { id: 'prod-2', department: 'CERAMICS', name: 'Porcelain Veneer', sku: 'CER-002', basePrice: 150, requiresToothSelection: true },
@@ -297,113 +158,30 @@ async function main() {
   })
   console.log('Created department status configs')
 
-  // Create sample cases
-  const patient1 = await prisma.patient.upsert({
-    where: { reference: 'PAT-001' },
-    update: {},
-    create: { reference: 'PAT-001', initials: 'JD' },
-  })
-  const patient2 = await prisma.patient.upsert({
-    where: { reference: 'PAT-002' },
-    update: {},
-    create: { reference: 'PAT-002', initials: 'AB' },
-  })
+  // Default system settings
+  const defaultSettings = [
+    { key: 'lab_name', value: 'Halo Dental Lab', label: 'Lab Name', category: 'general' },
+    { key: 'lab_email', value: 'info@halolab.co.uk', label: 'Lab Email', category: 'branding' },
+    { key: 'lab_phone', value: '', label: 'Lab Phone', category: 'branding' },
+    { key: 'lab_address', value: '', label: 'Lab Address', category: 'branding' },
+    { key: 'vat_rate', value: '20', label: 'VAT Rate (%)', category: 'billing' },
+    { key: 'payment_terms_days', value: '30', label: 'Payment Terms (days)', category: 'billing' },
+    { key: 'currency', value: 'GBP', label: 'Currency', category: 'billing' },
+    { key: 'case_number_format', value: 'HL-YYYY-XXXX', label: 'Case Number Format', category: 'general' },
+    { key: 'invoice_number_format', value: 'INV-YYYYMM-XXXX', label: 'Invoice Number Format', category: 'general' },
+    { key: 'theme_accent_color', value: '#0071e3', label: 'Accent Color', category: 'branding' },
+  ]
 
-  const case1 = await prisma.case.upsert({
-    where: { caseNumber: 'HL-2026-0001' },
-    update: {},
-    create: {
-      caseNumber: 'HL-2026-0001',
-      clinicId: clinic1.id,
-      dentistId: dentist1.id,
-      patientId: patient1.id,
-      department: 'CERAMICS',
-      status: 'IN_PRODUCTION',
-      priority: 'HIGH',
-      dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-      notes: 'Shade A2, patient prefers natural look',
-      source: 'MANUAL',
-    },
-  })
+  for (const setting of defaultSettings) {
+    await prisma.systemSettings.upsert({
+      where: { key: setting.key },
+      update: {},
+      create: setting,
+    })
+  }
+  console.log('Created default system settings')
 
-  await prisma.caseItem.upsert({
-    where: { id: 'ci-1' },
-    update: {},
-    create: {
-      id: 'ci-1',
-      caseId: case1.id,
-      productId: 'prod-1',
-      description: 'Porcelain Crown',
-      qty: 1,
-      toothNumbers: JSON.stringify([14]),
-      material: 'Porcelain',
-      shade: 'A2',
-      unitPrice: 120,
-      lineTotal: 120,
-    },
-  })
-
-  const case2 = await prisma.case.upsert({
-    where: { caseNumber: 'HL-2026-0002' },
-    update: {},
-    create: {
-      caseNumber: 'HL-2026-0002',
-      clinicId: clinic1.id,
-      dentistId: dentist2.id,
-      patientId: patient2.id,
-      department: 'APPLIANCES',
-      status: 'NEW',
-      priority: 'NORMAL',
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      source: 'MANUAL',
-    },
-  })
-
-  await prisma.caseItem.upsert({
-    where: { id: 'ci-2' },
-    update: {},
-    create: {
-      id: 'ci-2',
-      caseId: case2.id,
-      productId: 'prod-8',
-      description: 'Night Guard',
-      qty: 1,
-      unitPrice: 95,
-      lineTotal: 95,
-    },
-  })
-
-  const case3 = await prisma.case.upsert({
-    where: { caseNumber: 'HL-2026-0003' },
-    update: {},
-    create: {
-      caseNumber: 'HL-2026-0003',
-      clinicId: clinic2.id,
-      dentistId: dentist3.id,
-      department: 'DSD',
-      status: 'REVIEWED',
-      priority: 'NORMAL',
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      source: 'MANUAL',
-    },
-  })
-
-  await prisma.caseItem.upsert({
-    where: { id: 'ci-3' },
-    update: {},
-    create: {
-      id: 'ci-3',
-      caseId: case3.id,
-      productId: 'prod-10',
-      description: 'DSD Design',
-      qty: 1,
-      unitPrice: 250,
-      lineTotal: 250,
-    },
-  })
-
-  console.log('Created sample cases')
-  console.log('Seed completed!')
+  console.log('Seed completed! No fake data created - ready for real clinic/case data.')
 }
 
 main()
