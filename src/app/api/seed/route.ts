@@ -13,7 +13,7 @@ export async function GET() {
   const adminPassword = await bcrypt.hash('admin123', 10)
   await prisma.user.create({
     data: {
-      email: 'admin@halolab.co.uk',
+      email: 'drhish@halolab.co.uk',
       name: 'Hisham Saqib',
       passwordHash: adminPassword,
       userType: 'INTERNAL',
@@ -26,8 +26,8 @@ export async function GET() {
   const managerPassword = await bcrypt.hash('manager123', 10)
   await prisma.user.create({
     data: {
-      email: 'manager@halolab.co.uk',
-      name: 'Lab Manager',
+      email: 'danielle@halolab.co.uk',
+      name: 'Danielle',
       passwordHash: managerPassword,
       userType: 'INTERNAL',
       role: 'LAB_MANAGER',
@@ -315,8 +315,8 @@ export async function GET() {
       emailTemplates: 2,
     },
     loginAccounts: [
-      { email: 'admin@halolab.co.uk', password: 'admin123', role: 'Lab Super Admin' },
-      { email: 'manager@halolab.co.uk', password: 'manager123', role: 'Lab Manager' },
+      { email: 'drhish@halolab.co.uk', password: 'admin123', role: 'Lab Super Admin' },
+      { email: 'danielle@halolab.co.uk', password: 'manager123', role: 'Lab Manager' },
       { email: 'sarah@smiledental.co.uk', password: 'dentist123', role: 'Dentist Portal' },
       { email: 'admin@smiledental.co.uk', password: 'clinic123', role: 'Clinic Admin' },
     ],
