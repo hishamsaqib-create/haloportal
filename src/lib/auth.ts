@@ -100,4 +100,6 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 24 * 60 * 60, // 24 hours
   },
+  secret: process.env.NEXTAUTH_SECRET || 'kXylHuz4dxPT8kNokZ7X8Ij2HpZ1GJRlL403vkm9lEU=',
+  debug: true,
 }
