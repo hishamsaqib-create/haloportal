@@ -12,7 +12,12 @@ export default async function ClinicDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const session = await getServerSession(authOptions)
+  let session
+  try {
+    session = await getServerSession(authOptions)
+  } catch {
+    redirect('/auth/login')
+  }
   if (!session) redirect('/auth/login')
 
   const { id } = await params

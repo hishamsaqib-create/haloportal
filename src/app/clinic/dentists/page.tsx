@@ -5,7 +5,12 @@ import { redirect } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 
 export default async function ClinicDentistsPage() {
-  const session = await getServerSession(authOptions)
+  let session
+  try {
+    session = await getServerSession(authOptions)
+  } catch {
+    redirect('/auth/login')
+  }
   if (!session || session.user.userType !== 'CLINIC') redirect('/auth/login')
 
   const clinicId = session.user.clinicId!

@@ -7,7 +7,12 @@ import { CASE_STATUS_LABELS, DEPARTMENT_LABELS } from '@/lib/constants'
 import Link from 'next/link'
 
 export default async function ClinicDashboard() {
-  const session = await getServerSession(authOptions)
+  let session
+  try {
+    session = await getServerSession(authOptions)
+  } catch {
+    redirect('/auth/login')
+  }
   if (!session || session.user.userType !== 'CLINIC') redirect('/auth/login')
 
   const clinicId = session.user.clinicId!

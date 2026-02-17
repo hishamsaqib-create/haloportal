@@ -7,7 +7,12 @@ import { CASE_STATUS_LABELS, DEPARTMENT_LABELS, CASE_STATUSES } from '@/lib/cons
 import Link from 'next/link'
 
 export default async function DentistCaseDetailPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
+  let session
+  try {
+    session = await getServerSession(authOptions)
+  } catch {
+    redirect('/auth/login')
+  }
   if (!session || session.user.userType !== 'DENTIST') redirect('/auth/login')
 
   const caseData = await prisma.case.findUnique({

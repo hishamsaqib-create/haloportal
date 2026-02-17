@@ -6,7 +6,12 @@ import { formatDate } from '@/lib/utils'
 import { ClinicUserManager } from '@/components/clinic/clinic-user-manager'
 
 export default async function ClinicUsersPage() {
-  const session = await getServerSession(authOptions)
+  let session
+  try {
+    session = await getServerSession(authOptions)
+  } catch {
+    redirect('/auth/login')
+  }
   if (!session || session.user.userType !== 'CLINIC') redirect('/auth/login')
   if (session.user.role !== 'CLINIC_ADMIN') redirect('/clinic/dashboard')
 
