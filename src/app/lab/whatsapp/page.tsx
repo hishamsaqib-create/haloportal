@@ -245,12 +245,12 @@ export default function WhatsAppPage() {
   useEffect(() => {
     async function checkConfig() {
       try {
-        const res = await fetch('/api/settings/system?keys=whatsapp_phone_id,whatsapp_access_token')
+        const res = await fetch('/api/settings')
         if (res.ok) {
           const data = await res.json()
-          const settings = data.data || []
-          const phoneId = settings.find((s: { key: string }) => s.key === 'whatsapp_phone_id')?.value
-          const token = settings.find((s: { key: string }) => s.key === 'whatsapp_access_token')?.value
+          const settings = data.data || {}
+          const phoneId = settings.whatsapp_phone_id?.value
+          const token = settings.whatsapp_access_token?.value
           setIsConfigured(!!(phoneId && token))
         } else {
           setIsConfigured(false)
