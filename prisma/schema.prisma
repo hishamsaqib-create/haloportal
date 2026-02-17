@@ -3,11 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// ─── ENUMS via string fields (SQLite doesn't support enums) ───
+// ─── ENUMS via string fields ───
 
 // UserType: INTERNAL | DENTIST | CLINIC
 // Role: SUPER_ADMIN | LAB_MANAGER | LAB_STAFF | CLINIC_ADMIN | CLINIC_FINANCE | DENTIST_USER
