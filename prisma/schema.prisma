@@ -78,6 +78,7 @@ model Clinic {
   billingEmail    String?
   vatNumber       String?
   paymentTermDays Int      @default(30)
+  portalPassword  String?  // Custom password for clinic to access public submission forms
   notes           String?
   active          Boolean  @default(true)
   createdAt       DateTime @default(now())

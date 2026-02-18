@@ -1,18 +1,20 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 interface Dentist {
   id: string
   name: string
   email: string | null
-  clinic: { id: string; name: string }
 }
 
 const WORK_OPTIONS = ['Emax', 'Feldspathic', 'Zirconia', 'Implant']
 
 export default function CeramicsFormPage() {
+  const router = useRouter()
+  const [clinicName, setClinicName] = useState('')
   const [dentists, setDentists] = useState<Dentist[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -38,12 +40,21 @@ export default function CeramicsFormPage() {
   const [notes, setNotes] = useState('')
 
   useEffect(() => {
-    fetch('/api/public/dentists')
-      .then((r) => r.json())
-      .then((data) => setDentists(data.data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+    const raw = sessionStorage.getItem('halo-clinic')
+    if (!raw) {
+      router.replace('/')
+      return
+    }
+    try {
+      const clinic = JSON.parse(raw) as { id: string; name: string; dentists: Dentist[] }
+      setClinicName(clinic.name)
+      setDentists(clinic.dentists || [])
+    } catch {
+      router.replace('/')
+      return
+    }
+    setLoading(false)
+  }, [router])
 
   // Auto-fill dentist email when selected
   useEffect(() => {
@@ -140,6 +151,9 @@ export default function CeramicsFormPage() {
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Ceramic Case</h1>
           <p className="mt-1 text-sm text-gray-400">Submit a new ceramic restoration case</p>
+          {clinicName && (
+            <p className="mt-2 text-sm font-medium text-gray-600">{clinicName}</p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -200,7 +214,7 @@ export default function CeramicsFormPage() {
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-400 appearance-none">
                   <option value="">Select a dentist</option>
                   {dentists.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name} — {d.clinic.name}</option>
+                    <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>
               )}

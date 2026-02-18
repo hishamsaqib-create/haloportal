@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 
-// ---------------------------------------------------------------------------
-// Rotating words
-// ---------------------------------------------------------------------------
+interface ClinicSession {
+  id: string
+  name: string
+  dentists: { id: string; name: string; email: string | null }[]
+}
 
 const ROTATING_WORDS = [
   'Smile Design',
@@ -18,12 +20,8 @@ const ROTATING_WORDS = [
   'Aligners',
 ]
 
-// ---------------------------------------------------------------------------
-// Main page
-// ---------------------------------------------------------------------------
-
 export default function PublicHomePage() {
-  const [authenticated, setAuthenticated] = useState(false)
+  const [clinic, setClinic] = useState<ClinicSession | null>(null)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [checking, setChecking] = useState(false)
@@ -33,14 +31,19 @@ export default function PublicHomePage() {
 
   // Session restore
   useEffect(() => {
-    if (typeof window !== 'undefined' && sessionStorage.getItem('halo-auth') === 'true') {
-      setAuthenticated(true)
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('halo-clinic')
+      if (stored) {
+        try {
+          setClinic(JSON.parse(stored))
+        } catch { /* ignore */ }
+      }
     }
   }, [])
 
   // Word rotation
   useEffect(() => {
-    if (!authenticated) return
+    if (!clinic) return
     const interval = setInterval(() => {
       setWordVisible(false)
       setTimeout(() => {
@@ -49,12 +52,12 @@ export default function PublicHomePage() {
       }, 400)
     }, 2800)
     return () => clearInterval(interval)
-  }, [authenticated])
+  }, [clinic])
 
   // Auto-focus
   useEffect(() => {
-    if (!authenticated && inputRef.current) inputRef.current.focus()
-  }, [authenticated])
+    if (!clinic && inputRef.current) inputRef.current.focus()
+  }, [clinic])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,9 +71,9 @@ export default function PublicHomePage() {
         body: JSON.stringify({ password: password.trim() }),
       })
       const data = await res.json()
-      if (data.success) {
-        sessionStorage.setItem('halo-auth', 'true')
-        setAuthenticated(true)
+      if (data.success && data.clinic) {
+        sessionStorage.setItem('halo-clinic', JSON.stringify(data.clinic))
+        setClinic(data.clinic)
       } else {
         setError('Incorrect password')
         setPassword('')
@@ -82,17 +85,21 @@ export default function PublicHomePage() {
     }
   }, [password, checking])
 
+  function handleLogout() {
+    sessionStorage.removeItem('halo-clinic')
+    setClinic(null)
+    setPassword('')
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/40 to-white">
-      {/* Subtle decorative circles */}
       <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-blue-100/50 blur-3xl" />
       <div className="absolute -bottom-40 -left-40 h-[400px] w-[400px] rounded-full bg-blue-100/40 blur-3xl" />
 
-      {/* Content */}
       <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6">
 
-        {/* ===== PASSWORD GATE ===== */}
-        {!authenticated && (
+        {/* PASSWORD GATE */}
+        {!clinic && (
           <div className="flex flex-col items-center animate-fade-in">
             <div className="mb-12">
               <h1 className="text-center text-5xl font-bold tracking-tight text-gray-900 sm:text-6xl">
@@ -115,7 +122,7 @@ export default function PublicHomePage() {
                   type="password"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError('') }}
-                  placeholder="Enter password"
+                  placeholder="Enter clinic password"
                   className="w-80 rounded-2xl border border-gray-200 bg-white py-4 pl-11 pr-4 text-base text-gray-900 placeholder-gray-400 outline-none shadow-sm transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
@@ -126,7 +133,6 @@ export default function PublicHomePage() {
               {error && <p className="text-sm text-red-500 animate-fade-in">{error}</p>}
             </form>
 
-            {/* Login links */}
             <div className="mt-16 flex items-center gap-6">
               <Link href="/auth/login" className="text-sm text-gray-400 transition-colors hover:text-blue-500 no-underline hover:no-underline">
                 Lab Portal
@@ -139,9 +145,19 @@ export default function PublicHomePage() {
           </div>
         )}
 
-        {/* ===== MAIN CONTENT (after password) ===== */}
-        {authenticated && (
+        {/* MAIN CONTENT (after password) */}
+        {clinic && (
           <div className="flex flex-col items-center animate-fade-in">
+            {/* Clinic badge */}
+            <div className="mb-6 flex items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 border border-blue-100 px-4 py-1.5 text-sm font-medium text-blue-700">
+                {clinic.name}
+              </span>
+              <button onClick={handleLogout} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                Switch clinic
+              </button>
+            </div>
+
             {/* Rotating headline */}
             <div className="mb-8 text-center">
               <h1 className="text-5xl font-bold tracking-tight text-gray-900 sm:text-6xl lg:text-7xl">
@@ -150,9 +166,7 @@ export default function PublicHomePage() {
               <div className="my-5 h-[70px] sm:h-[85px] lg:h-[100px] flex items-center justify-center overflow-hidden">
                 <span
                   className={`block text-5xl font-bold tracking-tight text-blue-500 sm:text-6xl lg:text-7xl transition-all duration-500 ease-out ${
-                    wordVisible
-                      ? 'translate-y-0 opacity-100'
-                      : 'translate-y-6 opacity-0'
+                    wordVisible ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
                   }`}
                 >
                   {ROTATING_WORDS[wordIndex]}
@@ -167,7 +181,7 @@ export default function PublicHomePage() {
               Premium dental laboratory services delivered with precision and care
             </p>
 
-            {/* Three form buttons — large and prominent */}
+            {/* Three form buttons */}
             <div className="flex flex-col gap-5 w-full max-w-2xl">
               <Link href="/dsd"
                 className="group flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-8 py-6 text-lg font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md hover:border-blue-200 hover:bg-blue-50/50 active:scale-[0.99] no-underline hover:no-underline">

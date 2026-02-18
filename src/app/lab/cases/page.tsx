@@ -43,7 +43,7 @@ export default function CasesPage() {
     const res = await fetch(`/api/cases?${params}`)
     if (res.ok) {
       const data = await res.json()
-      setCases(data.cases || [])
+      setCases(data.data || [])
     }
     setLoading(false)
   }

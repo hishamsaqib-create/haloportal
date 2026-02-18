@@ -74,7 +74,7 @@ export async function PUT(req: NextRequest, context: RouteContext) {
     const allowedFields = [
       'name', 'address', 'phone', 'email',
       'billingName', 'billingAddress', 'billingEmail',
-      'vatNumber', 'paymentTermDays', 'notes', 'active',
+      'vatNumber', 'paymentTermDays', 'portalPassword', 'notes', 'active',
     ] as const
     const updateData: Record<string, unknown> = {}
 

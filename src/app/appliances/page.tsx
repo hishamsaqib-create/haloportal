@@ -1,13 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-interface Dentist {
+interface ClinicDentist {
   id: string
   name: string
   email: string | null
-  clinic: { id: string; name: string }
+}
+
+interface ClinicSession {
+  id: string
+  name: string
+  dentists: ClinicDentist[]
 }
 
 const APPLIANCE_OPTIONS = [
@@ -23,7 +29,8 @@ const APPLIANCE_OPTIONS = [
 ]
 
 export default function AppliancesFormPage() {
-  const [dentists, setDentists] = useState<Dentist[]>([])
+  const router = useRouter()
+  const [clinic, setClinic] = useState<ClinicSession | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -44,19 +51,27 @@ export default function AppliancesFormPage() {
   const [notes, setNotes] = useState('')
 
   useEffect(() => {
-    fetch('/api/public/dentists')
-      .then((r) => r.json())
-      .then((data) => setDentists(data.data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+    const raw = sessionStorage.getItem('halo-clinic')
+    if (!raw) {
+      router.replace('/')
+      return
+    }
+    try {
+      const session: ClinicSession = JSON.parse(raw)
+      setClinic(session)
+    } catch {
+      router.replace('/')
+      return
+    }
+    setLoading(false)
+  }, [router])
 
   useEffect(() => {
-    if (dentistId) {
-      const d = dentists.find((d) => d.id === dentistId)
+    if (dentistId && clinic) {
+      const d = clinic.dentists.find((d) => d.id === dentistId)
       if (d?.email) setDentistEmail(d.email)
     }
-  }, [dentistId, dentists])
+  }, [dentistId, clinic])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -134,6 +149,9 @@ export default function AppliancesFormPage() {
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Appliance Case</h1>
           <p className="mt-1 text-sm text-gray-400">Submit a new dental appliance case</p>
+          {clinic && (
+            <p className="mt-2 text-sm font-medium text-gray-600">{clinic.name}</p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -179,8 +197,8 @@ export default function AppliancesFormPage() {
                 <select value={dentistId} onChange={(e) => setDentistId(e.target.value)} required
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-400 appearance-none">
                   <option value="">Select a dentist</option>
-                  {dentists.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name} — {d.clinic.name}</option>
+                  {clinic?.dentists.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>
               )}

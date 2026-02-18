@@ -8,13 +8,24 @@ import toast from 'react-hot-toast'
 // Types
 // ---------------------------------------------------------------------------
 
-type SectionKey = 'general' | 'billing' | 'branding' | 'integrations' | 'workflows' | 'templates'
+type SectionKey = 'general' | 'billing' | 'branding' | 'clinics' | 'integrations' | 'workflows' | 'templates'
 
 interface DeptStatusConfig {
   id: string
   department: string
   statuses: string
   active: boolean
+}
+
+interface ClinicWithDentists {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  portalPassword: string | null
+  active: boolean
+  dentists: { id: string; name: string; email: string | null; active: boolean }[]
+  _count: { cases: number; dentists: number }
 }
 
 interface EmailTemplate {
@@ -48,6 +59,12 @@ const SECTIONS: { key: SectionKey; label: string; icon: React.ReactNode; descrip
     label: 'Branding',
     description: 'Appearance, colors and contact details',
     icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.098 19.902a3.75 3.75 0 0 0 5.304 0l6.401-6.402M6.75 21A3.75 3.75 0 0 1 3 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 0 0 3.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008Z" /></svg>,
+  },
+  {
+    key: 'clinics',
+    label: 'Clinic Portal',
+    description: 'Manage clinic passwords and dentists',
+    icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" /></svg>,
   },
   {
     key: 'integrations',
@@ -192,6 +209,14 @@ export default function SettingsPage() {
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [mondayTestResult, setMondayTestResult] = useState<{ success: boolean; boardName?: string; error?: string } | null>(null)
   const [testingMonday, setTestingMonday] = useState(false)
+  const [clinics, setClinics] = useState<ClinicWithDentists[]>([])
+  const [loadingClinics, setLoadingClinics] = useState(true)
+  const [editingClinic, setEditingClinic] = useState<ClinicWithDentists | null>(null)
+  const [savingClinic, setSavingClinic] = useState(false)
+  const [showAddDentist, setShowAddDentist] = useState<string | null>(null)
+  const [newDentistName, setNewDentistName] = useState('')
+  const [newDentistEmail, setNewDentistEmail] = useState('')
+  const [addingDentist, setAddingDentist] = useState(false)
 
   // Editable workflow state
   const [editedWorkflows, setEditedWorkflows] = useState<Record<string, string[]>>({})
@@ -240,6 +265,36 @@ export default function SettingsPage() {
     }
   }, [])
 
+  const loadClinics = useCallback(async () => {
+    setLoadingClinics(true)
+    try {
+      const res = await fetch('/api/clinics')
+      if (!res.ok) throw new Error('Failed to load clinics')
+      const json = await res.json()
+      // For each clinic, also load its dentists
+      const clinicList = json.data || []
+      const enriched: ClinicWithDentists[] = []
+      for (const c of clinicList) {
+        try {
+          const dRes = await fetch(`/api/clinics/${c.id}`)
+          if (dRes.ok) {
+            const dJson = await dRes.json()
+            enriched.push(dJson.data)
+          } else {
+            enriched.push({ ...c, dentists: [], portalPassword: null })
+          }
+        } catch {
+          enriched.push({ ...c, dentists: [], portalPassword: null })
+        }
+      }
+      setClinics(enriched)
+    } catch {
+      toast.error('Failed to load clinics')
+    } finally {
+      setLoadingClinics(false)
+    }
+  }, [])
+
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true)
     try {
@@ -258,7 +313,8 @@ export default function SettingsPage() {
     loadAllSettings()
     loadDeptConfigs()
     loadTemplates()
-  }, [loadAllSettings, loadDeptConfigs, loadTemplates])
+    loadClinics()
+  }, [loadAllSettings, loadDeptConfigs, loadTemplates, loadClinics])
 
   // -----------------------------------------------------------------------
   // Setting helpers
@@ -338,6 +394,54 @@ export default function SettingsPage() {
       setMondayTestResult({ success: false, error: 'Connection failed' })
     } finally {
       setTestingMonday(false)
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Clinic helpers
+  // -----------------------------------------------------------------------
+
+  async function saveClinicPortalPassword(clinicId: string, portalPassword: string) {
+    setSavingClinic(true)
+    try {
+      const res = await fetch(`/api/clinics/${clinicId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ portalPassword: portalPassword || null }),
+      })
+      if (!res.ok) throw new Error('Failed to save')
+      toast.success('Portal password saved')
+      loadClinics()
+    } catch {
+      toast.error('Failed to save portal password')
+    } finally {
+      setSavingClinic(false)
+    }
+  }
+
+  async function addDentistToClinic(clinicId: string) {
+    if (!newDentistName.trim()) return
+    setAddingDentist(true)
+    try {
+      const res = await fetch('/api/dentists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clinicId,
+          name: newDentistName.trim(),
+          email: newDentistEmail.trim() || null,
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to add dentist')
+      toast.success('Dentist added')
+      setNewDentistName('')
+      setNewDentistEmail('')
+      setShowAddDentist(null)
+      loadClinics()
+    } catch {
+      toast.error('Failed to add dentist')
+    } finally {
+      setAddingDentist(false)
     }
   }
 
@@ -565,6 +669,145 @@ export default function SettingsPage() {
     )
   }
 
+  function renderClinics() {
+    if (loadingClinics) return <LoadingPlaceholder />
+    return (
+      <div className="space-y-6">
+        <SectionCard title="Clinic Portal Access" description="Each clinic gets a unique password. When they enter it on halolab.co.uk, they see only their own dentists in the submission forms.">
+          <div className="space-y-4">
+            <InfoBox title="How clinic passwords work">
+              Set a password for each clinic below. When a clinic receptionist visits halolab.co.uk and enters their password, the system shows only that clinic&apos;s dentists in the dropdown. Each clinic sees only their own team.
+            </InfoBox>
+
+            {clinics.length === 0 ? (
+              <div className="py-8 text-center">
+                <p className="text-sm text-gray-500">No clinics yet. Add clinics from the Clinics page first.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {clinics.map((clinic) => (
+                  <div key={clinic.id} className="rounded-xl border border-gray-200 overflow-hidden">
+                    {/* Clinic header */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-gray-50/50">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">{clinic.name}</h3>
+                        <p className="text-xs text-gray-500">
+                          {clinic._count?.dentists || clinic.dentists?.length || 0} dentists &middot; {clinic._count?.cases || 0} cases
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setEditingClinic(editingClinic?.id === clinic.id ? null : clinic)}
+                        className="text-xs font-medium text-brand-700 hover:text-brand-800"
+                      >
+                        {editingClinic?.id === clinic.id ? 'Close' : 'Manage'}
+                      </button>
+                    </div>
+
+                    {/* Expanded panel */}
+                    {editingClinic?.id === clinic.id && (
+                      <div className="border-t border-gray-100 px-4 py-4 space-y-4">
+                        {/* Portal Password */}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Portal Password</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={editingClinic.portalPassword || ''}
+                              onChange={(e) => setEditingClinic({ ...editingClinic, portalPassword: e.target.value })}
+                              placeholder="Set a password for this clinic"
+                              className="flex-1 rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-gray-400 focus:bg-white font-mono"
+                            />
+                            <button
+                              onClick={() => saveClinicPortalPassword(clinic.id, editingClinic.portalPassword || '')}
+                              disabled={savingClinic}
+                              className="rounded-lg bg-gray-900 px-4 py-2 text-xs font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+                            >
+                              {savingClinic ? 'Saving...' : 'Save'}
+                            </button>
+                          </div>
+                          <p className="mt-1 text-[11px] text-gray-400">
+                            Clinic staff will use this password on halolab.co.uk to submit prescriptions.
+                          </p>
+                        </div>
+
+                        {/* Dentists */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="text-xs font-medium text-gray-600">Dentists</label>
+                            <button
+                              onClick={() => setShowAddDentist(showAddDentist === clinic.id ? null : clinic.id)}
+                              className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                            >
+                              + Add Dentist
+                            </button>
+                          </div>
+
+                          {/* Add dentist form */}
+                          {showAddDentist === clinic.id && (
+                            <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50/50 p-3 space-y-2">
+                              <input
+                                type="text"
+                                value={newDentistName}
+                                onChange={(e) => setNewDentistName(e.target.value)}
+                                placeholder="Dentist name"
+                                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400"
+                              />
+                              <input
+                                type="email"
+                                value={newDentistEmail}
+                                onChange={(e) => setNewDentistEmail(e.target.value)}
+                                placeholder="Email (optional)"
+                                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => addDentistToClinic(clinic.id)}
+                                  disabled={addingDentist || !newDentistName.trim()}
+                                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  {addingDentist ? 'Adding...' : 'Add'}
+                                </button>
+                                <button
+                                  onClick={() => { setShowAddDentist(null); setNewDentistName(''); setNewDentistEmail('') }}
+                                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Dentist list */}
+                          {clinic.dentists && clinic.dentists.length > 0 ? (
+                            <div className="space-y-1">
+                              {clinic.dentists.map((d) => (
+                                <div key={d.id} className="flex items-center justify-between rounded-lg px-3 py-2 bg-white border border-gray-100">
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-900">{d.name}</span>
+                                    {d.email && <span className="ml-2 text-xs text-gray-400">{d.email}</span>}
+                                  </div>
+                                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${d.active ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                                    {d.active ? 'Active' : 'Inactive'}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-400 py-2">No dentists added yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </SectionCard>
+      </div>
+    )
+  }
+
   function renderWorkflows() {
     if (loadingDept) return <LoadingPlaceholder />
     return (
@@ -728,7 +971,7 @@ export default function SettingsPage() {
 
   const sectionRenderers: Record<SectionKey, () => React.ReactNode> = {
     general: renderGeneral, billing: renderBilling, branding: renderBranding,
-    integrations: renderIntegrations, workflows: renderWorkflows, templates: renderTemplates,
+    clinics: renderClinics, integrations: renderIntegrations, workflows: renderWorkflows, templates: renderTemplates,
   }
 
   return (

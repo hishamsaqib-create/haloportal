@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     await requireInternal()
     const body = await req.json()
 
-    const { name, address, phone, email, billingName, billingAddress, billingEmail, vatNumber, paymentTermDays, notes } = body
+    const { name, address, phone, email, billingName, billingAddress, billingEmail, vatNumber, paymentTermDays, portalPassword, notes } = body
 
     if (!name) {
       return NextResponse.json(
@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
         billingEmail: billingEmail || null,
         vatNumber: vatNumber || null,
         paymentTermDays: paymentTermDays ?? 30,
+        portalPassword: portalPassword || null,
         notes: notes || null,
         active: true,
       },
