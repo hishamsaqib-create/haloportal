@@ -23,6 +23,7 @@ export default function ClinicsPage() {
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('active')
 
   // Form state
   const [formName, setFormName] = useState('')
@@ -32,12 +33,14 @@ export default function ClinicsPage() {
 
   useEffect(() => {
     fetchClinics()
-  }, [search])
+  }, [search, filter])
 
   async function fetchClinics() {
     setLoading(true)
     const params = new URLSearchParams()
     if (search) params.set('search', search)
+    if (filter === 'active') params.set('active', 'true')
+    else if (filter === 'archived') params.set('active', 'false')
     try {
       const res = await fetch(`/api/clinics?${params}`)
       if (res.ok) {
@@ -48,6 +51,19 @@ export default function ClinicsPage() {
       // ignore
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function toggleClinicActive(clinicId: string, currentlyActive: boolean) {
+    try {
+      const res = await fetch(`/api/clinics/${clinicId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !currentlyActive }),
+      })
+      if (res.ok) fetchClinics()
+    } catch {
+      // ignore
     }
   }
 
@@ -107,8 +123,21 @@ export default function ClinicsPage() {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="mb-4">
+      {/* Filter + Search */}
+      <div className="mb-4 flex items-center gap-4">
+        <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+          {(['active', 'archived', 'all'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                filter === f ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {f === 'active' ? 'Active' : f === 'archived' ? 'Archived' : 'All'}
+            </button>
+          ))}
+        </div>
         <input
           type="text"
           placeholder="Search clinics..."
@@ -175,12 +204,24 @@ export default function ClinicsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-3 text-right">
-                      <Link
-                        href={`/lab/clinics/${clinic.id}`}
-                        className="text-sm font-medium text-brand-700 hover:text-brand-800"
-                      >
-                        View
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => toggleClinicActive(clinic.id, clinic.active)}
+                          className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
+                            clinic.active
+                              ? 'text-amber-700 hover:bg-amber-50'
+                              : 'text-green-700 hover:bg-green-50'
+                          }`}
+                        >
+                          {clinic.active ? 'Archive' : 'Restore'}
+                        </button>
+                        <Link
+                          href={`/lab/clinics/${clinic.id}`}
+                          className="text-sm font-medium text-brand-700 hover:text-brand-800"
+                        >
+                          View
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))

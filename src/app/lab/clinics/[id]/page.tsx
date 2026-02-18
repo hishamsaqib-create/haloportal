@@ -6,6 +6,8 @@ import { formatDate, formatCurrency } from '@/lib/utils'
 import { CASE_STATUS_LABELS } from '@/lib/constants'
 import Link from 'next/link'
 import { ClinicEditForm } from './clinic-edit-form'
+import { DentistList } from './dentist-list'
+import { ArchiveClinicButtonClient } from './archive-clinic-button'
 
 export default async function ClinicDetailPage({
   params,
@@ -99,7 +101,10 @@ export default async function ClinicDetailPage({
               <p className="mt-1 text-sm text-gray-500">{clinic.address}</p>
             )}
           </div>
-          <InviteButton />
+          <div className="flex items-center gap-2">
+            <ArchiveClinicButton clinicId={clinic.id} active={clinic.active} />
+            <InviteButton />
+          </div>
         </div>
 
         {/* Stats */}
@@ -151,37 +156,15 @@ export default async function ClinicDetailPage({
           />
 
           {/* Dentists */}
-          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h2 className="text-sm font-semibold text-gray-900">
-                Dentists ({clinic.dentists.length})
-              </h2>
-            </div>
-            {clinic.dentists.length === 0 ? (
-              <div className="px-6 py-8 text-center text-sm text-gray-500">
-                No dentists registered for this clinic.
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {clinic.dentists.map((dentist) => (
-                  <div key={dentist.id} className="px-6 py-3">
-                    <p className="text-sm font-medium text-gray-900">{dentist.name}</p>
-                    <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-gray-500">
-                      {dentist.email && <span>{dentist.email}</span>}
-                      {dentist.gdcNumber && <span>GDC: {dentist.gdcNumber}</span>}
-                      <span
-                        className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                          dentist.active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                        }`}
-                      >
-                        {dentist.active ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <DentistList
+            dentists={clinic.dentists.map(d => ({
+              id: d.id,
+              name: d.name,
+              email: d.email,
+              gdcNumber: d.gdcNumber,
+              active: d.active,
+            }))}
+          />
         </div>
 
         {/* Right Column: Recent Cases + Invoices */}
@@ -323,4 +306,8 @@ function InviteButton() {
       Invite Clinic Admin
     </Link>
   )
+}
+
+function ArchiveClinicButton({ clinicId, active }: { clinicId: string; active: boolean }) {
+  return <ArchiveClinicButtonClient clinicId={clinicId} active={active} />
 }
