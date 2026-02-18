@@ -175,6 +175,7 @@ model Case {
   priority      String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
   dueDate       DateTime?
   notes         String?
+  fileUrl       String?  // File upload URL (e.g. from JotForm ZIP upload)
   source        String   @default("MANUAL") // MANUAL | WEBSITE | JOTFORM
   externalRef   String?  // External reference (Jotform ID, Monday item ID, etc.)
   createdAt     DateTime @default(now())
