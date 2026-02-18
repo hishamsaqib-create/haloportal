@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { signIn, getSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Logo } from '@/components/shared/logo'
 
@@ -13,7 +13,7 @@ function LoginForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const callbackUrl = searchParams.get('callbackUrl') || '/'
+  const callbackUrl = searchParams.get('callbackUrl')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -24,15 +24,28 @@ function LoginForm() {
       email,
       password,
       redirect: false,
-      callbackUrl,
     })
 
-    setLoading(false)
-
     if (result?.error) {
+      setLoading(false)
       setError('Invalid email or password')
-    } else if (result?.url) {
-      router.push(result.url)
+      return
+    }
+
+    // If there's an explicit callback URL, use it
+    if (callbackUrl) {
+      router.push(callbackUrl)
+      return
+    }
+
+    // Otherwise, fetch the session and redirect based on user type
+    const session = await getSession()
+    if (session?.user?.userType === 'DENTIST') {
+      router.push('/dentist/dashboard')
+    } else if (session?.user?.userType === 'CLINIC') {
+      router.push('/clinic/dashboard')
+    } else {
+      router.push('/lab/dashboard')
     }
   }
 
