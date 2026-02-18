@@ -194,7 +194,7 @@ export default function DSDFormPage() {
               <label className="block text-xs text-gray-500 mb-1.5">Teeth on DSD *</label>
               <input type="text" value={teethOnDsd} onChange={(e) => setTeethOnDsd(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400"
-                placeholder="e.g. 13-23 (Upper anteriors)" required />
+                placeholder="e.g. UR3-UL3 (Upper anteriors)" required />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

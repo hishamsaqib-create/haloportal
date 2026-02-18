@@ -123,16 +123,17 @@ export async function POST(req: NextRequest) {
 
     const qty = quantity ? parseInt(quantity) || 1 : 1
 
-    // Parse tooth numbers
+    // Parse tooth numbers (UK notation: UR1-UR8, UL1-UL8, LR1-LR8, LL1-LL8)
     const rawTeeth = teethNeeded || teethOnDsd
     let toothNumbersJson: string | null = null
     if (rawTeeth) {
       const str = Array.isArray(rawTeeth) ? rawTeeth.join(',') : String(rawTeeth)
-      const numbers = str
+      const ukPattern = /^(UR|UL|LR|LL)[1-8]$/i
+      const teeth = str
         .split(/[\s,;]+/)
-        .map((t: string) => parseInt(t.trim()))
-        .filter((n: number) => !isNaN(n) && n >= 1 && n <= 48)
-      if (numbers.length) toothNumbersJson = JSON.stringify(numbers)
+        .map((t: string) => t.trim().toUpperCase())
+        .filter((t: string) => ukPattern.test(t))
+      if (teeth.length) toothNumbersJson = JSON.stringify(teeth)
     }
 
     // Calculate pricing

@@ -41,11 +41,11 @@ export function calculateLineTotal(
   return unitPrice * qty * toothCount
 }
 
-export function parseToothNumbers(json: string | null | undefined): number[] {
+export function parseToothNumbers(json: string | null | undefined): (string | number)[] {
   if (!json) return []
   try {
     const parsed = JSON.parse(json)
-    return Array.isArray(parsed) ? parsed.filter((n): n is number => typeof n === 'number') : []
+    return Array.isArray(parsed) ? parsed.filter((n): n is string | number => typeof n === 'number' || typeof n === 'string') : []
   } catch {
     return []
   }

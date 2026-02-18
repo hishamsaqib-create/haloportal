@@ -42,6 +42,7 @@ model User {
   generatedDamas    DAMASPrescription[]
   sentMessages      EmailMessage[]   @relation("SentMessages")
   createdInvites    UserInvite[]
+  uploadedFiles     CaseFile[]       @relation("UploadedFiles")
 
   @@index([clinicId])
   @@index([dentistId])
@@ -195,6 +196,7 @@ model Case {
   prescriptions     DAMASPrescription[]
   auditLogs         AuditLog[]
   whatsappMessages  WhatsAppMessage[]
+  files             CaseFile[]
 
   @@index([clinicId])
   @@index([dentistId])
@@ -454,6 +456,24 @@ model DAMASPrescription {
 
   case            Case @relation(fields: [caseId], references: [id])
   generatedBy     User @relation(fields: [generatedById], references: [id])
+
+  @@index([caseId])
+}
+
+model CaseFile {
+  id          String   @id @default(uuid())
+  caseId      String
+  fileName    String
+  fileType    String   // stl | html | pdf | image | other
+  fileUrl     String   // URL or path to the file
+  fileSize    Int?     // Size in bytes
+  description String?
+  uploadedById String?
+  sharedWithDentist Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  uploadedBy  User?    @relation("UploadedFiles", fields: [uploadedById], references: [id])
 
   @@index([caseId])
 }

@@ -15,6 +15,7 @@ import {
 } from '@/lib/constants'
 import Link from 'next/link'
 import { CaseActions } from './case-actions'
+import { CaseFilesTab } from './case-files-tab'
 
 export default async function CaseDetailPage({
   params,
@@ -81,6 +82,12 @@ export default async function CaseDetailPage({
         orderBy: { createdAt: 'desc' },
         take: 100,
       },
+      files: {
+        include: {
+          uploadedBy: { select: { name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      },
     },
   })
 
@@ -115,6 +122,7 @@ export default async function CaseDetailPage({
     { key: 'items', label: `Items (${caseData.items.length})` },
     { key: 'outsourcing', label: `Outsourcing (${caseData.outsourceOrders.length})` },
     { key: 'communications', label: `Communications (${caseData.emailThreads.length})` },
+    { key: 'files', label: `Files (${caseData.files.length})` },
     { key: 'remakes', label: `Remakes (${caseData.remakes.length})` },
     { key: 'audit', label: 'Audit Log' },
   ]
@@ -525,6 +533,10 @@ export default async function CaseDetailPage({
             ))
           )}
         </div>
+      )}
+
+      {activeTab === 'files' && (
+        <CaseFilesTab caseId={caseData.id} initialFiles={caseData.files} />
       )}
 
       {activeTab === 'remakes' && (

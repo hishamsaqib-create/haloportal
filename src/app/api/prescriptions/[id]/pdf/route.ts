@@ -34,9 +34,11 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const toothDisplay = (json: string | null) => {
       if (!json) return '—'
       try {
-        return JSON.parse(json).join(', ')
+        const parsed = JSON.parse(json)
+        if (!Array.isArray(parsed) || parsed.length === 0) return '—'
+        return parsed.join(', ')
       } catch {
-        return '—'
+        return json || '—'
       }
     }
 

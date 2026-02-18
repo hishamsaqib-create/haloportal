@@ -29,14 +29,21 @@ interface CaseItem {
   productId: string
   description: string
   qty: number
-  toothNumbers: number[]
+  toothNumbers: string[]
   material: string
   shade: string
   notes: string
   unitPrice: number
 }
 
-const TOOTH_NUMBERS = Array.from({ length: 32 }, (_, i) => i + 1)
+// UK dental notation: quadrant (UR/UL/LR/LL) + tooth number (1-8)
+const UK_QUADRANTS = [
+  { label: 'UR', teeth: ['UR8', 'UR7', 'UR6', 'UR5', 'UR4', 'UR3', 'UR2', 'UR1'] },
+  { label: 'UL', teeth: ['UL1', 'UL2', 'UL3', 'UL4', 'UL5', 'UL6', 'UL7', 'UL8'] },
+  { label: 'LR', teeth: ['LR8', 'LR7', 'LR6', 'LR5', 'LR4', 'LR3', 'LR2', 'LR1'] },
+  { label: 'LL', teeth: ['LL1', 'LL2', 'LL3', 'LL4', 'LL5', 'LL6', 'LL7', 'LL8'] },
+]
+const ALL_TEETH = UK_QUADRANTS.flatMap(q => q.teeth)
 
 function generatePatientRef(): string {
   const now = new Date()
@@ -191,7 +198,7 @@ export default function NewCasePage() {
     }
   }
 
-  function toggleTooth(index: number, tooth: number) {
+  function toggleTooth(index: number, tooth: string) {
     setItems((prev) => {
       const updated = [...prev]
       const current = updated[index].toothNumbers
@@ -203,7 +210,9 @@ export default function NewCasePage() {
       } else {
         updated[index] = {
           ...updated[index],
-          toothNumbers: [...current, tooth].sort((a, b) => a - b),
+          toothNumbers: [...current, tooth].sort(
+            (a, b) => ALL_TEETH.indexOf(a) - ALL_TEETH.indexOf(b)
+          ),
         }
       }
       return updated
@@ -565,27 +574,68 @@ export default function NewCasePage() {
                   </div>
                 </div>
 
-                {/* Tooth Selection */}
+                {/* Tooth Selection - UK Notation */}
                 <div className="mt-3">
-                  <label className={labelClass}>Tooth Numbers</label>
-                  <div className="flex flex-wrap gap-1">
-                    {TOOTH_NUMBERS.map((tooth) => (
-                      <button
-                        key={tooth}
-                        type="button"
-                        onClick={() => toggleTooth(idx, tooth)}
-                        className={`h-7 w-7 rounded text-xs font-medium transition-colors ${
-                          item.toothNumbers.includes(tooth)
-                            ? 'bg-brand-700 text-white'
-                            : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        {tooth}
-                      </button>
-                    ))}
+                  <label className={labelClass}>Tooth Numbers (UK Notation)</label>
+                  <div className="rounded-lg border border-gray-200 bg-white p-3">
+                    {/* Upper teeth */}
+                    <div className="flex gap-0.5 justify-center mb-0.5">
+                      {UK_QUADRANTS[0].teeth.map((tooth) => (
+                        <button key={tooth} type="button" onClick={() => toggleTooth(idx, tooth)}
+                          className={`h-8 w-10 rounded-t text-[10px] font-semibold transition-colors ${
+                            item.toothNumbers.includes(tooth)
+                              ? 'bg-brand-700 text-white'
+                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
+                          }`}>
+                          {tooth}
+                        </button>
+                      ))}
+                      <div className="w-px bg-gray-300 mx-0.5" />
+                      {UK_QUADRANTS[1].teeth.map((tooth) => (
+                        <button key={tooth} type="button" onClick={() => toggleTooth(idx, tooth)}
+                          className={`h-8 w-10 rounded-t text-[10px] font-semibold transition-colors ${
+                            item.toothNumbers.includes(tooth)
+                              ? 'bg-brand-700 text-white'
+                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
+                          }`}>
+                          {tooth}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Divider */}
+                    <div className="border-t-2 border-gray-300 my-0.5" />
+                    {/* Lower teeth */}
+                    <div className="flex gap-0.5 justify-center mt-0.5">
+                      {UK_QUADRANTS[2].teeth.map((tooth) => (
+                        <button key={tooth} type="button" onClick={() => toggleTooth(idx, tooth)}
+                          className={`h-8 w-10 rounded-b text-[10px] font-semibold transition-colors ${
+                            item.toothNumbers.includes(tooth)
+                              ? 'bg-brand-700 text-white'
+                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
+                          }`}>
+                          {tooth}
+                        </button>
+                      ))}
+                      <div className="w-px bg-gray-300 mx-0.5" />
+                      {UK_QUADRANTS[3].teeth.map((tooth) => (
+                        <button key={tooth} type="button" onClick={() => toggleTooth(idx, tooth)}
+                          className={`h-8 w-10 rounded-b text-[10px] font-semibold transition-colors ${
+                            item.toothNumbers.includes(tooth)
+                              ? 'bg-brand-700 text-white'
+                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
+                          }`}>
+                          {tooth}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Labels */}
+                    <div className="flex justify-between mt-2 px-2">
+                      <span className="text-[10px] text-gray-400 font-medium">Right</span>
+                      <span className="text-[10px] text-gray-400 font-medium">Left</span>
+                    </div>
                   </div>
                   {item.toothNumbers.length > 0 && (
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1.5 text-xs text-gray-500">
                       Selected: {item.toothNumbers.join(', ')}
                     </p>
                   )}

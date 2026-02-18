@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 // Types
 // ---------------------------------------------------------------------------
 
-type SectionKey = 'general' | 'billing' | 'branding' | 'clinics' | 'integrations' | 'workflows' | 'templates'
+type SectionKey = 'general' | 'billing' | 'branding' | 'clinics' | 'integrations' | 'workflows' | 'templates' | 'email-preview'
 
 interface DeptStatusConfig {
   id: string
@@ -83,6 +83,12 @@ const SECTIONS: { key: SectionKey; label: string; icon: React.ReactNode; descrip
     label: 'Email Templates',
     description: 'Automated email configurations',
     icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>,
+  },
+  {
+    key: 'email-preview',
+    label: 'Email Previews',
+    description: 'Preview emails sent to clinics and referrals',
+    icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>,
   },
 ]
 
@@ -207,6 +213,7 @@ export default function SettingsPage() {
   const [savingWorkflows, setSavingWorkflows] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null)
   const [savingTemplate, setSavingTemplate] = useState(false)
+  const [previewEmail, setPreviewEmail] = useState<'clinician' | 'referral' | null>(null)
   const [mondayTestResult, setMondayTestResult] = useState<{ success: boolean; boardName?: string; error?: string } | null>(null)
   const [testingMonday, setTestingMonday] = useState(false)
   const [clinics, setClinics] = useState<ClinicWithDentists[]>([])
@@ -865,6 +872,201 @@ export default function SettingsPage() {
     )
   }
 
+  function renderEmailPreview() {
+    const labName = s('lab_name') || 'Halo Lab'
+    const labEmail = s('lab_email') || 'lab@halolab.co.uk'
+    const labPhone = s('lab_phone') || '+44 20 1234 5678'
+    const labAddress = s('lab_address') || '123 High Street, London'
+
+    const sampleCase = {
+      caseNumber: 'HL-2025-0042',
+      patient: 'JD',
+      department: 'Ceramics',
+      dentist: 'Dr Sarah Smith',
+      clinic: 'Smile Dental Clinic',
+      dueDate: '15 Mar 2025',
+      items: 'Zirconia Crown x2 (UR1, UL1) — Shade A2',
+      notes: 'Please match adjacent teeth. Patient has high smile line.',
+    }
+
+    const clinicianEmailHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+        <div style="background: #1d1d1f; padding: 28px 32px; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: white; letter-spacing: -0.5px;">halo<span style="color: #3b82f6;">lab</span></h1>
+          <p style="margin: 4px 0 0; font-size: 11px; color: #a1a1a6; letter-spacing: 2px; text-transform: uppercase;">Dental Laboratory</p>
+        </div>
+        <div style="padding: 32px;">
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;">
+            <p style="margin: 0; font-size: 14px; font-weight: 600; color: #166534;">New Case Received</p>
+            <p style="margin: 4px 0 0; font-size: 13px; color: #15803d;">Your prescription has been submitted successfully.</p>
+          </div>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+            <tr><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280; width: 120px;">Case Number</td><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; font-weight: 600; color: #1d1d1f; font-family: monospace;">${sampleCase.caseNumber}</td></tr>
+            <tr><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280;">Patient</td><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #1d1d1f;">${sampleCase.patient}</td></tr>
+            <tr><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280;">Department</td><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #1d1d1f;">${sampleCase.department}</td></tr>
+            <tr><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280;">Dentist</td><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #1d1d1f;">${sampleCase.dentist}</td></tr>
+            <tr><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280;">Clinic</td><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #1d1d1f;">${sampleCase.clinic}</td></tr>
+            <tr><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280;">Due Date</td><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #1d1d1f;">${sampleCase.dueDate}</td></tr>
+            <tr><td style="padding: 10px 0; font-size: 12px; color: #6b7280;">Items</td><td style="padding: 10px 0; font-size: 13px; color: #1d1d1f;">${sampleCase.items}</td></tr>
+          </table>
+          ${sampleCase.notes ? `<div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 16px; margin-bottom: 24px;"><p style="margin: 0 0 4px; font-size: 11px; font-weight: 600; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px;">Notes</p><p style="margin: 0; font-size: 13px; color: #78350f;">${sampleCase.notes}</p></div>` : ''}
+          <p style="font-size: 13px; color: #6b7280; margin: 24px 0 0;">We will keep you updated on the progress of this case. If you have any questions, please reply to this email or contact us directly.</p>
+        </div>
+        <div style="background: #f9fafb; padding: 20px 32px; border-top: 1px solid #e5e7eb; text-align: center;">
+          <p style="margin: 0; font-size: 12px; font-weight: 600; color: #374151;">${labName}</p>
+          <p style="margin: 4px 0 0; font-size: 11px; color: #9ca3af;">${labEmail} &middot; ${labPhone}</p>
+          <p style="margin: 2px 0 0; font-size: 11px; color: #9ca3af;">${labAddress}</p>
+        </div>
+      </div>`
+
+    const referralEmailHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+        <div style="background: #1d1d1f; padding: 28px 32px; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: white; letter-spacing: -0.5px;">halo<span style="color: #3b82f6;">lab</span></h1>
+          <p style="margin: 4px 0 0; font-size: 11px; color: #a1a1a6; letter-spacing: 2px; text-transform: uppercase;">Dental Laboratory</p>
+        </div>
+        <div style="padding: 32px;">
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;">
+            <p style="margin: 0; font-size: 14px; font-weight: 600; color: #1e40af;">New Outsource Order</p>
+            <p style="margin: 4px 0 0; font-size: 13px; color: #1d4ed8;">Please action the following outsource request.</p>
+          </div>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+            <tr><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280; width: 120px;">Case</td><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; font-weight: 600; color: #1d1d1f; font-family: monospace;">${sampleCase.caseNumber}</td></tr>
+            <tr><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280;">Patient Ref</td><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #1d1d1f;">${sampleCase.patient}</td></tr>
+            <tr><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280;">Due Date</td><td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; font-weight: 500; color: #dc2626;">${sampleCase.dueDate}</td></tr>
+            <tr><td style="padding: 10px 0; font-size: 12px; color: #6b7280;">Items</td><td style="padding: 10px 0; font-size: 13px; color: #1d1d1f;">${sampleCase.items}</td></tr>
+          </table>
+          ${sampleCase.notes ? `<div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 16px; margin-bottom: 24px;"><p style="margin: 0 0 4px; font-size: 11px; font-weight: 600; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px;">Special Instructions</p><p style="margin: 0; font-size: 13px; color: #78350f;">${sampleCase.notes}</p></div>` : ''}
+          <p style="font-size: 13px; color: #6b7280; margin: 24px 0 0;">Please confirm receipt and estimated delivery date. Contact us if you have any questions regarding this order.</p>
+        </div>
+        <div style="background: #f9fafb; padding: 20px 32px; border-top: 1px solid #e5e7eb; text-align: center;">
+          <p style="margin: 0; font-size: 12px; font-weight: 600; color: #374151;">${labName}</p>
+          <p style="margin: 4px 0 0; font-size: 11px; color: #9ca3af;">${labEmail} &middot; ${labPhone}</p>
+          <p style="margin: 2px 0 0; font-size: 11px; color: #9ca3af;">${labAddress}</p>
+          <p style="margin: 8px 0 0; font-size: 10px; color: #d1d5db;">This is an automated message from ${labName}. Please do not reply directly.</p>
+        </div>
+      </div>`
+
+    return (
+      <div className="space-y-6">
+        <SectionCard title="Email Previews" description="Preview the emails sent to clinicians (dentists) and referral centres when cases are submitted or outsourced.">
+          <div className="space-y-4">
+            <InfoBox title="About email previews">
+              These previews show how emails will appear using your current branding settings (lab name, email, phone, address). Update your branding in the Branding section to see changes reflected here.
+            </InfoBox>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <button
+                onClick={() => setPreviewEmail('clinician')}
+                className={`group rounded-xl border-2 p-5 text-left transition-all ${
+                  previewEmail === 'clinician' ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-400 hover:bg-gray-50/50'
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-100">
+                    <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Clinician Email</p>
+                    <p className="text-xs text-gray-500">Sent to dentist on case creation</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400">Case confirmation with details, items, and notes sent when a prescription is submitted via the portal.</p>
+              </button>
+
+              <button
+                onClick={() => setPreviewEmail('referral')}
+                className={`group rounded-xl border-2 p-5 text-left transition-all ${
+                  previewEmail === 'referral' ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-400 hover:bg-gray-50/50'
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
+                    <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Referral Centre Email</p>
+                    <p className="text-xs text-gray-500">Sent to outsource partners</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400">Outsource order notification with case details, items, due date, and special instructions.</p>
+              </button>
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* Email Preview Panel */}
+        {previewEmail && (
+          <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  {previewEmail === 'clinician' ? 'Clinician Email Preview' : 'Referral Centre Email Preview'}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {previewEmail === 'clinician'
+                    ? 'This email is sent to the dentist/clinic when a new case is created'
+                    : 'This email is sent to referral centres when a case is outsourced'}
+                </p>
+              </div>
+              <button onClick={() => setPreviewEmail(null)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            {/* Email header simulation */}
+            <div className="border-b border-gray-100 px-6 py-3 bg-gray-50/50 space-y-1.5">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-medium text-gray-500 w-12">From:</span>
+                <span className="text-gray-700">{labName} &lt;{labEmail || 'noreply@halolab.co.uk'}&gt;</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-medium text-gray-500 w-12">To:</span>
+                <span className="text-gray-700">
+                  {previewEmail === 'clinician' ? 'dr.smith@smileclinic.co.uk' : 'orders@premiumdental.co.uk'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-medium text-gray-500 w-12">Subject:</span>
+                <span className="font-medium text-gray-900">
+                  {previewEmail === 'clinician'
+                    ? `Case Confirmation - ${sampleCase.caseNumber}`
+                    : `Outsource Order - Case ${sampleCase.caseNumber}`}
+                </span>
+              </div>
+            </div>
+
+            {/* Email body */}
+            <div className="p-6 bg-gray-100">
+              <div
+                className="mx-auto max-w-[600px] rounded-lg shadow-sm overflow-hidden"
+                dangerouslySetInnerHTML={{ __html: previewEmail === 'clinician' ? clinicianEmailHtml : referralEmailHtml }}
+              />
+            </div>
+
+            <div className="border-t border-gray-100 px-6 py-3 flex items-center justify-between bg-gray-50/30">
+              <p className="text-[11px] text-gray-400">
+                This is a sample preview using dummy data. Actual emails use real case data and your configured templates.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPreviewEmail(previewEmail === 'clinician' ? 'referral' : 'clinician')}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  View {previewEmail === 'clinician' ? 'Referral' : 'Clinician'} Email
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   function renderTemplates() {
     if (loadingTemplates) return <LoadingPlaceholder />
     return (
@@ -972,6 +1174,7 @@ export default function SettingsPage() {
   const sectionRenderers: Record<SectionKey, () => React.ReactNode> = {
     general: renderGeneral, billing: renderBilling, branding: renderBranding,
     clinics: renderClinics, integrations: renderIntegrations, workflows: renderWorkflows, templates: renderTemplates,
+    'email-preview': renderEmailPreview,
   }
 
   return (
