@@ -72,10 +72,21 @@ export async function POST(req: NextRequest) {
       patientId = patient.id
     }
 
-    // Generate case number
-    const year = new Date().getFullYear()
-    const randomDigits = String(Math.floor(1000 + Math.random() * 9000))
-    const caseNumber = `HL-${year}-${randomDigits}`
+    // Generate case number: INITIALS-DD-MM
+    const nowDate = new Date()
+    const dd = String(nowDate.getDate()).padStart(2, '0')
+    const mm = String(nowDate.getMonth() + 1).padStart(2, '0')
+    const ptInitials = patientName
+      ? patientName.split(/\s+/).map((w: string) => w[0]?.toUpperCase()).filter(Boolean).join('')
+      : 'XX'
+    let caseNumber = `${ptInitials || 'XX'}-${dd}-${mm}`
+    let existingCase = await prisma.case.findUnique({ where: { caseNumber } })
+    let sfx = 1
+    while (existingCase) {
+      caseNumber = `${ptInitials || 'XX'}-${dd}-${mm}-${sfx}`
+      existingCase = await prisma.case.findUnique({ where: { caseNumber } })
+      sfx++
+    }
 
     // Build description based on department
     const descriptionParts: string[] = []

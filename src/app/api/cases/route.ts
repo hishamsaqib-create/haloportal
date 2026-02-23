@@ -97,11 +97,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const validated = createCaseSchema.parse(body)
 
-    // Generate case number: HL-YYYY-XXXX
-    const year = new Date().getFullYear()
-    const randomDigits = String(Math.floor(1000 + Math.random() * 9000))
-    const caseNumber = `HL-${year}-${randomDigits}`
-
     // Create or find patient if reference provided
     let patientId: string | null = null
     if (validated.patientRef) {
@@ -117,6 +112,22 @@ export async function POST(req: NextRequest) {
         })
       }
       patientId = patient.id
+    }
+
+    // Generate case number: INITIALS-DD-MM (e.g. HS-23-02)
+    const now = new Date()
+    const dd = String(now.getDate()).padStart(2, '0')
+    const mm = String(now.getMonth() + 1).padStart(2, '0')
+    const initials = (validated.patientInitials || 'XX').toUpperCase().replace(/[^A-Z]/g, '') || 'XX'
+    let caseNumber = `${initials}-${dd}-${mm}`
+
+    // Ensure uniqueness by adding a suffix if needed
+    let existing = await prisma.case.findUnique({ where: { caseNumber } })
+    let suffix = 1
+    while (existing) {
+      caseNumber = `${initials}-${dd}-${mm}-${suffix}`
+      existing = await prisma.case.findUnique({ where: { caseNumber } })
+      suffix++
     }
 
     // Resolve pricing for each item

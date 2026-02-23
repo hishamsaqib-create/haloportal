@@ -10,6 +10,7 @@ import {
   CASE_STATUSES,
   REMAKE_REASON_LABELS,
   DEPARTMENT_STATUSES,
+  canViewFinancials,
   type CaseStatus,
   type Department,
 } from '@/lib/constants'
@@ -31,6 +32,7 @@ export default async function CaseDetailPage({
     redirect('/auth/login')
   }
   if (!session) redirect('/auth/login')
+  const showFinancials = canViewFinancials(session.user.role)
 
   const { id } = await params
   const { tab } = await searchParams
@@ -180,10 +182,12 @@ export default async function CaseDetailPage({
                 <span className="font-medium text-gray-500">Created:</span>{' '}
                 {formatDateTime(caseData.createdAt)}
               </span>
-              <span>
-                <span className="font-medium text-gray-500">Value:</span>{' '}
-                {formatCurrency(caseTotal)}
-              </span>
+              {showFinancials && (
+                <span>
+                  <span className="font-medium text-gray-500">Value:</span>{' '}
+                  {formatCurrency(caseTotal)}
+                </span>
+              )}
             </div>
           </div>
           <CaseActions
@@ -337,15 +341,19 @@ export default async function CaseDetailPage({
                         )}
                       </div>
                     </div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {formatCurrency(item.lineTotal)}
-                    </p>
+                    {showFinancials && (
+                      <p className="text-sm font-medium text-gray-900">
+                        {formatCurrency(item.lineTotal)}
+                      </p>
+                    )}
                   </div>
                 ))}
-                <div className="flex items-center justify-between border-t border-gray-200 pt-3">
-                  <p className="text-sm font-semibold text-gray-700">Total</p>
-                  <p className="text-sm font-bold text-gray-900">{formatCurrency(caseTotal)}</p>
-                </div>
+                {showFinancials && (
+                  <div className="flex items-center justify-between border-t border-gray-200 pt-3">
+                    <p className="text-sm font-semibold text-gray-700">Total</p>
+                    <p className="text-sm font-bold text-gray-900">{formatCurrency(caseTotal)}</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -364,8 +372,8 @@ export default async function CaseDetailPage({
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Tooth Numbers</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Material</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Shade</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Unit Price</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Line Total</th>
+                  {showFinancials && <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Unit Price</th>}
+                  {showFinancials && <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Line Total</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -389,24 +397,28 @@ export default async function CaseDetailPage({
                       </td>
                       <td className="px-6 py-3 text-sm text-gray-600">{item.material || '—'}</td>
                       <td className="px-6 py-3 text-sm text-gray-600">{item.shade || '—'}</td>
-                      <td className="px-6 py-3 text-right text-sm text-gray-900">
-                        {formatCurrency(item.unitPrice)}
-                      </td>
-                      <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">
-                        {formatCurrency(item.lineTotal)}
-                      </td>
+                      {showFinancials && (
+                        <td className="px-6 py-3 text-right text-sm text-gray-900">
+                          {formatCurrency(item.unitPrice)}
+                        </td>
+                      )}
+                      {showFinancials && (
+                        <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">
+                          {formatCurrency(item.lineTotal)}
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
                 {caseData.items.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-500">
+                    <td colSpan={showFinancials ? 8 : 6} className="px-6 py-12 text-center text-sm text-gray-500">
                       No items on this case.
                     </td>
                   </tr>
                 )}
               </tbody>
-              {caseData.items.length > 0 && (
+              {caseData.items.length > 0 && showFinancials && (
                 <tfoot>
                   <tr className="border-t border-gray-200 bg-gray-50">
                     <td colSpan={7} className="px-6 py-3 text-right text-sm font-semibold text-gray-700">
@@ -556,7 +568,7 @@ export default async function CaseDetailPage({
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Item</th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Reason</th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Details</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Cost Est.</th>
+                    {showFinancials && <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Cost Est.</th>}
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Created By</th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Date</th>
                   </tr>
@@ -574,9 +586,11 @@ export default async function CaseDetailPage({
                         </span>
                       </td>
                       <td className="px-6 py-3 text-sm text-gray-600">{remake.reasonText || '—'}</td>
-                      <td className="px-6 py-3 text-right text-sm text-gray-900">
-                        {remake.costEstimate != null ? formatCurrency(remake.costEstimate) : '—'}
-                      </td>
+                      {showFinancials && (
+                        <td className="px-6 py-3 text-right text-sm text-gray-900">
+                          {remake.costEstimate != null ? formatCurrency(remake.costEstimate) : '—'}
+                        </td>
+                      )}
                       <td className="px-6 py-3 text-sm text-gray-600">{remake.createdBy.name}</td>
                       <td className="px-6 py-3 text-sm text-gray-600">
                         {formatDateTime(remake.createdAt)}

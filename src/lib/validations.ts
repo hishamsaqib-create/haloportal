@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { DEPARTMENTS, PRIORITIES, CASE_STATUSES, REMAKE_REASON_CODES } from './constants'
+import { DEPARTMENTS, PRIORITIES, CASE_STATUSES, REMAKE_REASON_CODES, DELIVERY_STATUSES, DELIVERY_METHODS } from './constants'
 
 export const createCaseSchema = z.object({
   clinicId: z.string().min(1, 'Clinic is required'),
@@ -86,7 +86,23 @@ export const inviteUserSchema = z.object({
   dentistId: z.string().optional(),
 })
 
+export const createDeliverySchema = z.object({
+  clinicId: z.string().min(1, 'Clinic is required'),
+  caseIds: z.array(z.string()).min(1, 'At least one case is required'),
+  method: z.enum(DELIVERY_METHODS).default('COURIER'),
+  trackingRef: z.string().optional(),
+  driverName: z.string().optional(),
+  notes: z.string().optional(),
+  estimatedDate: z.string().optional(),
+})
+
+export const updateDeliveryStatusSchema = z.object({
+  status: z.enum(DELIVERY_STATUSES),
+  notes: z.string().optional(),
+})
+
 export type CreateCaseInput = z.infer<typeof createCaseSchema>
 export type CreateProductInput = z.infer<typeof createProductSchema>
 export type CreateRemakeInput = z.infer<typeof createRemakeSchema>
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>
+export type CreateDeliveryInput = z.infer<typeof createDeliverySchema>

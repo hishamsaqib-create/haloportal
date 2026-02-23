@@ -33,17 +33,25 @@ const ROLE_LABELS: Record<string, string> = {
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  const [showInvite, setShowInvite] = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [filterType, setFilterType] = useState('')
 
-  // Invite form state
-  const [invEmail, setInvEmail] = useState('')
-  const [invName, setInvName] = useState('')
-  const [invType, setInvType] = useState('INTERNAL')
-  const [invRole, setInvRole] = useState('LAB_STAFF')
-  const [invClinicId, setInvClinicId] = useState('')
+  // Create form state
+  const [formEmail, setFormEmail] = useState('')
+  const [formName, setFormName] = useState('')
+  const [formPassword, setFormPassword] = useState('')
+  const [formType, setFormType] = useState('INTERNAL')
+  const [formRole, setFormRole] = useState('LAB_STAFF')
+  const [formClinicId, setFormClinicId] = useState('')
+
+  // Password reset modal
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [pwUserId, setPwUserId] = useState('')
+  const [pwUserName, setPwUserName] = useState('')
+  const [pwNewPassword, setPwNewPassword] = useState('')
 
   // Clinics for assignment
   const [clinics, setClinics] = useState<{ id: string; name: string }[]>([])
@@ -69,16 +77,16 @@ export default function UsersPage() {
     }
   }
 
-  async function openInviteModal() {
-    setInvEmail('')
-    setInvName('')
-    setInvType('INTERNAL')
-    setInvRole('LAB_STAFF')
-    setInvClinicId('')
+  async function openCreateModal() {
+    setFormEmail('')
+    setFormName('')
+    setFormPassword('')
+    setFormType('INTERNAL')
+    setFormRole('LAB_STAFF')
+    setFormClinicId('')
     setError(null)
-    setShowInvite(true)
+    setShowCreate(true)
 
-    // Load clinics
     try {
       const res = await fetch('/api/clinics')
       if (res.ok) {
@@ -90,31 +98,38 @@ export default function UsersPage() {
     }
   }
 
-  async function handleInvite(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
+    if (formPassword.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
-      const res = await fetch('/api/users/invite', {
+      const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: invEmail,
-          name: invName,
-          userType: invType,
-          role: invRole,
-          clinicId: invClinicId || undefined,
+          email: formEmail,
+          name: formName,
+          password: formPassword,
+          userType: formType,
+          role: formRole,
+          clinicId: formClinicId || undefined,
         }),
       })
       if (res.ok) {
-        setShowInvite(false)
+        setShowCreate(false)
+        setSuccess(`User "${formName}" created successfully`)
+        setTimeout(() => setSuccess(null), 3000)
         fetchUsers()
       } else {
         const data = await res.json()
-        setError(data.error || 'Failed to invite user')
+        setError(data.error || 'Failed to create user')
       }
     } catch {
-      setError('Failed to invite user')
+      setError('Failed to create user')
     } finally {
       setSaving(false)
     }
@@ -133,6 +148,44 @@ export default function UsersPage() {
     } catch {
       // ignore
     }
+  }
+
+  async function handleSetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (pwNewPassword.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/users/${pwUserId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwNewPassword }),
+      })
+      if (res.ok) {
+        setShowPasswordModal(false)
+        setPwNewPassword('')
+        setSuccess(`Password updated for ${pwUserName}`)
+        setTimeout(() => setSuccess(null), 3000)
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Failed to set password')
+      }
+    } catch {
+      setError('Failed to set password')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function openPasswordModal(user: User) {
+    setPwUserId(user.id)
+    setPwUserName(user.name)
+    setPwNewPassword('')
+    setError(null)
+    setShowPasswordModal(true)
   }
 
   function getRolesForType(type: string): string[] {
@@ -156,22 +209,32 @@ export default function UsersPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-          <p className="text-sm text-gray-500">Manage user accounts and invitations</p>
+          <p className="text-sm text-gray-500">Manage user accounts and passwords</p>
         </div>
         <button
-          onClick={openInviteModal}
-          className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800 transition-colors"
+          onClick={openCreateModal}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-gray-800 active:scale-[0.98]"
         >
-          Invite User
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Create User
         </button>
       </div>
+
+      {/* Success banner */}
+      {success && (
+        <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          {success}
+        </div>
+      )}
 
       {/* Filter */}
       <div className="mb-4">
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
         >
           <option value="">All Types</option>
           <option value="INTERNAL">Internal</option>
@@ -181,41 +244,37 @@ export default function UsersPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Clinic</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Last Login</th>
-                <th className="px-6 py-3 text-center text-xs font-medium uppercase text-gray-500">Active</th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Actions</th>
+              <tr className="border-b border-gray-100 bg-gray-50/50">
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Name</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Email</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Type</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Role</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Clinic</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Last Login</th>
+                <th className="px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</th>
+                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-400">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-50">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-500">
-                    Loading users...
-                  </td>
+                  <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-400">Loading users...</td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-500">
-                    No users found.
-                  </td>
+                  <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-400">No users found.</td>
                 </tr>
               ) : (
                 users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
+                  <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-3 text-sm font-medium text-gray-900">{user.name}</td>
                     <td className="px-6 py-3 text-sm text-gray-600">{user.email}</td>
                     <td className="px-6 py-3">
-                      <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                      <span className="inline-flex rounded-lg bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700">
                         {USER_TYPE_LABELS[user.userType] || user.userType}
                       </span>
                     </td>
@@ -223,14 +282,14 @@ export default function UsersPage() {
                       {ROLE_LABELS[user.role] || user.role}
                     </td>
                     <td className="px-6 py-3 text-sm text-gray-600">
-                      {user.clinic?.name || user.dentist?.name || '---'}
+                      {user.clinic?.name || user.dentist?.name || '\u2014'}
                     </td>
-                    <td className="px-6 py-3 text-sm text-gray-500">
+                    <td className="px-6 py-3 text-xs text-gray-500">
                       {user.lastLogin ? formatDateTime(user.lastLogin) : 'Never'}
                     </td>
                     <td className="px-6 py-3 text-center">
                       <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                           user.active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                         }`}
                       >
@@ -238,16 +297,25 @@ export default function UsersPage() {
                       </span>
                     </td>
                     <td className="px-6 py-3 text-right">
-                      <button
-                        onClick={() => toggleActive(user.id, user.active)}
-                        className={`text-sm font-medium ${
-                          user.active
-                            ? 'text-red-600 hover:text-red-700'
-                            : 'text-green-600 hover:text-green-700'
-                        }`}
-                      >
-                        {user.active ? 'Deactivate' : 'Activate'}
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openPasswordModal(user)}
+                          className="text-xs font-medium text-brand-700 hover:text-brand-800"
+                        >
+                          Set Password
+                        </button>
+                        <span className="text-gray-300">|</span>
+                        <button
+                          onClick={() => toggleActive(user.id, user.active)}
+                          className={`text-xs font-medium ${
+                            user.active
+                              ? 'text-red-600 hover:text-red-700'
+                              : 'text-green-600 hover:text-green-700'
+                          }`}
+                        >
+                          {user.active ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -257,15 +325,15 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* Invite Modal */}
-      {showInvite && (
+      {/* Create User Modal */}
+      {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-gray-900">Invite User</h2>
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+              <h2 className="text-lg font-semibold text-gray-900">Create User</h2>
               <button
-                onClick={() => setShowInvite(false)}
-                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                onClick={() => setShowCreate(false)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -273,7 +341,7 @@ export default function UsersPage() {
               </button>
             </div>
 
-            <form onSubmit={handleInvite} className="p-6">
+            <form onSubmit={handleCreate} className="p-6">
               {error && (
                 <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {error}
@@ -282,42 +350,37 @@ export default function UsersPage() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={invEmail}
-                    onChange={(e) => setInvEmail(e.target.value)}
-                    className={inputClass}
-                    required
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <input type="text" value={formName} onChange={(e) => setFormName(e.target.value)} className={inputClass} required />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} className={inputClass} required />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
                   <input
-                    type="text"
-                    value={invName}
-                    onChange={(e) => setInvName(e.target.value)}
+                    type="password"
+                    value={formPassword}
+                    onChange={(e) => setFormPassword(e.target.value)}
                     className={inputClass}
                     required
+                    minLength={6}
+                    placeholder="Min 6 characters"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Type <span className="text-red-500">*</span>
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
                     <select
-                      value={invType}
+                      value={formType}
                       onChange={(e) => {
-                        setInvType(e.target.value)
+                        setFormType(e.target.value)
                         const roles = getRolesForType(e.target.value)
-                        setInvRole(roles[0] || '')
+                        setFormRole(roles[0] || '')
                       }}
                       className={inputClass}
                     >
@@ -328,36 +391,22 @@ export default function UsersPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Role <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={invRole}
-                      onChange={(e) => setInvRole(e.target.value)}
-                      className={inputClass}
-                    >
-                      {getRolesForType(invType).map((role) => (
-                        <option key={role} value={role}>
-                          {ROLE_LABELS[role] || role}
-                        </option>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <select value={formRole} onChange={(e) => setFormRole(e.target.value)} className={inputClass}>
+                      {getRolesForType(formType).map((role) => (
+                        <option key={role} value={role}>{ROLE_LABELS[role] || role}</option>
                       ))}
                     </select>
                   </div>
                 </div>
 
-                {(invType === 'CLINIC' || invType === 'DENTIST') && (
+                {(formType === 'CLINIC' || formType === 'DENTIST') && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Clinic</label>
-                    <select
-                      value={invClinicId}
-                      onChange={(e) => setInvClinicId(e.target.value)}
-                      className={inputClass}
-                    >
+                    <select value={formClinicId} onChange={(e) => setFormClinicId(e.target.value)} className={inputClass}>
                       <option value="">Select clinic</option>
                       {clinics.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
+                        <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
@@ -367,17 +416,79 @@ export default function UsersPage() {
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowInvite(false)}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  onClick={() => setShowCreate(false)}
+                  className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-50 transition-colors"
+                  className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
                 >
-                  {saving ? 'Inviting...' : 'Send Invitation'}
+                  {saving ? 'Creating...' : 'Create User'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Set Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+              <h2 className="text-lg font-semibold text-gray-900">Set Password</h2>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSetPassword} className="p-6">
+              {error && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              <p className="mb-4 text-sm text-gray-600">
+                Set a new password for <span className="font-semibold">{pwUserName}</span>
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New Password *</label>
+                <input
+                  type="password"
+                  value={pwNewPassword}
+                  onChange={(e) => setPwNewPassword(e.target.value)}
+                  className={inputClass}
+                  required
+                  minLength={6}
+                  placeholder="Min 6 characters"
+                  autoFocus
+                />
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                >
+                  {saving ? 'Saving...' : 'Update Password'}
                 </button>
               </div>
             </form>

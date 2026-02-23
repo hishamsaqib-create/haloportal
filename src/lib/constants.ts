@@ -91,6 +91,28 @@ export const DEPARTMENT_LABELS: Record<Department, string> = {
   DSD: 'DSD',
 }
 
+export const DELIVERY_STATUSES = ['PENDING', 'COLLECTED', 'IN_TRANSIT', 'DELIVERED', 'FAILED'] as const
+export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number]
+
+export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
+  PENDING: 'Pending',
+  COLLECTED: 'Collected',
+  IN_TRANSIT: 'In Transit',
+  DELIVERED: 'Delivered',
+  FAILED: 'Failed',
+}
+
+export const DELIVERY_METHODS = ['COURIER', 'ROYAL_MAIL', 'HAND_DELIVERY', 'COLLECTION', 'OTHER'] as const
+export type DeliveryMethod = (typeof DELIVERY_METHODS)[number]
+
+export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
+  COURIER: 'Courier',
+  ROYAL_MAIL: 'Royal Mail',
+  HAND_DELIVERY: 'Hand Delivery',
+  COLLECTION: 'Collection',
+  OTHER: 'Other',
+}
+
 export const INTERNAL_ROLES: Role[] = ['SUPER_ADMIN', 'LAB_MANAGER', 'LAB_STAFF']
 export const CLINIC_ROLES: Role[] = ['CLINIC_ADMIN', 'CLINIC_FINANCE']
 export const DENTIST_ROLES: Role[] = ['DENTIST_USER']
@@ -147,4 +169,9 @@ export function hasPermission(role: Role, permission: string): boolean {
   if (!perms) return false
   if (perms.includes('*')) return true
   return perms.includes(permission)
+}
+
+/** Roles that can view financial data (costs, prices, invoices, revenue) */
+export function canViewFinancials(role: string): boolean {
+  return role === 'SUPER_ADMIN' || role === 'LAB_MANAGER'
 }
