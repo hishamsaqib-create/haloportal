@@ -17,7 +17,7 @@ interface Prescription {
     department: string
     clinic: { name: string }
     dentist: { name: string }
-    patient: { reference: string; initials: string | null } | null
+    patient: { reference: string; firstName: string | null; lastName: string | null; initials: string | null } | null
   }
   generatedBy: {
     id: string

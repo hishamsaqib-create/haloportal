@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         include: {
           clinic: { select: { id: true, name: true } },
           dentist: { select: { id: true, name: true } },
-          patient: { select: { id: true, reference: true, initials: true } },
+          patient: { select: { id: true, reference: true, firstName: true, lastName: true, initials: true } },
           items: {
             include: {
               product: { select: { id: true, name: true, sku: true } },

@@ -42,7 +42,7 @@ export default async function DentistDetailPage({
           where: { dentistId: id },
           include: {
             clinic: { select: { name: true } },
-            patient: { select: { reference: true, initials: true } },
+            patient: { select: { reference: true, firstName: true, lastName: true, initials: true } },
             items: { select: { lineTotal: true } },
           },
           orderBy: { createdAt: 'desc' },

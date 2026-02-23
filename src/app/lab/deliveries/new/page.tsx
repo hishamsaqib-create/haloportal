@@ -19,7 +19,7 @@ interface CaseOption {
   status: string
   priority: string
   dueDate: string | null
-  patient: { reference: string; initials: string | null } | null
+  patient: { reference: string; firstName: string | null; lastName: string | null; initials: string | null } | null
   dentist: { name: string }
   items: { description: string; lineTotal: number }[]
 }

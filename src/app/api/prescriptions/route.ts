@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
               department: true,
               clinic: { select: { id: true, name: true } },
               dentist: { select: { id: true, name: true } },
-              patient: { select: { id: true, reference: true, initials: true } },
+              patient: { select: { id: true, reference: true, firstName: true, lastName: true, initials: true } },
             },
           },
           generatedBy: {

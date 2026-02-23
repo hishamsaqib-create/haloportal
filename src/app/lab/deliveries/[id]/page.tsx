@@ -42,7 +42,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
               status: true,
               priority: true,
               dueDate: true,
-              patient: { select: { id: true, reference: true, initials: true } },
+              patient: { select: { id: true, reference: true, firstName: true, lastName: true, initials: true } },
               dentist: { select: { id: true, name: true } },
               items: { select: { id: true, description: true, qty: true, lineTotal: true } },
             },
