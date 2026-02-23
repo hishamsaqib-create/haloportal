@@ -6,6 +6,10 @@ import { Toaster } from 'react-hot-toast'
 export const metadata: Metadata = {
   title: 'Halo Dental Lab',
   description: 'Lab management platform for Halo Dental Lab',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
 }
 
 export default function RootLayout({

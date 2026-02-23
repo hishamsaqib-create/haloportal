@@ -13,6 +13,8 @@ datasource db {
 // Role: SUPER_ADMIN | LAB_MANAGER | LAB_STAFF | CLINIC_ADMIN | CLINIC_FINANCE | DENTIST_USER
 // Department: CERAMICS | APPLIANCES | DSD
 // CaseStatus: NEW | REVIEWED | IN_PRODUCTION | SENT_OUTSOURCE | RECEIVED | QC | READY | DISPATCHED | COMPLETED | CANCELLED
+// DeliveryStatus: PENDING | COLLECTED | IN_TRANSIT | DELIVERED | FAILED
+// DeliveryMethod: COURIER | ROYAL_MAIL | HAND_DELIVERY | COLLECTION | OTHER
 // InvoiceStatus: DRAFT | SENT | PAID | OVERDUE | CANCELLED
 // OutsourceStatus: QUEUED | SENT | RECEIVED | RETURNED
 // SupplierInvoiceStatus: UNPAID | PAID | DISPUTED
@@ -43,6 +45,7 @@ model User {
   sentMessages      EmailMessage[]   @relation("SentMessages")
   createdInvites    UserInvite[]
   uploadedFiles     CaseFile[]       @relation("UploadedFiles")
+  createdDeliveries Delivery[]       @relation("CreatedDeliveries")
 
   @@index([clinicId])
   @@index([dentistId])
@@ -92,6 +95,7 @@ model Clinic {
   users           User[]
   invites         UserInvite[]
   pricingRules    PricingRule[]
+  deliveries      Delivery[]
 }
 
 model Dentist {
@@ -121,7 +125,9 @@ model Dentist {
 model Patient {
   id            String   @id @default(uuid())
   reference     String   @unique // Lab reference number
-  initials      String?  // GDPR: minimise PHI
+  firstName     String?
+  lastName      String?
+  initials      String?
   dob           String?  // Optional, stored as string for flexibility
   notes         String?
   createdAt     DateTime @default(now())
@@ -197,6 +203,7 @@ model Case {
   auditLogs         AuditLog[]
   whatsappMessages  WhatsAppMessage[]
   files             CaseFile[]
+  deliveryItems     DeliveryItem[]
 
   @@index([clinicId])
   @@index([dentistId])
@@ -475,6 +482,46 @@ model CaseFile {
   case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
   uploadedBy  User?    @relation("UploadedFiles", fields: [uploadedById], references: [id])
 
+  @@index([caseId])
+}
+
+model Delivery {
+  id              String   @id @default(uuid())
+  deliveryNumber  String   @unique // e.g. DEL-2026-0001
+  clinicId        String
+  status          String   @default("PENDING") // PENDING | COLLECTED | IN_TRANSIT | DELIVERED | FAILED
+  method          String   @default("COURIER") // COURIER | ROYAL_MAIL | HAND_DELIVERY | COLLECTION | OTHER
+  trackingRef     String?
+  driverName      String?
+  notes           String?
+  estimatedDate   DateTime?
+  dispatchedAt    DateTime?
+  deliveredAt     DateTime?
+  createdById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  clinic          Clinic   @relation(fields: [clinicId], references: [id])
+  createdBy       User?    @relation("CreatedDeliveries", fields: [createdById], references: [id])
+  items           DeliveryItem[]
+
+  @@index([clinicId])
+  @@index([status])
+  @@index([dispatchedAt])
+  @@index([createdAt])
+}
+
+model DeliveryItem {
+  id          String   @id @default(uuid())
+  deliveryId  String
+  caseId      String
+  createdAt   DateTime @default(now())
+
+  delivery    Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  case        Case     @relation(fields: [caseId], references: [id])
+
+  @@unique([deliveryId, caseId])
+  @@index([deliveryId])
   @@index([caseId])
 }
 

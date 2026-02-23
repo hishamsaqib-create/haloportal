@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 import { OUTSOURCE_STATUSES } from '@/lib/constants'
@@ -18,12 +19,30 @@ interface OutsourceOrder {
     id: string
     caseNumber: string
     department: string
+    clinic?: { name: string }
+    patient?: { reference: string; initials: string | null }
   }
   referralCentre: {
     id: string
     name: string
     email: string | null
   }
+}
+
+interface ReferralCentre {
+  id: string
+  name: string
+  email: string | null
+  defaultLeadTimeDays: number
+}
+
+interface CaseInfo {
+  id: string
+  caseNumber: string
+  department: string
+  status: string
+  clinic: { name: string }
+  patient: { reference: string; initials: string | null } | null
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -41,18 +60,24 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function OutsourcingPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const caseIdParam = searchParams.get('caseId')
+
   const [orders, setOrders] = useState<OutsourceOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('')
   const [filterCentre, setFilterCentre] = useState('')
-  const [referralCentres, setReferralCentres] = useState<{ id: string; name: string }[]>([])
+  const [referralCentres, setReferralCentres] = useState<ReferralCentre[]>([])
 
-  useEffect(() => {
-    fetchOrders()
-    fetchCentres()
-  }, [filterStatus, filterCentre])
+  // New order form state
+  const [showNewOrderForm, setShowNewOrderForm] = useState(!!caseIdParam)
+  const [caseInfo, setCaseInfo] = useState<CaseInfo | null>(null)
+  const [selectedCentreId, setSelectedCentreId] = useState('')
+  const [orderNotes, setOrderNotes] = useState('')
+  const [creating, setCreating] = useState(false)
 
-  async function fetchOrders() {
+  const fetchOrders = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams()
     if (filterStatus) params.set('status', filterStatus)
@@ -68,7 +93,7 @@ export default function OutsourcingPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filterStatus, filterCentre])
 
   async function fetchCentres() {
     try {
@@ -79,6 +104,55 @@ export default function OutsourcingPage() {
       }
     } catch {
       // ignore
+    }
+  }
+
+  // Fetch case info if caseId is provided
+  useEffect(() => {
+    if (caseIdParam) {
+      fetch(`/api/cases/${caseIdParam}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.data) setCaseInfo(data.data)
+        })
+        .catch(() => {})
+    }
+  }, [caseIdParam])
+
+  useEffect(() => {
+    fetchOrders()
+    fetchCentres()
+  }, [fetchOrders])
+
+  async function createOutsourceOrder() {
+    if (!caseIdParam || !selectedCentreId) return
+    setCreating(true)
+    try {
+      const res = await fetch('/api/outsource', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caseId: caseIdParam,
+          referralCentreId: selectedCentreId,
+          notes: orderNotes || undefined,
+        }),
+      })
+      if (res.ok) {
+        setShowNewOrderForm(false)
+        setSelectedCentreId('')
+        setOrderNotes('')
+        setCaseInfo(null)
+        // Remove caseId from URL
+        router.replace('/lab/outsourcing')
+        fetchOrders()
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Failed to create outsource order')
+      }
+    } catch {
+      alert('Failed to create outsource order')
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -103,10 +177,102 @@ export default function OutsourcingPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Outsource Orders</h1>
-        <p className="text-sm text-gray-500">Track outsourced work to referral centres</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Outsource Orders</h1>
+          <p className="text-sm text-gray-500">Track outsourced work to referral centres</p>
+        </div>
       </div>
+
+      {/* New Order Form */}
+      {showNewOrderForm && caseIdParam && (
+        <div className="mb-6 rounded-2xl border border-purple-200 bg-purple-50 p-6">
+          <h2 className="mb-4 text-base font-semibold text-gray-900">Create Outsource Order</h2>
+
+          {/* Case info */}
+          {caseInfo ? (
+            <div className="mb-4 rounded-xl border border-purple-100 bg-white p-4">
+              <p className="text-xs font-medium uppercase text-gray-400">Case</p>
+              <div className="mt-1 flex items-center gap-3">
+                <Link href={`/lab/cases/${caseInfo.id}`} className="text-sm font-semibold text-brand-700 hover:underline">
+                  {caseInfo.caseNumber}
+                </Link>
+                <span className="text-sm text-gray-600">{caseInfo.clinic?.name}</span>
+                {caseInfo.patient && (
+                  <span className="text-sm text-gray-500">
+                    {caseInfo.patient.initials || caseInfo.patient.reference}
+                  </span>
+                )}
+                <span className="inline-flex rounded-lg bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700">
+                  {caseInfo.department}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-4 text-sm text-gray-500">Loading case information...</div>
+          )}
+
+          {/* Referral Centre Selection */}
+          <div className="mb-4">
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Referral Centre</label>
+            {referralCentres.length === 0 ? (
+              <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
+                <p className="text-sm text-orange-700">
+                  No referral centres configured.{' '}
+                  <Link href="/lab/referral-centres" className="font-medium underline">
+                    Add one first
+                  </Link>
+                </p>
+              </div>
+            ) : (
+              <select
+                value={selectedCentreId}
+                onChange={(e) => setSelectedCentreId(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              >
+                <option value="">Select a referral centre...</option>
+                {referralCentres.map((rc) => (
+                  <option key={rc.id} value={rc.id}>
+                    {rc.name} {rc.email ? `(${rc.email})` : ''} — {rc.defaultLeadTimeDays} day lead time
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Notes */}
+          <div className="mb-4">
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Notes (optional)</label>
+            <textarea
+              value={orderNotes}
+              onChange={(e) => setOrderNotes(e.target.value)}
+              rows={2}
+              placeholder="Any special instructions for the referral centre..."
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={createOutsourceOrder}
+              disabled={!selectedCentreId || creating}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-purple-700 active:scale-[0.98] disabled:opacity-50"
+            >
+              {creating ? 'Creating...' : 'Send to Outsource'}
+            </button>
+            <button
+              onClick={() => {
+                setShowNewOrderForm(false)
+                router.replace('/lab/outsourcing')
+              }}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="mb-4 flex flex-wrap gap-3">

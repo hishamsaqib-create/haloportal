@@ -6,10 +6,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function generateCaseNumber(): string {
+export function generateCaseNumber(initials?: string): string {
+  const now = new Date()
+  const dd = String(now.getDate()).padStart(2, '0')
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const ptInitials = (initials || 'XX').toUpperCase().replace(/[^A-Z]/g, '') || 'XX'
+  return `${ptInitials}-${dd}-${mm}`
+}
+
+export function generateDeliveryNumber(): string {
   const year = new Date().getFullYear()
   const random = Math.floor(Math.random() * 9999).toString().padStart(4, '0')
-  return `HL-${year}-${random}`
+  return `DEL-${year}-${random}`
 }
 
 export function generateInvoiceNumber(): string {

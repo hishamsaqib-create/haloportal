@@ -20,6 +20,12 @@ const FIELD_MAP: Record<string, string> = {
   'patient_reference': 'patientRef',
   'patientInitials': 'patientInitials',
   'patient_initials': 'patientInitials',
+  'patientName': 'patientName',
+  'patient_name': 'patientName',
+  'patientFirstName': 'patientFirstName',
+  'patient_first_name': 'patientFirstName',
+  'patientLastName': 'patientLastName',
+  'patient_last_name': 'patientLastName',
 
   // Case fields
   'department': 'department',
@@ -50,6 +56,9 @@ interface ParsedFormData {
   dentistName?: string
   patientRef?: string
   patientInitials?: string
+  patientName?: string
+  patientFirstName?: string
+  patientLastName?: string
   department?: string
   priority?: string
   dueDate?: string
@@ -158,9 +167,19 @@ export async function POST(req: NextRequest) {
         where: { reference: parsed.patientRef },
       })
       if (!patient) {
+        // Derive firstName/lastName from patientName or dedicated fields
+        let firstName = parsed.patientFirstName || null
+        let lastName = parsed.patientLastName || null
+        if (!firstName && parsed.patientName) {
+          const parts = parsed.patientName.trim().split(/\s+/)
+          firstName = parts[0] || null
+          lastName = parts.length > 1 ? parts.slice(1).join(' ') : null
+        }
         patient = await prisma.patient.create({
           data: {
             reference: parsed.patientRef,
+            firstName,
+            lastName,
             initials: parsed.patientInitials || null,
           },
         })
@@ -168,10 +187,19 @@ export async function POST(req: NextRequest) {
       patientId = patient.id
     }
 
-    // Generate case number
-    const year = new Date().getFullYear()
-    const randomDigits = String(Math.floor(1000 + Math.random() * 9000))
-    const caseNumber = `HL-${year}-${randomDigits}`
+    // Generate case number: INITIALS-DD-MM
+    const nowDate = new Date()
+    const dd = String(nowDate.getDate()).padStart(2, '0')
+    const mm = String(nowDate.getMonth() + 1).padStart(2, '0')
+    const ptInitials = (parsed.patientInitials || 'XX').toUpperCase().replace(/[^A-Z]/g, '') || 'XX'
+    let caseNumber = `${ptInitials}-${dd}-${mm}`
+    let existingCase = await prisma.case.findUnique({ where: { caseNumber } })
+    let sfx = 1
+    while (existingCase) {
+      caseNumber = `${ptInitials}-${dd}-${mm}-${sfx}`
+      existingCase = await prisma.case.findUnique({ where: { caseNumber } })
+      sfx++
+    }
 
     // Determine department (default to CERAMICS)
     const department = parsed.department?.toUpperCase() || 'CERAMICS'
@@ -252,7 +280,7 @@ export async function POST(req: NextRequest) {
       include: {
         clinic: { select: { id: true, name: true } },
         dentist: { select: { id: true, name: true } },
-        patient: { select: { id: true, reference: true, initials: true } },
+        patient: { select: { id: true, reference: true, firstName: true, lastName: true, initials: true } },
         items: true,
       },
     })

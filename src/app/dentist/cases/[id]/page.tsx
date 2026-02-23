@@ -162,7 +162,7 @@ export default async function DentistCaseDetailPage({ params }: { params: { id: 
               </div>
               <div>
                 <dt className="text-xs text-gray-500">Patient</dt>
-                <dd className="text-sm text-gray-900">{caseData.patient?.initials || caseData.patient?.reference || '—'}</dd>
+                <dd className="text-sm text-gray-900">{caseData.patient ? [caseData.patient.firstName, caseData.patient.lastName].filter(Boolean).join(' ') || caseData.patient.initials || caseData.patient.reference : '—'}</dd>
               </div>
               <div>
                 <dt className="text-xs text-gray-500">Due Date</dt>

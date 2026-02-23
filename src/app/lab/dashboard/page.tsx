@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { formatDate, formatCurrency, getDueStatus, formatRelative } from '@/lib/utils'
-import { CASE_STATUS_LABELS, DEPARTMENT_LABELS, PRIORITY_LABELS } from '@/lib/constants'
+import { CASE_STATUS_LABELS, DEPARTMENT_LABELS, PRIORITY_LABELS, DELIVERY_STATUS_LABELS, DELIVERY_METHOD_LABELS, canViewFinancials, type DeliveryStatus, type DeliveryMethod } from '@/lib/constants'
 import Link from 'next/link'
 
 export default async function LabDashboard() {
@@ -14,6 +14,8 @@ export default async function LabDashboard() {
     redirect('/auth/login')
   }
   if (!session) redirect('/auth/login')
+
+  const showFinancials = canViewFinancials(session.user.role)
 
   const now = new Date()
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -37,6 +39,10 @@ export default async function LabDashboard() {
     recentActivity,
     clinicCount,
     dentistCount,
+    deliveriesPending,
+    deliveriesInTransit,
+    deliveredToday,
+    recentDeliveries,
   ] = await Promise.all([
     prisma.case.count(),
     prisma.case.count({ where: { status: { notIn: ['COMPLETED', 'CANCELLED'] } } }),
@@ -91,6 +97,19 @@ export default async function LabDashboard() {
     }),
     prisma.clinic.count({ where: { active: true } }),
     prisma.dentist.count({ where: { active: true } }),
+    // Delivery stats
+    prisma.delivery.count({ where: { status: { in: ['PENDING', 'COLLECTED'] } } }),
+    prisma.delivery.count({ where: { status: 'IN_TRANSIT' } }),
+    prisma.delivery.count({ where: { status: 'DELIVERED', deliveredAt: { gte: todayStart } } }),
+    prisma.delivery.findMany({
+      where: { status: { in: ['PENDING', 'COLLECTED', 'IN_TRANSIT'] } },
+      include: {
+        clinic: { select: { name: true } },
+        items: { select: { id: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    }),
   ])
 
   // Calculate urgency: cases that are overdue or due today
@@ -173,11 +192,12 @@ export default async function LabDashboard() {
       </div>
 
       {/* Secondary Stats Row */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-6">
         <MiniStat title="New Today" value={casesNewToday} />
         <MiniStat title="Completed (Month)" value={completedThisMonth} />
         <MiniStat title="Outsource Pending" value={outsourcePending} href="/lab/outsourcing" />
-        <MiniStat title="Outstanding AR" value={formatCurrency(unpaidInvoices._sum.total || 0)} subtitle={`${unpaidInvoices._count} inv`} href="/lab/invoices?status=unpaid" />
+        <MiniStat title="Deliveries Pending" value={deliveriesPending + deliveriesInTransit} subtitle={`${deliveriesInTransit} in transit`} href="/lab/deliveries" />
+        {showFinancials && <MiniStat title="Outstanding AR" value={formatCurrency(unpaidInvoices._sum.total || 0)} subtitle={`${unpaidInvoices._count} inv`} href="/lab/invoices?status=unpaid" />}
         <MiniStat title="Remakes (Month)" value={remakeCount} href="/lab/remakes" />
       </div>
 
@@ -219,7 +239,11 @@ export default async function LabDashboard() {
                           </Link>
                         </td>
                         <td className="px-6 py-3 text-sm text-gray-600">
-                          {c.patient?.initials || c.patient?.reference || '\u2014'}
+                          {c.patient ? (
+                            <Link href={`/lab/patients/${c.patient.id}`} className="hover:text-brand-700 hover:underline">
+                              {[c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference}
+                            </Link>
+                          ) : '\u2014'}
                         </td>
                         <td className="px-6 py-3">
                           <div className="text-sm text-gray-900">{c.clinic.name}</div>
@@ -319,16 +343,61 @@ export default async function LabDashboard() {
             </div>
           </div>
 
+          {/* Active Deliveries */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">Active Deliveries</h3>
+              <Link href="/lab/deliveries" className="text-xs font-medium text-gray-400 hover:text-gray-700 transition-colors">
+                View all &rarr;
+              </Link>
+            </div>
+            {recentDeliveries.length === 0 ? (
+              <div className="py-4 text-center">
+                <p className="text-xs text-gray-400">No active deliveries</p>
+                <Link href="/lab/deliveries/new" className="mt-1 inline-block text-xs font-medium text-brand-700 hover:text-brand-800">
+                  Create delivery &rarr;
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {recentDeliveries.map((del) => (
+                  <Link
+                    key={del.id}
+                    href={`/lab/deliveries/${del.id}`}
+                    className="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2 transition-all hover:border-gray-200 hover:bg-gray-50"
+                  >
+                    <div>
+                      <p className="text-xs font-medium text-gray-900">{del.clinic.name}</p>
+                      <p className="text-[10px] text-gray-400">{del.items.length} case{del.items.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      del.status === 'PENDING' ? 'bg-yellow-50 text-yellow-700' :
+                      del.status === 'COLLECTED' ? 'bg-blue-50 text-blue-700' :
+                      'bg-indigo-50 text-indigo-700'
+                    }`}>
+                      {DELIVERY_STATUS_LABELS[del.status as DeliveryStatus] || del.status}
+                    </span>
+                  </Link>
+                ))}
+                {deliveredToday > 0 && (
+                  <p className="pt-1 text-center text-[10px] text-green-600 font-medium">
+                    {deliveredToday} delivered today
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Quick Actions */}
           <div className="rounded-2xl border border-gray-200 bg-white p-5">
             <h3 className="mb-3 text-sm font-semibold text-gray-900">Quick Actions</h3>
             <div className="grid grid-cols-2 gap-2">
               <QuickAction href="/lab/cases/new" label="New Case" icon="plus" />
-              <QuickAction href="/lab/invoices" label="Invoices" icon="invoice" />
+              <QuickAction href="/lab/deliveries/new" label="Dispatch" icon="truck" />
+              {showFinancials && <QuickAction href="/lab/invoices" label="Invoices" icon="invoice" />}
               <QuickAction href="/lab/outsourcing" label="Outsource" icon="send" />
-              <QuickAction href="/lab/whatsapp" label="WhatsApp" icon="message" />
               <QuickAction href="/lab/prescriptions" label="Prescriptions" icon="clipboard" />
-              <QuickAction href="/lab/reporting" label="Reports" icon="chart" />
+              {showFinancials && <QuickAction href="/lab/reporting" label="Reports" icon="chart" />}
             </div>
           </div>
 
@@ -520,6 +589,8 @@ function QuickActionIcon({ type }: { type: string }) {
       return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15a2.25 2.25 0 0 1 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z" /></svg>
     case 'chart':
       return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
+    case 'truck':
+      return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>
     default:
       return null
   }

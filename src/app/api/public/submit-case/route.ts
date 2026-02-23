@@ -53,8 +53,10 @@ export async function POST(req: NextRequest) {
     // Create or find patient
     let patientId: string | null = null
     if (patientName) {
-      const initials = patientName
-        .split(/\s+/)
+      const nameParts = patientName.trim().split(/\s+/)
+      const firstName = nameParts[0] || null
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null
+      const initials = nameParts
         .map((w: string) => w[0]?.toUpperCase())
         .filter(Boolean)
         .join('')
@@ -65,6 +67,8 @@ export async function POST(req: NextRequest) {
       const patient = await prisma.patient.create({
         data: {
           reference,
+          firstName,
+          lastName,
           initials,
           dob: patientDob || null,
         },
@@ -72,10 +76,21 @@ export async function POST(req: NextRequest) {
       patientId = patient.id
     }
 
-    // Generate case number
-    const year = new Date().getFullYear()
-    const randomDigits = String(Math.floor(1000 + Math.random() * 9000))
-    const caseNumber = `HL-${year}-${randomDigits}`
+    // Generate case number: INITIALS-DD-MM
+    const nowDate = new Date()
+    const dd = String(nowDate.getDate()).padStart(2, '0')
+    const mm = String(nowDate.getMonth() + 1).padStart(2, '0')
+    const ptInitials = patientName
+      ? patientName.split(/\s+/).map((w: string) => w[0]?.toUpperCase()).filter(Boolean).join('')
+      : 'XX'
+    let caseNumber = `${ptInitials || 'XX'}-${dd}-${mm}`
+    let existingCase = await prisma.case.findUnique({ where: { caseNumber } })
+    let sfx = 1
+    while (existingCase) {
+      caseNumber = `${ptInitials || 'XX'}-${dd}-${mm}-${sfx}`
+      existingCase = await prisma.case.findUnique({ where: { caseNumber } })
+      sfx++
+    }
 
     // Build description based on department
     const descriptionParts: string[] = []
@@ -198,7 +213,7 @@ export async function POST(req: NextRequest) {
       include: {
         clinic: { select: { id: true, name: true } },
         dentist: { select: { id: true, name: true } },
-        patient: { select: { id: true, reference: true, initials: true } },
+        patient: { select: { id: true, reference: true, firstName: true, lastName: true, initials: true } },
         items: true,
       },
     })
