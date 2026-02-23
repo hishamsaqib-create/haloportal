@@ -54,7 +54,7 @@ export default async function ClinicDetailPage({
           where: { clinicId: id },
           include: {
             dentist: { select: { id: true, name: true } },
-            patient: { select: { reference: true, initials: true } },
+            patient: { select: { reference: true, firstName: true, lastName: true, initials: true } },
             items: { select: { lineTotal: true } },
           },
           orderBy: { createdAt: 'desc' },

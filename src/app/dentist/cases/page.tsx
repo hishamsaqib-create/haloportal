@@ -13,7 +13,7 @@ interface CaseRow {
   priority: string
   dueDate: string | null
   createdAt: string
-  patient: { reference: string; initials: string | null } | null
+  patient: { reference: string; firstName: string | null; lastName: string | null; initials: string | null } | null
   items: { id: string; description: string }[]
 }
 
