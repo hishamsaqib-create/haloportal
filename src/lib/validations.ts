@@ -5,6 +5,8 @@ export const createCaseSchema = z.object({
   clinicId: z.string().min(1, 'Clinic is required'),
   dentistId: z.string().min(1, 'Dentist is required'),
   patientRef: z.string().optional(),
+  patientFirstName: z.string().optional(),
+  patientLastName: z.string().optional(),
   patientInitials: z.string().optional(),
   department: z.enum(DEPARTMENTS),
   priority: z.enum(PRIORITIES).default('NORMAL'),
