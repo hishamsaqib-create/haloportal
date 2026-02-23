@@ -125,7 +125,9 @@ model Dentist {
 model Patient {
   id            String   @id @default(uuid())
   reference     String   @unique // Lab reference number
-  initials      String?  // GDPR: minimise PHI
+  firstName     String?
+  lastName      String?
+  initials      String?
   dob           String?  // Optional, stored as string for flexibility
   notes         String?
   createdAt     DateTime @default(now())

@@ -248,8 +248,8 @@ export async function GET(request: Request) {
   })
 
   // Create sample patients and cases
-  const patient1 = await prisma.patient.create({ data: { reference: 'PAT-001', initials: 'JD' } })
-  const patient2 = await prisma.patient.create({ data: { reference: 'PAT-002', initials: 'AB' } })
+  const patient1 = await prisma.patient.create({ data: { reference: 'PAT-001', firstName: 'James', lastName: 'Davidson', initials: 'JD' } })
+  const patient2 = await prisma.patient.create({ data: { reference: 'PAT-002', firstName: 'Amanda', lastName: 'Blake', initials: 'AB' } })
 
   const case1 = await prisma.case.create({
     data: {

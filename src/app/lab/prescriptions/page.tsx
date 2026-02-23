@@ -152,7 +152,7 @@ export default function PrescriptionsPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-3 text-sm text-gray-600">
-                      {rx.case.patient?.initials || rx.case.patient?.reference || '—'}
+                      {rx.case.patient ? [rx.case.patient.firstName, rx.case.patient.lastName].filter(Boolean).join(' ') || rx.case.patient.initials || rx.case.patient.reference : '—'}
                     </td>
                     <td className="px-6 py-3">
                       <div className="text-sm text-gray-900">{rx.case.clinic.name}</div>

@@ -231,7 +231,7 @@ export default async function ClinicDetailPage({
                           </span>
                         </div>
                         <p className="text-xs text-gray-500">
-                          {c.patient?.initials || c.patient?.reference || '\u2014'}
+                          {c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : '\u2014'}
                           {' \u00b7 '}
                           {c.dentist.name}
                         </p>
@@ -357,7 +357,7 @@ export default async function ClinicDetailPage({
                           </Link>
                         </td>
                         <td className="px-6 py-3 text-sm text-gray-600">
-                          {c.patient?.initials || c.patient?.reference || '\u2014'}
+                          {c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : '\u2014'}
                         </td>
                         <td className="px-6 py-3">
                           <Link href={`/lab/dentists/${c.dentist.id}`} className="text-sm text-gray-900 hover:underline">

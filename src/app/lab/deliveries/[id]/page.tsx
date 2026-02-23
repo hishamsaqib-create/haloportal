@@ -176,7 +176,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
                           </Link>
                         </td>
                         <td className="px-6 py-3 text-sm text-gray-600">
-                          {item.case.patient?.initials || item.case.patient?.reference || '\u2014'}
+                          {item.case.patient ? [item.case.patient.firstName, item.case.patient.lastName].filter(Boolean).join(' ') || item.case.patient.initials || item.case.patient.reference : '\u2014'}
                         </td>
                         <td className="px-6 py-3 text-sm text-gray-600">
                           {item.case.dentist.name}

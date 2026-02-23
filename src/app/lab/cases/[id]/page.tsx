@@ -202,11 +202,17 @@ export default async function CaseDetailPage({
         <div className="mt-5 grid grid-cols-1 gap-4 border-t border-gray-100 pt-5 sm:grid-cols-3">
           <div>
             <p className="text-xs font-medium uppercase text-gray-400">Patient</p>
-            <p className="mt-1 text-sm font-medium text-gray-900">
-              {caseData.patient?.initials || caseData.patient?.reference || 'Not assigned'}
-            </p>
-            {caseData.patient?.reference && (
-              <p className="text-xs text-gray-500">Ref: {caseData.patient.reference}</p>
+            {caseData.patient ? (
+              <>
+                <Link href={`/lab/patients/${caseData.patient.id}`} className="mt-1 block text-sm font-medium text-brand-700 hover:underline">
+                  {[caseData.patient.firstName, caseData.patient.lastName].filter(Boolean).join(' ') || caseData.patient.initials || caseData.patient.reference}
+                </Link>
+                {caseData.patient.reference && (
+                  <p className="text-xs text-gray-500">Ref: {caseData.patient.reference}</p>
+                )}
+              </>
+            ) : (
+              <p className="mt-1 text-sm font-medium text-gray-900">Not assigned</p>
             )}
           </div>
           <div>

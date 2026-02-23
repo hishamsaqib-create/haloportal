@@ -41,12 +41,14 @@ export async function GET(req: NextRequest) {
       where.dueDate = dueDateFilter
     }
 
-    // Search filter across case number, notes, patient reference
+    // Search filter across case number, notes, patient reference/name
     if (search) {
       where.OR = [
         { caseNumber: { contains: search } },
         { notes: { contains: search } },
         { patient: { reference: { contains: search } } },
+        { patient: { firstName: { contains: search, mode: 'insensitive' } } },
+        { patient: { lastName: { contains: search, mode: 'insensitive' } } },
         { patient: { initials: { contains: search } } },
         { clinic: { name: { contains: search } } },
         { dentist: { name: { contains: search } } },
@@ -59,7 +61,7 @@ export async function GET(req: NextRequest) {
         include: {
           clinic: { select: { id: true, name: true } },
           dentist: { select: { id: true, name: true } },
-          patient: { select: { id: true, reference: true, initials: true } },
+          patient: { select: { id: true, reference: true, firstName: true, lastName: true, initials: true } },
           items: {
             include: {
               product: { select: { id: true, name: true, sku: true } },
@@ -104,9 +106,12 @@ export async function POST(req: NextRequest) {
         where: { reference: validated.patientRef },
       })
       if (!patient) {
+        const nameParts = (validated.patientInitials || '').trim().split(/\s+/)
         patient = await prisma.patient.create({
           data: {
             reference: validated.patientRef,
+            firstName: validated.patientFirstName || null,
+            lastName: validated.patientLastName || null,
             initials: validated.patientInitials || null,
           },
         })
@@ -188,7 +193,7 @@ export async function POST(req: NextRequest) {
       include: {
         clinic: { select: { id: true, name: true } },
         dentist: { select: { id: true, name: true } },
-        patient: { select: { id: true, reference: true, initials: true } },
+        patient: { select: { id: true, reference: true, firstName: true, lastName: true, initials: true } },
         items: {
           include: {
             product: { select: { id: true, name: true, sku: true } },

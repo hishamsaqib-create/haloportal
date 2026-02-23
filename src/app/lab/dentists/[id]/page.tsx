@@ -218,7 +218,7 @@ export default async function DentistDetailPage({
                           </Link>
                         </td>
                         <td className="px-6 py-3 text-sm text-gray-600">
-                          {c.patient?.initials || c.patient?.reference || '\u2014'}
+                          {c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : '\u2014'}
                         </td>
                         <td className="px-6 py-3">
                           <span className={`inline-flex rounded-lg px-2 py-0.5 text-[11px] font-medium ${

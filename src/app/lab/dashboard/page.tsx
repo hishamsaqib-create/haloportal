@@ -239,7 +239,11 @@ export default async function LabDashboard() {
                           </Link>
                         </td>
                         <td className="px-6 py-3 text-sm text-gray-600">
-                          {c.patient?.initials || c.patient?.reference || '\u2014'}
+                          {c.patient ? (
+                            <Link href={`/lab/patients/${c.patient.id}`} className="hover:text-brand-700 hover:underline">
+                              {[c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference}
+                            </Link>
+                          ) : '\u2014'}
                         </td>
                         <td className="px-6 py-3">
                           <div className="text-sm text-gray-900">{c.clinic.name}</div>

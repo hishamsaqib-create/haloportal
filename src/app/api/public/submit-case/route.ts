@@ -53,8 +53,10 @@ export async function POST(req: NextRequest) {
     // Create or find patient
     let patientId: string | null = null
     if (patientName) {
-      const initials = patientName
-        .split(/\s+/)
+      const nameParts = patientName.trim().split(/\s+/)
+      const firstName = nameParts[0] || null
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null
+      const initials = nameParts
         .map((w: string) => w[0]?.toUpperCase())
         .filter(Boolean)
         .join('')
@@ -65,6 +67,8 @@ export async function POST(req: NextRequest) {
       const patient = await prisma.patient.create({
         data: {
           reference,
+          firstName,
+          lastName,
           initials,
           dob: patientDob || null,
         },
@@ -209,7 +213,7 @@ export async function POST(req: NextRequest) {
       include: {
         clinic: { select: { id: true, name: true } },
         dentist: { select: { id: true, name: true } },
-        patient: { select: { id: true, reference: true, initials: true } },
+        patient: { select: { id: true, reference: true, firstName: true, lastName: true, initials: true } },
         items: true,
       },
     })

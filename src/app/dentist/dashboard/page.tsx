@@ -102,7 +102,7 @@ export default async function DentistDashboard() {
                       </Link>
                     </td>
                     <td className="px-6 py-3 text-sm text-gray-600">
-                      {c.patient?.initials || c.patient?.reference || '—'}
+                      {c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : '—'}
                     </td>
                     <td className="px-6 py-3 text-xs font-medium text-gray-600">
                       {DEPARTMENT_LABELS[c.department as keyof typeof DEPARTMENT_LABELS]}

@@ -228,7 +228,7 @@ export default function NewDeliveryPage() {
                               )}
                             </div>
                             <div className="mt-0.5 flex items-center gap-3 text-xs text-gray-500">
-                              <span>{c.patient?.initials || c.patient?.reference || 'No patient'}</span>
+                              <span>{c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : 'No patient'}</span>
                               <span>&middot;</span>
                               <span>{c.dentist.name}</span>
                               {c.dueDate && (

@@ -97,7 +97,7 @@ export default function ClinicCasesPage() {
                     <Link href={`/clinic/cases/${c.id}`} className="text-sm font-medium text-brand-700 hover:underline">{c.caseNumber}</Link>
                   </td>
                   <td className="px-6 py-3 text-sm text-gray-900">{c.dentist.name}</td>
-                  <td className="px-6 py-3 text-sm text-gray-600">{c.patient?.initials || c.patient?.reference || '—'}</td>
+                  <td className="px-6 py-3 text-sm text-gray-600">{c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : '—'}</td>
                   <td className="px-6 py-3 text-xs font-medium text-gray-600">{DEPARTMENT_LABELS[c.department as keyof typeof DEPARTMENT_LABELS]}</td>
                   <td className="px-6 py-3">
                     <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700">
