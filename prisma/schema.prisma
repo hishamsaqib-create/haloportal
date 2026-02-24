@@ -112,6 +112,9 @@ model Dentist {
   paymentTermDays       Int?
   portalPassword        String?  // Custom password for dentist portal login
   pricingVariationId    String?  // Which pricing variation is assigned to this dentist
+  allowCeramics         Boolean  @default(true)  // Whether dentist can submit ceramic cases
+  allowDsd              Boolean  @default(true)  // Whether dentist can submit DSD cases
+  allowAppliances       Boolean  @default(true)  // Whether dentist can submit appliance cases
   notificationChannel   String   @default("EMAIL") // EMAIL | WHATSAPP | BOTH
   notes                 String?
   active                Boolean  @default(true)

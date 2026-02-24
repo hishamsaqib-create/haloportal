@@ -5,16 +5,14 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { DentalChart } from '@/components/dental-chart'
 
-interface ClinicDentist {
+interface DentistSession {
   id: string
   name: string
-  email: string | null
-}
-
-interface ClinicSession {
-  id: string
-  name: string
-  dentists: ClinicDentist[]
+  clinicId: string
+  clinicName: string
+  allowCeramics: boolean
+  allowDsd: boolean
+  allowAppliances: boolean
 }
 
 const APPLIANCE_OPTIONS = [
@@ -31,7 +29,7 @@ const APPLIANCE_OPTIONS = [
 
 export default function AppliancesFormPage() {
   const router = useRouter()
-  const [clinic, setClinic] = useState<ClinicSession | null>(null)
+  const [dentistSession, setDentistSession] = useState<DentistSession | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -42,8 +40,6 @@ export default function AppliancesFormPage() {
   const [patientTitle, setPatientTitle] = useState('')
   const [patientFirstName, setPatientFirstName] = useState('')
   const [patientLastName, setPatientLastName] = useState('')
-  const [dentistId, setDentistId] = useState('')
-  const [dentistEmail, setDentistEmail] = useState('')
   const [appliance, setAppliance] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [dueDate, setDueDate] = useState('')
@@ -56,14 +52,18 @@ export default function AppliancesFormPage() {
   const [remakeReason, setRemakeReason] = useState('')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('halo-clinic')
+    const raw = sessionStorage.getItem('halo-dentist')
     if (!raw) {
       router.replace('/')
       return
     }
     try {
-      const session: ClinicSession = JSON.parse(raw)
-      setClinic(session)
+      const session: DentistSession = JSON.parse(raw)
+      if (!session.allowAppliances) {
+        router.replace('/')
+        return
+      }
+      setDentistSession(session)
     } catch {
       router.replace('/')
       return
@@ -71,19 +71,11 @@ export default function AppliancesFormPage() {
     setLoading(false)
   }, [router])
 
-  useEffect(() => {
-    if (dentistId && clinic) {
-      const d = clinic.dentists.find((d) => d.id === dentistId)
-      if (d?.email) setDentistEmail(d.email)
-    }
-  }, [dentistId, clinic])
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (submitting) return
+    if (submitting || !dentistSession) return
     setError('')
 
-    if (!dentistId) { setError('Please select a dentist'); return }
     if (!patientFirstName.trim()) { setError('Please enter patient name'); return }
     if (!appliance) { setError('Please select an appliance'); return }
 
@@ -96,7 +88,7 @@ export default function AppliancesFormPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           department: 'APPLIANCES',
-          dentistId,
+          dentistId: dentistSession.id,
           patientName,
           dueDate: dueDate || undefined,
           appliance,
@@ -124,6 +116,8 @@ export default function AppliancesFormPage() {
     }
   }
 
+  if (loading) return null
+
   if (submitted) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center px-6">
@@ -137,7 +131,7 @@ export default function AppliancesFormPage() {
           <p className="text-gray-500 text-sm mb-1">Your appliance case has been received.</p>
           <p className="text-blue-600 font-mono text-lg mb-8">{caseNumber}</p>
           <Link href="/" className="text-sm text-blue-600 hover:text-blue-700 no-underline hover:no-underline">
-            ← Back to Home
+            &larr; Back to Home
           </Link>
         </div>
       </div>
@@ -157,8 +151,12 @@ export default function AppliancesFormPage() {
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Appliance Case</h1>
           <p className="mt-1 text-sm text-gray-400">Submit a new dental appliance case</p>
-          {clinic && (
-            <p className="mt-2 text-sm font-medium text-gray-600">{clinic.name}</p>
+          {dentistSession && (
+            <div className="mt-2 flex items-center gap-2 text-sm">
+              <span className="font-medium text-gray-600">{dentistSession.name}</span>
+              <span className="text-gray-300">|</span>
+              <span className="text-gray-400">{dentistSession.clinicName}</span>
+            </div>
           )}
         </div>
 
@@ -191,31 +189,6 @@ export default function AppliancesFormPage() {
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400"
                   placeholder="Last name" />
               </div>
-            </div>
-          </fieldset>
-
-          {/* Dentist */}
-          <fieldset className="space-y-4">
-            <legend className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Dentist</legend>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1.5">Dentist *</label>
-              {loading ? (
-                <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-400">Loading dentists...</div>
-              ) : (
-                <select value={dentistId} onChange={(e) => setDentistId(e.target.value)} required
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-400 appearance-none">
-                  <option value="">Select a dentist</option>
-                  {clinic?.dentists.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1.5">Dentist Email</label>
-              <input type="email" value={dentistEmail} onChange={(e) => setDentistEmail(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400"
-                placeholder="dentist@clinic.com" />
             </div>
           </fieldset>
 
