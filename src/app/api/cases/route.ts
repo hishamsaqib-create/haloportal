@@ -106,13 +106,22 @@ export async function POST(req: NextRequest) {
         where: { reference: validated.patientRef },
       })
       if (!patient) {
-        const nameParts = (validated.patientInitials || '').trim().split(/\s+/)
         patient = await prisma.patient.create({
           data: {
             reference: validated.patientRef,
             firstName: validated.patientFirstName || null,
             lastName: validated.patientLastName || null,
             initials: validated.patientInitials || null,
+          },
+        })
+      } else if (validated.patientFirstName || validated.patientLastName) {
+        // Update existing patient with name data if provided
+        patient = await prisma.patient.update({
+          where: { id: patient.id },
+          data: {
+            ...(validated.patientFirstName && { firstName: validated.patientFirstName }),
+            ...(validated.patientLastName && { lastName: validated.patientLastName }),
+            ...(validated.patientInitials && { initials: validated.patientInitials }),
           },
         })
       }
