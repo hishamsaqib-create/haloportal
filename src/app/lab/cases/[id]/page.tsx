@@ -17,6 +17,7 @@ import {
 import Link from 'next/link'
 import { CaseActions } from './case-actions'
 import { CaseFilesTab } from './case-files-tab'
+import { CommunicationsTab } from './communications-tab'
 
 export default async function CaseDetailPage({
   params,
@@ -89,6 +90,15 @@ export default async function CaseDetailPage({
           uploadedBy: { select: { name: true } },
         },
         orderBy: { createdAt: 'desc' },
+      },
+      whatsappMessages: {
+        orderBy: { createdAt: 'asc' },
+      },
+      haloChatMessages: {
+        include: {
+          sender: { select: { id: true, name: true, userType: true } },
+        },
+        orderBy: { createdAt: 'asc' },
       },
     },
   })
@@ -518,53 +528,13 @@ export default async function CaseDetailPage({
       )}
 
       {activeTab === 'communications' && (
-        <div className="space-y-4">
-          {caseData.emailThreads.length === 0 ? (
-            <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center text-sm text-gray-500">
-              No email threads linked to this case.
-            </div>
-          ) : (
-            caseData.emailThreads.map((thread) => (
-              <div key={thread.id} className="rounded-xl border border-gray-200 bg-white">
-                <div className="border-b border-gray-200 px-6 py-4">
-                  <h3 className="text-sm font-semibold text-gray-900">{thread.subject}</h3>
-                  <p className="text-xs text-gray-500">
-                    {thread.messages.length} message{thread.messages.length !== 1 ? 's' : ''} &middot;
-                    Last updated {formatRelative(thread.updatedAt)}
-                  </p>
-                </div>
-                <div className="divide-y divide-gray-100">
-                  {thread.messages.map((msg) => (
-                    <div key={msg.id} className="px-6 py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                              msg.direction === 'OUTBOUND'
-                                ? 'bg-brand-50 text-brand-700'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            {msg.direction === 'OUTBOUND' ? 'Sent' : 'Received'}
-                          </span>
-                          <span className="text-sm font-medium text-gray-900">{msg.fromAddress}</span>
-                          <span className="text-xs text-gray-400">to {msg.toAddress}</span>
-                        </div>
-                        <span className="text-xs text-gray-500">{formatDateTime(msg.createdAt)}</span>
-                      </div>
-                      <p className="mt-1 text-sm text-gray-600">{msg.subject}</p>
-                      {msg.bodyText && (
-                        <p className="mt-2 whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm text-gray-700">
-                          {msg.bodyText}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+        <CommunicationsTab
+          caseId={caseData.id}
+          emailThreads={JSON.parse(JSON.stringify(caseData.emailThreads))}
+          whatsappMessages={JSON.parse(JSON.stringify(caseData.whatsappMessages))}
+          currentUserId={session.user.id}
+          currentUserType={session.user.userType}
+        />
       )}
 
       {activeTab === 'files' && (

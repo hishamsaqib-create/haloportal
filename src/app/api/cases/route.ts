@@ -195,6 +195,8 @@ export async function POST(req: NextRequest) {
         dueDate: new Date(validated.dueDate),
         notes: validated.notes || null,
         source: 'MANUAL',
+        isRemake: validated.isRemake || false,
+        remakeReason: validated.isRemake ? (validated.remakeReason || null) : null,
         items: {
           create: itemsData,
         },
@@ -211,6 +213,18 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // Auto-create a Remake record if this case is flagged as a remake
+    if (validated.isRemake && validated.remakeReason) {
+      await prisma.remake.create({
+        data: {
+          caseId: newCase.id,
+          reasonCode: validated.remakeReason,
+          reasonText: validated.remakeReason === 'OTHER' ? (validated.notes || null) : null,
+          createdById: user.id,
+        },
+      })
+    }
+
     await createAuditLog({
       caseId: newCase.id,
       userId: user.id,
@@ -223,6 +237,8 @@ export async function POST(req: NextRequest) {
         clinicId: newCase.clinicId,
         dentistId: newCase.dentistId,
         itemCount: itemsData.length,
+        isRemake: validated.isRemake || false,
+        remakeReason: validated.remakeReason,
       },
     })
 

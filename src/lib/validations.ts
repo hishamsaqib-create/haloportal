@@ -12,6 +12,8 @@ export const createCaseSchema = z.object({
   priority: z.enum(PRIORITIES).default('NORMAL'),
   dueDate: z.string().min(1, 'Due date is required'),
   notes: z.string().optional(),
+  isRemake: z.boolean().optional(),
+  remakeReason: z.string().optional(),
   items: z.array(z.object({
     productId: z.string().optional(),
     description: z.string().min(1),

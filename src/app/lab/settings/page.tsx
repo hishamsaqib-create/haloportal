@@ -24,8 +24,21 @@ interface ClinicWithDentists {
   phone: string | null
   portalPassword: string | null
   active: boolean
-  dentists: { id: string; name: string; email: string | null; portalPassword: string | null; active: boolean }[]
+  dentists: { id: string; name: string; email: string | null; portalPassword: string | null; notificationChannel: string; active: boolean }[]
   _count: { cases: number; dentists: number }
+}
+
+interface NotificationRule {
+  id: string
+  name: string
+  trigger: string
+  triggerValue: string | null
+  channel: string
+  templateId: string | null
+  recipient: string
+  active: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 interface EmailTemplate {
@@ -89,6 +102,12 @@ const SECTIONS: { key: SectionKey; label: string; icon: React.ReactNode; descrip
     label: 'Email Previews',
     description: 'Preview emails sent to clinics and referrals',
     icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>,
+  },
+  {
+    key: 'notifications',
+    label: 'Notifications',
+    description: 'Notification rules and automations',
+    icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>,
   },
 ]
 
@@ -226,6 +245,12 @@ export default function SettingsPage() {
   const [addingDentist, setAddingDentist] = useState(false)
   const [editingDentistPasswords, setEditingDentistPasswords] = useState<Record<string, string>>({})
   const [savingDentistPassword, setSavingDentistPassword] = useState<string | null>(null)
+  const [notificationRules, setNotificationRules] = useState<NotificationRule[]>([])
+  const [loadingNotificationRules, setLoadingNotificationRules] = useState(true)
+  const [savingNotificationChannel, setSavingNotificationChannel] = useState<string | null>(null)
+  const [addingRule, setAddingRule] = useState(false)
+  const [savingRule, setSavingRule] = useState(false)
+  const [newRule, setNewRule] = useState({ name: '', trigger: 'CASE_CREATED', triggerValue: '', channel: 'EMAIL', recipient: 'DENTIST' })
 
   // Editable workflow state
   const [editedWorkflows, setEditedWorkflows] = useState<Record<string, string[]>>({})
@@ -318,12 +343,27 @@ export default function SettingsPage() {
     }
   }, [])
 
+  const loadNotificationRules = useCallback(async () => {
+    setLoadingNotificationRules(true)
+    try {
+      const res = await fetch('/api/settings/notification-rules')
+      if (!res.ok) throw new Error('Failed to load notification rules')
+      const json = await res.json()
+      setNotificationRules(json.data || [])
+    } catch {
+      toast.error('Failed to load notification rules')
+    } finally {
+      setLoadingNotificationRules(false)
+    }
+  }, [])
+
   useEffect(() => {
     loadAllSettings()
     loadDeptConfigs()
     loadTemplates()
     loadClinics()
-  }, [loadAllSettings, loadDeptConfigs, loadTemplates, loadClinics])
+    loadNotificationRules()
+  }, [loadAllSettings, loadDeptConfigs, loadTemplates, loadClinics, loadNotificationRules])
 
   // -----------------------------------------------------------------------
   // Setting helpers
@@ -470,6 +510,85 @@ export default function SettingsPage() {
       toast.error('Failed to save dentist portal password')
     } finally {
       setSavingDentistPassword(null)
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Notification helpers
+  // -----------------------------------------------------------------------
+
+  async function saveDentistNotificationChannel(dentistId: string, channel: string) {
+    setSavingNotificationChannel(dentistId)
+    try {
+      const res = await fetch(`/api/dentists/${dentistId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationChannel: channel }),
+      })
+      if (!res.ok) throw new Error('Failed to save')
+      toast.success('Notification preference saved')
+      loadClinics()
+    } catch {
+      toast.error('Failed to save notification preference')
+    } finally {
+      setSavingNotificationChannel(null)
+    }
+  }
+
+  async function createNotificationRule() {
+    if (!newRule.name.trim()) return
+    setSavingRule(true)
+    try {
+      const res = await fetch('/api/settings/notification-rules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newRule.name.trim(),
+          trigger: newRule.trigger,
+          triggerValue: newRule.triggerValue || null,
+          channel: newRule.channel,
+          recipient: newRule.recipient,
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to create rule')
+      toast.success('Notification rule created')
+      setNewRule({ name: '', trigger: 'CASE_CREATED', triggerValue: '', channel: 'EMAIL', recipient: 'DENTIST' })
+      setAddingRule(false)
+      loadNotificationRules()
+    } catch {
+      toast.error('Failed to create notification rule')
+    } finally {
+      setSavingRule(false)
+    }
+  }
+
+  async function toggleNotificationRule(ruleId: string, active: boolean) {
+    try {
+      const res = await fetch('/api/settings/notification-rules', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ruleId, active }),
+      })
+      if (!res.ok) throw new Error('Failed to update rule')
+      toast.success(`Rule ${active ? 'enabled' : 'disabled'}`)
+      loadNotificationRules()
+    } catch {
+      toast.error('Failed to update notification rule')
+    }
+  }
+
+  async function updateNotificationRuleChannel(ruleId: string, channel: string) {
+    try {
+      const res = await fetch('/api/settings/notification-rules', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ruleId, channel }),
+      })
+      if (!res.ok) throw new Error('Failed to update rule')
+      toast.success('Rule channel updated')
+      loadNotificationRules()
+    } catch {
+      toast.error('Failed to update notification rule')
     }
   }
 
@@ -834,6 +953,26 @@ export default function SettingsPage() {
                                     >
                                       {savingDentistPassword === d.id ? 'Saving...' : 'Save'}
                                     </button>
+                                  </div>
+                                  {/* Notification Channel Preference */}
+                                  <div className="flex items-center gap-2 pt-1 border-t border-gray-50">
+                                    <label className="text-[11px] text-gray-500 flex-shrink-0">Notifications:</label>
+                                    <div className="flex gap-1">
+                                      {(['EMAIL', 'WHATSAPP', 'BOTH'] as const).map((ch) => (
+                                        <button
+                                          key={ch}
+                                          onClick={() => saveDentistNotificationChannel(d.id, ch)}
+                                          disabled={savingNotificationChannel === d.id}
+                                          className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition-all ${
+                                            (d.notificationChannel || 'EMAIL') === ch
+                                              ? 'bg-gray-900 text-white'
+                                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                          } ${savingNotificationChannel === d.id ? 'opacity-50' : ''}`}
+                                        >
+                                          {ch === 'EMAIL' ? 'Email' : ch === 'WHATSAPP' ? 'WhatsApp' : 'Both'}
+                                        </button>
+                                      ))}
+                                    </div>
                                   </div>
                                 </div>
                               ))}
@@ -1206,6 +1345,184 @@ export default function SettingsPage() {
     )
   }
 
+  function renderNotifications() {
+    const TRIGGER_LABELS: Record<string, string> = {
+      STATUS_CHANGE: 'Status Change',
+      CASE_CREATED: 'Case Created',
+      FILE_SHARED: 'File Shared',
+      PRESCRIPTION_READY: 'Prescription Ready',
+      REMAKE_FLAGGED: 'Remake Flagged',
+    }
+    const RECIPIENT_LABELS: Record<string, string> = {
+      DENTIST: 'Dentist',
+      CLINIC: 'Clinic',
+      LAB: 'Lab Staff',
+    }
+    const CHANNEL_LABELS: Record<string, string> = {
+      EMAIL: 'Email',
+      WHATSAPP: 'WhatsApp',
+      BOTH: 'Both',
+    }
+
+    return (
+      <div className="space-y-6">
+        <SectionCard title="Notification Automations" description="Configure automatic notifications triggered by system events. These rules determine when and how dentists, clinics, and lab staff are notified.">
+          <div className="space-y-4">
+            <InfoBox title="How notification rules work">
+              Each rule defines a trigger event (e.g. case created, status change), who receives the notification (dentist, clinic, or lab staff), and the channel (email, WhatsApp, or both). Rules can be enabled or disabled individually.
+            </InfoBox>
+
+            {loadingNotificationRules ? (
+              <LoadingPlaceholder />
+            ) : (
+              <>
+                {/* Existing rules */}
+                {notificationRules.length === 0 ? (
+                  <div className="py-6 text-center">
+                    <p className="text-sm text-gray-500">No notification rules configured yet.</p>
+                    <p className="text-xs text-gray-400 mt-1">Add your first rule to start sending automatic notifications.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {notificationRules.map((rule) => (
+                      <div key={rule.id} className={`rounded-xl border px-4 py-3 transition-all ${rule.active ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => toggleNotificationRule(rule.id, !rule.active)}
+                              className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${rule.active ? 'bg-green-500' : 'bg-gray-300'}`}
+                            >
+                              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${rule.active ? 'left-[18px]' : 'left-0.5'}`} />
+                            </button>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{rule.name}</p>
+                              <p className="text-[11px] text-gray-400">
+                                Trigger: <span className="font-medium text-gray-600">{TRIGGER_LABELS[rule.trigger] || rule.trigger}</span>
+                                {rule.triggerValue && <span> ({rule.triggerValue})</span>}
+                                {' '}&middot;{' '}
+                                Recipient: <span className="font-medium text-gray-600">{RECIPIENT_LABELS[rule.recipient] || rule.recipient}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={rule.channel}
+                              onChange={(e) => updateNotificationRuleChannel(rule.id, e.target.value)}
+                              className="rounded-lg border border-gray-200 bg-gray-50/50 px-2 py-1 text-xs text-gray-700 outline-none focus:border-gray-400"
+                            >
+                              <option value="EMAIL">Email</option>
+                              <option value="WHATSAPP">WhatsApp</option>
+                              <option value="BOTH">Both</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add new rule */}
+                {addingRule ? (
+                  <div className="rounded-xl border border-blue-200 bg-blue-50/30 p-4 space-y-3">
+                    <h4 className="text-sm font-semibold text-gray-900">New Notification Rule</h4>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Rule Name</label>
+                        <input
+                          type="text"
+                          value={newRule.name}
+                          onChange={(e) => setNewRule({ ...newRule, name: e.target.value })}
+                          placeholder="e.g. Notify dentist on case ready"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Trigger</label>
+                        <select
+                          value={newRule.trigger}
+                          onChange={(e) => setNewRule({ ...newRule, trigger: e.target.value })}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400"
+                        >
+                          {Object.entries(TRIGGER_LABELS).map(([val, label]) => (
+                            <option key={val} value={val}>{label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {newRule.trigger === 'STATUS_CHANGE' && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Status Value (optional)</label>
+                          <select
+                            value={newRule.triggerValue}
+                            onChange={(e) => setNewRule({ ...newRule, triggerValue: e.target.value })}
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400"
+                          >
+                            <option value="">Any status change</option>
+                            {CASE_STATUSES.map((st) => (
+                              <option key={st} value={st}>{CASE_STATUS_LABELS[st as keyof typeof CASE_STATUS_LABELS] || st}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Recipient</label>
+                        <select
+                          value={newRule.recipient}
+                          onChange={(e) => setNewRule({ ...newRule, recipient: e.target.value })}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400"
+                        >
+                          {Object.entries(RECIPIENT_LABELS).map(([val, label]) => (
+                            <option key={val} value={val}>{label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Channel</label>
+                        <select
+                          value={newRule.channel}
+                          onChange={(e) => setNewRule({ ...newRule, channel: e.target.value })}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400"
+                        >
+                          <option value="EMAIL">Email</option>
+                          <option value="WHATSAPP">WhatsApp</option>
+                          <option value="BOTH">Both</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={createNotificationRule}
+                        disabled={savingRule || !newRule.name.trim()}
+                        className="rounded-lg bg-gray-900 px-4 py-2 text-xs font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+                      >
+                        {savingRule ? 'Creating...' : 'Create Rule'}
+                      </button>
+                      <button
+                        onClick={() => { setAddingRule(false); setNewRule({ name: '', trigger: 'CASE_CREATED', triggerValue: '', channel: 'EMAIL', recipient: 'DENTIST' }) }}
+                        className="rounded-lg border border-gray-200 px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setAddingRule(true)}
+                    className="flex items-center gap-1.5 rounded-xl border border-dashed border-gray-300 px-4 py-3 text-sm font-medium text-gray-500 transition-all hover:border-gray-400 hover:text-gray-700 w-full justify-center"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Add Notification Rule
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </SectionCard>
+      </div>
+    )
+  }
+
   // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
@@ -1213,7 +1530,7 @@ export default function SettingsPage() {
   const sectionRenderers: Record<SectionKey, () => React.ReactNode> = {
     general: renderGeneral, billing: renderBilling, branding: renderBranding,
     clinics: renderClinics, integrations: renderIntegrations, workflows: renderWorkflows, templates: renderTemplates,
-    'email-preview': renderEmailPreview,
+    'email-preview': renderEmailPreview, notifications: renderNotifications,
   }
 
   return (

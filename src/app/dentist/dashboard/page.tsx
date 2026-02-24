@@ -83,8 +83,8 @@ export default async function DentistDashboard() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Case</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Patient</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Case</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Dept</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Due</th>
@@ -96,13 +96,13 @@ export default async function DentistDashboard() {
                 const dueStatus = getDueStatus(c.dueDate)
                 return (
                   <tr key={c.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-3 text-sm text-gray-600">
+                      {c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : '—'}
+                    </td>
                     <td className="px-6 py-3">
                       <Link href={`/dentist/cases/${c.id}`} className="text-sm font-medium text-brand-700 hover:underline">
                         {c.caseNumber}
                       </Link>
-                    </td>
-                    <td className="px-6 py-3 text-sm text-gray-600">
-                      {c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : '—'}
                     </td>
                     <td className="px-6 py-3 text-xs font-medium text-gray-600">
                       {DEPARTMENT_LABELS[c.department as keyof typeof DEPARTMENT_LABELS]}

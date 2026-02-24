@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth, requirePermission, scopeInvoiceQuery, handleAuthError } from '@/lib/rbac'
 import { createAuditLog } from '@/lib/audit'
 import { createInvoiceSchema } from '@/lib/validations'
+import { resolvePrice, calculateLineTotal, parseToothNumbers } from '@/lib/pricing'
 
 export async function GET(req: NextRequest) {
   try {
@@ -62,6 +63,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const validated = createInvoiceSchema.parse(body)
 
+    // Check system VAT setting
+    const [vatEnabledSetting, vatRateSetting] = await Promise.all([
+      prisma.systemSettings.findUnique({ where: { key: 'vat_enabled' } }),
+      prisma.systemSettings.findUnique({ where: { key: 'vat_rate' } }),
+    ])
+
+    const vatEnabled = vatEnabledSetting?.value !== 'false' // Default to enabled
+    const systemVatRate = vatRateSetting ? parseFloat(vatRateSetting.value) : 20
+
     // Build query for cases to invoice
     const caseWhere: Record<string, unknown> = {
       clinicId: validated.clinicId,
@@ -96,7 +106,11 @@ export async function POST(req: NextRequest) {
     const cases = await prisma.case.findMany({
       where: caseWhere,
       include: {
-        items: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
       },
     })
 
@@ -112,7 +126,7 @@ export async function POST(req: NextRequest) {
     const invoiceCount = await prisma.invoice.count()
     const invoiceNo = `INV-${year}-${String(invoiceCount + 1).padStart(4, '0')}`
 
-    // Build invoice lines from case items
+    // Build invoice lines from case items with per-tooth pricing
     const invoiceLines: Array<{
       caseId: string
       caseItemId: string
@@ -120,26 +134,74 @@ export async function POST(req: NextRequest) {
       qty: number
       unitPrice: number
       total: number
+      toothCount: number | null
+      additionalTeeth: number | null
     }> = []
 
     let subtotal = 0
     for (const caseData of cases) {
       for (const item of caseData.items) {
-        const lineTotal = item.lineTotal || item.unitPrice * item.qty
+        // Resolve pricing (including per-tooth config) for the product
+        let unitPrice = item.unitPrice
+        let minTeeth: number | null = null
+        let additionalToothPrice: number | null = null
+
+        if (item.productId) {
+          const resolved = await resolvePrice(
+            item.productId,
+            caseData.clinicId,
+            caseData.dentistId
+          )
+          unitPrice = resolved.price
+          minTeeth = resolved.minTeeth
+          additionalToothPrice = resolved.additionalToothPrice
+        }
+
+        // Calculate tooth count and line total with per-tooth pricing
+        const teeth = parseToothNumbers(item.toothNumbers)
+        const toothCount = teeth.length > 0 ? teeth.length : null
+        const lineTotal = calculateLineTotal(
+          unitPrice,
+          item.qty,
+          item.toothNumbers,
+          minTeeth,
+          additionalToothPrice
+        )
+
+        // Calculate additional teeth above minimum
+        let additionalTeeth: number | null = null
+        if (toothCount && minTeeth && toothCount > minTeeth) {
+          additionalTeeth = toothCount - minTeeth
+        }
+
         invoiceLines.push({
           caseId: caseData.id,
           caseItemId: item.id,
           description: `${caseData.caseNumber} - ${item.description}`,
           qty: item.qty,
-          unitPrice: item.unitPrice,
+          unitPrice,
           total: lineTotal,
+          toothCount,
+          additionalTeeth,
         })
         subtotal += lineTotal
       }
     }
 
-    const vatRate = validated.vatRate ?? 20
-    const vatAmount = subtotal * (vatRate / 100)
+    // Apply VAT based on system setting
+    let vatRate: number
+    let vatAmount: number
+
+    if (!vatEnabled) {
+      // VAT is disabled system-wide
+      vatRate = 0
+      vatAmount = 0
+    } else {
+      // Use the validated rate from the request, or fall back to system rate
+      vatRate = validated.vatRate ?? systemVatRate
+      vatAmount = subtotal * (vatRate / 100)
+    }
+
     const total = subtotal + vatAmount
 
     // Calculate due date from clinic payment terms
@@ -188,6 +250,8 @@ export async function POST(req: NextRequest) {
         clinicId: validated.clinicId,
         caseCount: cases.length,
         subtotal,
+        vatRate,
+        vatEnabled,
         vatAmount,
         total,
       },
