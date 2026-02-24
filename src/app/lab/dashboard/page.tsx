@@ -133,7 +133,7 @@ export default async function LabDashboard() {
     prisma.case.findMany({
       where: {
         status: { notIn: ['COMPLETED', 'CANCELLED'] },
-        dueDate: { not: null, gte: todayStart, lt: in7d },
+        dueDate: { gte: todayStart, lt: in7d },
       },
       include: {
         clinic: { select: { id: true, name: true } },

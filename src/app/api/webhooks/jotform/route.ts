@@ -240,11 +240,16 @@ export async function POST(req: NextRequest) {
       : null
 
     let unitPrice = 0
+    let minTeeth: number | null = null
+    let additionalToothPrice: number | null = null
     if (product) {
-      unitPrice = await resolvePrice(product.id, clinic.id, dentist.id)
+      const resolved = await resolvePrice(product.id, clinic.id, dentist.id)
+      unitPrice = resolved.price
+      minTeeth = resolved.minTeeth
+      additionalToothPrice = resolved.additionalToothPrice
     }
 
-    const lineTotal = calculateLineTotal(unitPrice, qty, toothNumbersJson)
+    const lineTotal = calculateLineTotal(unitPrice, qty, toothNumbersJson, minTeeth, additionalToothPrice)
 
     itemsData.push({
       productId: product?.id || null,
@@ -269,7 +274,7 @@ export async function POST(req: NextRequest) {
         department: finalDepartment,
         status: 'NEW',
         priority: parsed.priority?.toUpperCase() || 'NORMAL',
-        dueDate: parsed.dueDate ? new Date(parsed.dueDate) : null,
+        dueDate: parsed.dueDate ? new Date(parsed.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         notes: parsed.notes || null,
         source: 'JOTFORM',
         externalRef: submissionId ? String(submissionId) : null,

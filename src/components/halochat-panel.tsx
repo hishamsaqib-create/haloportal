@@ -22,8 +22,8 @@ interface ChatMessage {
   } | null
 }
 
-interface HaloChatPanelProps {
-  caseId: string
+export interface HaloChatPanelProps {
+  caseId?: string
   currentUserId: string
   currentUserType: string
 }
@@ -65,7 +65,8 @@ export function HaloChatPanel({ caseId, currentUserId, currentUserType }: HaloCh
 
   const fetchMessages = useCallback(async () => {
     try {
-      const res = await fetch(`/api/halochat?caseId=${caseId}`)
+      const url = caseId ? `/api/halochat?caseId=${caseId}` : '/api/halochat'
+      const res = await fetch(url)
       if (res.ok) {
         const data = await res.json()
         setMessages(data.data || [])

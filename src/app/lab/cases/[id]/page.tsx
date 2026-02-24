@@ -290,7 +290,7 @@ export default async function CaseDetailPage({
                         : 'bg-gray-100 text-gray-400'
                     }`}
                   >
-                    {CASE_STATUS_LABELS[status] || status}
+                    {CASE_STATUS_LABELS[status as CaseStatus] || status}
                   </div>
                 </div>
               )

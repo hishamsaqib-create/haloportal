@@ -614,71 +614,13 @@ export default function NewCasePage() {
                   </div>
                 </div>
 
-                {/* Tooth Selection - UK Notation */}
+                {/* Tooth Selection - FDI Notation */}
                 <div className="mt-3">
-                  <label className={labelClass}>Tooth Numbers (UK Notation)</label>
-                  <div className="rounded-lg border border-gray-200 bg-white p-3">
-                    {/* Upper teeth */}
-                    <div className="flex gap-0.5 justify-center mb-0.5">
-                      {UK_QUADRANTS[0].teeth.map((tooth) => (
-                        <button key={tooth} type="button" onClick={() => toggleTooth(idx, tooth)}
-                          className={`h-8 w-10 rounded-t text-[10px] font-semibold transition-colors ${
-                            item.toothNumbers.includes(tooth)
-                              ? 'bg-brand-700 text-white'
-                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
-                          }`}>
-                          {tooth}
-                        </button>
-                      ))}
-                      <div className="w-px bg-gray-300 mx-0.5" />
-                      {UK_QUADRANTS[1].teeth.map((tooth) => (
-                        <button key={tooth} type="button" onClick={() => toggleTooth(idx, tooth)}
-                          className={`h-8 w-10 rounded-t text-[10px] font-semibold transition-colors ${
-                            item.toothNumbers.includes(tooth)
-                              ? 'bg-brand-700 text-white'
-                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
-                          }`}>
-                          {tooth}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Divider */}
-                    <div className="border-t-2 border-gray-300 my-0.5" />
-                    {/* Lower teeth */}
-                    <div className="flex gap-0.5 justify-center mt-0.5">
-                      {UK_QUADRANTS[2].teeth.map((tooth) => (
-                        <button key={tooth} type="button" onClick={() => toggleTooth(idx, tooth)}
-                          className={`h-8 w-10 rounded-b text-[10px] font-semibold transition-colors ${
-                            item.toothNumbers.includes(tooth)
-                              ? 'bg-brand-700 text-white'
-                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
-                          }`}>
-                          {tooth}
-                        </button>
-                      ))}
-                      <div className="w-px bg-gray-300 mx-0.5" />
-                      {UK_QUADRANTS[3].teeth.map((tooth) => (
-                        <button key={tooth} type="button" onClick={() => toggleTooth(idx, tooth)}
-                          className={`h-8 w-10 rounded-b text-[10px] font-semibold transition-colors ${
-                            item.toothNumbers.includes(tooth)
-                              ? 'bg-brand-700 text-white'
-                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
-                          }`}>
-                          {tooth}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Labels */}
-                    <div className="flex justify-between mt-2 px-2">
-                      <span className="text-[10px] text-gray-400 font-medium">Right</span>
-                      <span className="text-[10px] text-gray-400 font-medium">Left</span>
-                    </div>
-                  </div>
-                  {item.toothNumbers.length > 0 && (
-                    <p className="mt-1.5 text-xs text-gray-500">
-                      Selected: {item.toothNumbers.join(', ')}
-                    </p>
-                  )}
+                  <label className={labelClass}>Tooth Numbers</label>
+                  <DentalChart
+                    selectedTeeth={item.toothNumbers}
+                    onChange={(teeth) => updateItem(idx, 'toothNumbers', teeth)}
+                  />
                 </div>
 
                 {/* Item Notes */}

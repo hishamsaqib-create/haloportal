@@ -153,10 +153,15 @@ export async function POST(req: NextRequest) {
 
     // Calculate pricing
     let unitPrice = 0
+    let minTeeth: number | null = null
+    let additionalToothPrice: number | null = null
     if (product) {
-      unitPrice = await resolvePrice(product.id, clinic.id, dentist.id)
+      const resolved = await resolvePrice(product.id, clinic.id, dentist.id)
+      unitPrice = resolved.price
+      minTeeth = resolved.minTeeth
+      additionalToothPrice = resolved.additionalToothPrice
     }
-    const lineTotal = calculateLineTotal(unitPrice, qty, toothNumbersJson)
+    const lineTotal = calculateLineTotal(unitPrice, qty, toothNumbersJson, minTeeth, additionalToothPrice)
 
     // Build notes
     const noteLines: string[] = []
@@ -169,8 +174,9 @@ export async function POST(req: NextRequest) {
     }
     const caseNotes = noteLines.join('\n') || null
 
-    // Parse due date
-    let parsedDueDate: Date | null = null
+    // Parse due date (required field - default to 7 days from now if not provided)
+    let parsedDueDate: Date = new Date()
+    parsedDueDate.setDate(parsedDueDate.getDate() + 7)
     if (dueDate) {
       const d = new Date(dueDate)
       if (!isNaN(d.getTime())) parsedDueDate = d
