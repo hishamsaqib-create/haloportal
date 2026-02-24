@@ -23,6 +23,8 @@ export default async function LabDashboard() {
   const in48h = new Date(todayStart.getTime() + 48 * 60 * 60 * 1000)
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
+  const in7d = new Date(todayStart.getTime() + 7 * 24 * 60 * 60 * 1000)
+
   const [
     totalCases,
     activeCases,
@@ -43,6 +45,8 @@ export default async function LabDashboard() {
     deliveriesInTransit,
     deliveredToday,
     recentDeliveries,
+    dueAtHaloOrders,
+    dueAtClinicCases,
   ] = await Promise.all([
     prisma.case.count(),
     prisma.case.count({ where: { status: { notIn: ['COMPLETED', 'CANCELLED'] } } }),
@@ -109,6 +113,35 @@ export default async function LabDashboard() {
       },
       orderBy: { createdAt: 'desc' },
       take: 5,
+    }),
+    // Due at Halo: outsource orders with SENT status and expectedReturnDate
+    prisma.outsourceOrder.findMany({
+      where: {
+        status: 'SENT',
+        expectedReturnDate: { not: null },
+      },
+      include: {
+        case: {
+          select: { id: true, caseNumber: true, department: true },
+        },
+        referralCentre: { select: { name: true } },
+      },
+      orderBy: { expectedReturnDate: 'asc' },
+      take: 10,
+    }),
+    // Due at Clinic: cases with dueDate set, grouped by clinic
+    prisma.case.findMany({
+      where: {
+        status: { notIn: ['COMPLETED', 'CANCELLED'] },
+        dueDate: { not: null, gte: todayStart, lt: in7d },
+      },
+      include: {
+        clinic: { select: { id: true, name: true } },
+        dentist: { select: { name: true } },
+        patient: { select: { initials: true, reference: true, firstName: true, lastName: true } },
+      },
+      orderBy: { dueDate: 'asc' },
+      take: 20,
     }),
   ])
 
@@ -384,6 +417,158 @@ export default async function LabDashboard() {
                     {deliveredToday} delivered today
                   </p>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Due at Halo - Outsourced work expected back */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">Due at Halo</h3>
+              <Link href="/lab/outsourcing" className="text-xs font-medium text-gray-400 hover:text-gray-700 transition-colors">
+                View all &rarr;
+              </Link>
+            </div>
+            <p className="mb-3 text-[10px] text-gray-400">Outsourced work expected back at the lab</p>
+            {dueAtHaloOrders.length === 0 ? (
+              <div className="py-3 text-center">
+                <p className="text-xs text-gray-400">No outsourced work pending return</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {dueAtHaloOrders.map((order) => {
+                  const returnDate = order.expectedReturnDate ? new Date(order.expectedReturnDate) : null
+                  const isOverdue = returnDate && returnDate < todayStart
+                  const isDueToday = returnDate && returnDate >= todayStart && returnDate < todayEnd
+                  return (
+                    <Link
+                      key={order.id}
+                      href={`/lab/cases/${order.case.id}`}
+                      className={`block rounded-xl border px-3 py-2 transition-all hover:shadow-sm ${
+                        isOverdue ? 'border-red-200 bg-red-50' :
+                        isDueToday ? 'border-orange-200 bg-orange-50' :
+                        'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-medium text-gray-900">{order.case.caseNumber}</p>
+                          <p className="text-[10px] text-gray-400">from {order.referralCentre.name}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-xs font-semibold ${
+                            isOverdue ? 'text-red-600' :
+                            isDueToday ? 'text-orange-600' :
+                            'text-gray-700'
+                          }`}>
+                            {returnDate ? formatDate(returnDate) : '\u2014'}
+                          </p>
+                          {isOverdue && <p className="text-[10px] font-medium text-red-500">Overdue</p>}
+                          {isDueToday && <p className="text-[10px] font-medium text-orange-500">Due today</p>}
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Due at Clinic - Cases to dispatch to clinics */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">Due at Clinic</h3>
+              <Link href="/lab/cases?due=soon" className="text-xs font-medium text-gray-400 hover:text-gray-700 transition-colors">
+                View all &rarr;
+              </Link>
+            </div>
+            <p className="mb-3 text-[10px] text-gray-400">Cases due at clinics in the next 7 days</p>
+            {dueAtClinicCases.length === 0 ? (
+              <div className="py-3 text-center">
+                <p className="text-xs text-gray-400">No upcoming clinic due dates</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {(() => {
+                  // Group cases by clinic
+                  const clinicGroups: Record<string, { clinicName: string; cases: typeof dueAtClinicCases }> = {}
+                  for (const c of dueAtClinicCases) {
+                    const cId = c.clinic.id
+                    if (!clinicGroups[cId]) {
+                      clinicGroups[cId] = { clinicName: c.clinic.name, cases: [] }
+                    }
+                    clinicGroups[cId].cases.push(c)
+                  }
+                  return Object.entries(clinicGroups).map(([clinicId, group]) => (
+                    <div key={clinicId}>
+                      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">{group.clinicName}</p>
+                      <div className="space-y-1.5">
+                        {group.cases.map((c) => {
+                          const dueDate = c.dueDate ? new Date(c.dueDate) : null
+                          const dispatchDate = dueDate ? new Date(dueDate.getTime() - 24 * 60 * 60 * 1000) : null
+                          const dueStatus = getDueStatus(c.dueDate)
+                          const dispatchIsToday = dispatchDate && dispatchDate >= todayStart && dispatchDate < todayEnd
+                          const dispatchOverdue = dispatchDate && dispatchDate < todayStart
+                          const patientName = c.patient
+                            ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference
+                            : null
+                          return (
+                            <Link
+                              key={c.id}
+                              href={`/lab/cases/${c.id}`}
+                              className={`block rounded-xl border px-3 py-2 transition-all hover:shadow-sm ${
+                                dueStatus === 'overdue' ? 'border-red-200 bg-red-50' :
+                                dueStatus === 'today' ? 'border-orange-200 bg-orange-50' :
+                                'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs font-medium text-gray-900">
+                                    {c.caseNumber}
+                                    {patientName && <span className="ml-1.5 text-gray-400">({patientName})</span>}
+                                  </p>
+                                  <p className="text-[10px] text-gray-400">{c.dentist.name}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className={`text-xs font-semibold ${
+                                    dueStatus === 'overdue' ? 'text-red-600' :
+                                    dueStatus === 'today' ? 'text-orange-600' :
+                                    dueStatus === 'tomorrow' ? 'text-yellow-600' :
+                                    'text-gray-700'
+                                  }`}>
+                                    {dueDate ? formatDate(dueDate) : '\u2014'}
+                                  </p>
+                                </div>
+                              </div>
+                              {/* Day-before dispatch rule */}
+                              {dispatchDate && (
+                                <div className={`mt-1 flex items-center gap-1 ${
+                                  dispatchOverdue ? 'text-red-500' :
+                                  dispatchIsToday ? 'text-orange-500' :
+                                  'text-gray-400'
+                                }`}>
+                                  <svg className="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                                  </svg>
+                                  <span className={`text-[10px] font-medium ${
+                                    dispatchOverdue ? 'text-red-500' :
+                                    dispatchIsToday ? 'text-orange-500' :
+                                    'text-gray-400'
+                                  }`}>
+                                    Dispatch by {formatDate(dispatchDate)}
+                                    {dispatchIsToday && ' (today!)'}
+                                    {dispatchOverdue && ' (overdue!)'}
+                                  </span>
+                                </div>
+                              )}
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))
+                })()}
               </div>
             )}
           </div>

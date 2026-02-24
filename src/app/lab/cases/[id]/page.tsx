@@ -96,7 +96,21 @@ export default async function CaseDetailPage({
   if (!caseData) notFound()
 
   const department = caseData.department as Department
-  const allowedStatuses = DEPARTMENT_STATUSES[department] || CASE_STATUSES
+
+  // Query the DepartmentStatusConfig table for configured statuses
+  const departmentConfig = await prisma.departmentStatusConfig.findUnique({
+    where: { department: caseData.department },
+  })
+  let allowedStatuses: string[]
+  if (departmentConfig && departmentConfig.statuses) {
+    try {
+      allowedStatuses = JSON.parse(departmentConfig.statuses) as string[]
+    } catch {
+      allowedStatuses = DEPARTMENT_STATUSES[department] || [...CASE_STATUSES]
+    }
+  } else {
+    allowedStatuses = DEPARTMENT_STATUSES[department] || [...CASE_STATUSES]
+  }
   const caseTotal = caseData.items.reduce((sum, i) => sum + i.lineTotal, 0)
 
   const statusColors: Record<string, string> = {
@@ -194,7 +208,7 @@ export default async function CaseDetailPage({
             caseId={caseData.id}
             currentStatus={caseData.status}
             department={caseData.department}
-            allowedStatuses={allowedStatuses as unknown as string[]}
+            allowedStatuses={allowedStatuses}
           />
         </div>
 
@@ -242,7 +256,7 @@ export default async function CaseDetailPage({
           <div className="flex flex-wrap items-center gap-1">
             {allowedStatuses.map((status, idx) => {
               const isCurrent = caseData.status === status
-              const statusIdx = allowedStatuses.indexOf(caseData.status as CaseStatus)
+              const statusIdx = allowedStatuses.indexOf(caseData.status)
               const isCompleted = idx < statusIdx
               const isCancelled = caseData.status === 'CANCELLED'
 

@@ -45,7 +45,7 @@ export async function PUT(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Dentist not found' }, { status: 404 })
     }
 
-    const allowedFields = ['name', 'email', 'phone', 'gdcNumber', 'paymentTermDays', 'notes', 'active'] as const
+    const allowedFields = ['name', 'email', 'phone', 'gdcNumber', 'paymentTermDays', 'portalPassword', 'notificationChannel', 'notes', 'active'] as const
     const updateData: Record<string, unknown> = {}
 
     for (const field of allowedFields) {

@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
         department: validated.department,
         status: 'NEW',
         priority: validated.priority,
-        dueDate: validated.dueDate ? new Date(validated.dueDate) : null,
+        dueDate: new Date(validated.dueDate),
         notes: validated.notes || null,
         source: 'MANUAL',
         items: {

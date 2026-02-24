@@ -231,7 +231,7 @@ export default function NewCasePage() {
       dentistId,
       department,
       priority,
-      dueDate: dueDate || undefined,
+      dueDate,
       patientRef: patientRef || undefined,
       patientFirstName: patientFirstName || undefined,
       patientLastName: patientLastName || undefined,
@@ -384,12 +384,15 @@ export default function NewCasePage() {
             </div>
 
             <div>
-              <label className={labelClass}>Due Date</label>
+              <label className={labelClass}>
+                Due Date <span className="text-red-500">*</span>
+              </label>
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 className={inputClass}
+                required
               />
             </div>
 

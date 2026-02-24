@@ -21,8 +21,22 @@ export async function PUT(req: NextRequest, context: RouteContext) {
 
     // Validate status is allowed for the case's department
     const department = existingCase.department as Department
-    const allowedStatuses = DEPARTMENT_STATUSES[department]
-    if (!allowedStatuses || !allowedStatuses.includes(validated.status as CaseStatus)) {
+
+    // Check DepartmentStatusConfig table first, fall back to hardcoded constants
+    const departmentConfig = await prisma.departmentStatusConfig.findUnique({
+      where: { department: existingCase.department },
+    })
+    let allowedStatuses: string[]
+    if (departmentConfig && departmentConfig.statuses) {
+      try {
+        allowedStatuses = JSON.parse(departmentConfig.statuses) as string[]
+      } catch {
+        allowedStatuses = DEPARTMENT_STATUSES[department] ? [...DEPARTMENT_STATUSES[department]] : []
+      }
+    } else {
+      allowedStatuses = DEPARTMENT_STATUSES[department] ? [...DEPARTMENT_STATUSES[department]] : []
+    }
+    if (!allowedStatuses.includes(validated.status)) {
       return NextResponse.json(
         {
           error: `Status '${validated.status}' is not valid for department '${department}'`,

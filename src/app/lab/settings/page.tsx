@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 // Types
 // ---------------------------------------------------------------------------
 
-type SectionKey = 'general' | 'billing' | 'branding' | 'clinics' | 'integrations' | 'workflows' | 'templates' | 'email-preview'
+type SectionKey = 'general' | 'billing' | 'branding' | 'clinics' | 'integrations' | 'workflows' | 'templates' | 'email-preview' | 'notifications'
 
 interface DeptStatusConfig {
   id: string
@@ -24,7 +24,7 @@ interface ClinicWithDentists {
   phone: string | null
   portalPassword: string | null
   active: boolean
-  dentists: { id: string; name: string; email: string | null; active: boolean }[]
+  dentists: { id: string; name: string; email: string | null; portalPassword: string | null; active: boolean }[]
   _count: { cases: number; dentists: number }
 }
 
@@ -224,6 +224,8 @@ export default function SettingsPage() {
   const [newDentistName, setNewDentistName] = useState('')
   const [newDentistEmail, setNewDentistEmail] = useState('')
   const [addingDentist, setAddingDentist] = useState(false)
+  const [editingDentistPasswords, setEditingDentistPasswords] = useState<Record<string, string>>({})
+  const [savingDentistPassword, setSavingDentistPassword] = useState<string | null>(null)
 
   // Editable workflow state
   const [editedWorkflows, setEditedWorkflows] = useState<Record<string, string[]>>({})
@@ -449,6 +451,25 @@ export default function SettingsPage() {
       toast.error('Failed to add dentist')
     } finally {
       setAddingDentist(false)
+    }
+  }
+
+  async function saveDentistPortalPassword(dentistId: string) {
+    setSavingDentistPassword(dentistId)
+    try {
+      const password = editingDentistPasswords[dentistId] ?? ''
+      const res = await fetch(`/api/dentists/${dentistId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ portalPassword: password || null }),
+      })
+      if (!res.ok) throw new Error('Failed to save')
+      toast.success('Dentist portal password saved')
+      loadClinics()
+    } catch {
+      toast.error('Failed to save dentist portal password')
+    } finally {
+      setSavingDentistPassword(null)
     }
   }
 
@@ -786,16 +807,34 @@ export default function SettingsPage() {
 
                           {/* Dentist list */}
                           {clinic.dentists && clinic.dentists.length > 0 ? (
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                               {clinic.dentists.map((d) => (
-                                <div key={d.id} className="flex items-center justify-between rounded-lg px-3 py-2 bg-white border border-gray-100">
-                                  <div>
-                                    <span className="text-sm font-medium text-gray-900">{d.name}</span>
-                                    {d.email && <span className="ml-2 text-xs text-gray-400">{d.email}</span>}
+                                <div key={d.id} className="rounded-lg px-3 py-2 bg-white border border-gray-100 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <span className="text-sm font-medium text-gray-900">{d.name}</span>
+                                      {d.email && <span className="ml-2 text-xs text-gray-400">{d.email}</span>}
+                                    </div>
+                                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${d.active ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                                      {d.active ? 'Active' : 'Inactive'}
+                                    </span>
                                   </div>
-                                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${d.active ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    {d.active ? 'Active' : 'Inactive'}
-                                  </span>
+                                  <div className="flex gap-2 items-center">
+                                    <input
+                                      type="text"
+                                      value={editingDentistPasswords[d.id] ?? d.portalPassword ?? ''}
+                                      onChange={(e) => setEditingDentistPasswords((prev) => ({ ...prev, [d.id]: e.target.value }))}
+                                      placeholder="Set dentist portal password"
+                                      className="flex-1 rounded-lg border border-gray-200 bg-gray-50/50 px-2.5 py-1.5 text-xs text-gray-900 placeholder-gray-400 outline-none focus:border-gray-400 focus:bg-white font-mono"
+                                    />
+                                    <button
+                                      onClick={() => saveDentistPortalPassword(d.id)}
+                                      disabled={savingDentistPassword === d.id}
+                                      className="rounded-lg bg-gray-900 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+                                    >
+                                      {savingDentistPassword === d.id ? 'Saving...' : 'Save'}
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                             </div>

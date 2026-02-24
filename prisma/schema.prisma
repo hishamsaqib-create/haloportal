@@ -10,15 +10,18 @@ datasource db {
 // ─── ENUMS via string fields ───
 
 // UserType: INTERNAL | DENTIST | CLINIC
-// Role: SUPER_ADMIN | LAB_MANAGER | LAB_STAFF | CLINIC_ADMIN | CLINIC_FINANCE | DENTIST_USER
+// Role: SUPER_ADMIN | LAB_MANAGER | LAB_STAFF | LAB_TECHNICIAN | CLINIC_ADMIN | CLINIC_FINANCE | DENTIST_USER
 // Department: CERAMICS | APPLIANCES | DSD
 // CaseStatus: NEW | REVIEWED | IN_PRODUCTION | SENT_OUTSOURCE | RECEIVED | QC | READY | DISPATCHED | COMPLETED | CANCELLED
+// DentistVisibleStatus: SUBMITTED | IN_PROGRESS | OUT_FOR_DELIVERY | DELIVERED
 // DeliveryStatus: PENDING | COLLECTED | IN_TRANSIT | DELIVERED | FAILED
 // DeliveryMethod: COURIER | ROYAL_MAIL | HAND_DELIVERY | COLLECTION | OTHER
 // InvoiceStatus: DRAFT | SENT | PAID | OVERDUE | CANCELLED
 // OutsourceStatus: QUEUED | SENT | RECEIVED | RETURNED
 // SupplierInvoiceStatus: UNPAID | PAID | DISPUTED
 // StatementStatus: DRAFT | ISSUED | PAID
+// FileDirection: INBOUND | OUTBOUND
+// NotificationChannel: EMAIL | WHATSAPP | BOTH
 
 model User {
   id            String   @id @default(uuid())
@@ -26,7 +29,7 @@ model User {
   name          String
   passwordHash  String
   userType      String   @default("INTERNAL") // INTERNAL | DENTIST | CLINIC
-  role          String   @default("LAB_STAFF") // SUPER_ADMIN | LAB_MANAGER | LAB_STAFF | CLINIC_ADMIN | CLINIC_FINANCE | DENTIST_USER
+  role          String   @default("LAB_STAFF") // SUPER_ADMIN | LAB_MANAGER | LAB_STAFF | LAB_TECHNICIAN | CLINIC_ADMIN | CLINIC_FINANCE | DENTIST_USER
   active        Boolean  @default(true)
   lastLogin     DateTime?
   clinicId      String?
@@ -46,6 +49,7 @@ model User {
   createdInvites    UserInvite[]
   uploadedFiles     CaseFile[]       @relation("UploadedFiles")
   createdDeliveries Delivery[]       @relation("CreatedDeliveries")
+  haloChatMessages  HaloChatMessage[] @relation("HaloChatSender")
 
   @@index([clinicId])
   @@index([dentistId])
@@ -99,17 +103,20 @@ model Clinic {
 }
 
 model Dentist {
-  id              String   @id @default(uuid())
-  clinicId        String
-  name            String
-  email           String?
-  phone           String?
-  gdcNumber       String?
-  paymentTermDays Int?
-  notes           String?
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  clinicId              String
+  name                  String
+  email                 String?
+  phone                 String?
+  gdcNumber             String?
+  paymentTermDays       Int?
+  portalPassword        String?  // Custom password for dentist portal login
+  pricingVariationId    String?  // Which pricing variation is assigned to this dentist
+  notificationChannel   String   @default("EMAIL") // EMAIL | WHATSAPP | BOTH
+  notes                 String?
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   clinic          Clinic   @relation(fields: [clinicId], references: [id])
   cases           Case[]
@@ -137,18 +144,20 @@ model Patient {
 }
 
 model Product {
-  id                    String   @id @default(uuid())
-  department            String   // CERAMICS | APPLIANCES | DSD
-  name                  String
-  sku                   String?  @unique
-  description           String?
-  basePrice             Float
-  requiresToothCount    Boolean  @default(false)
-  requiresToothSelection Boolean @default(false)
-  parameterSchema       String?  // JSON schema for additional parameters
-  active                Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                     String   @id @default(uuid())
+  department             String   // CERAMICS | APPLIANCES | DSD
+  name                   String
+  sku                    String?  @unique
+  description            String?
+  basePrice              Float
+  requiresToothCount     Boolean  @default(false)
+  requiresToothSelection Boolean  @default(false)
+  minTeeth               Int?     // Minimum teeth for per-tooth pricing (e.g. 4)
+  additionalToothPrice   Float?   // Price per additional tooth above minimum
+  parameterSchema        String?  // JSON schema for additional parameters
+  active                 Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   caseItems             CaseItem[]
   pricingRules          PricingRule[]
@@ -157,13 +166,16 @@ model Product {
 }
 
 model PricingRule {
-  id          String   @id @default(uuid())
-  productId   String
-  clinicId    String?  // null = default
-  dentistId   String?  // null = default
-  price       Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid())
+  productId     String
+  clinicId      String?  // null = default
+  dentistId     String?  // null = default
+  variationName String?  // Name of the pricing variation (e.g. "Standard", "Premium", "Dr Smith")
+  price         Float
+  minTeeth      Int?     // Override minimum teeth for per-tooth pricing
+  additionalToothPrice Float? // Override price per additional tooth
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   product     Product  @relation(fields: [productId], references: [id])
   clinic      Clinic?  @relation(fields: [clinicId], references: [id])
@@ -174,18 +186,21 @@ model PricingRule {
 
 model Case {
   id            String   @id @default(uuid())
-  caseNumber    String   @unique // Human-readable case number (e.g. HL-2024-0001)
+  caseNumber    String   @unique // Format: C/D/A-XX-0001 (dept letter - patient initials - sequence)
   clinicId      String
   dentistId     String
   patientId     String?
   department    String   // CERAMICS | APPLIANCES | DSD
   status        String   @default("NEW")
   priority      String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
-  dueDate       DateTime?
+  dueDate       DateTime // Required field
+  dueAtClinic   DateTime? // When it needs to be at the clinic (typically day before dueDate)
   notes         String?
   fileUrl       String?  // File upload URL (e.g. from JotForm ZIP upload)
-  source        String   @default("MANUAL") // MANUAL | WEBSITE | JOTFORM
+  source        String   @default("MANUAL") // MANUAL | WEBSITE | JOTFORM | DENTIST_PORTAL
   externalRef   String?  // External reference (Jotform ID, Monday item ID, etc.)
+  isRemake      Boolean  @default(false)
+  remakeReason  String?  // Dropdown reason if this is a remake
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -204,12 +219,14 @@ model Case {
   whatsappMessages  WhatsAppMessage[]
   files             CaseFile[]
   deliveryItems     DeliveryItem[]
+  haloChatMessages  HaloChatMessage[]
 
   @@index([clinicId])
   @@index([dentistId])
   @@index([status])
   @@index([department])
   @@index([dueDate])
+  @@index([isRemake])
 }
 
 model CaseItem {
@@ -281,8 +298,11 @@ model OutsourceOrder {
   referralCentreId    String
   status              String   @default("QUEUED") // QUEUED | SENT | RECEIVED | RETURNED
   sentAt              DateTime?
-  expectedReturnDate  DateTime?
+  expectedReturnDate  DateTime? // When we expect work back at the lab
   actualReturnDate    DateTime?
+  costAmount          Float?    // Cost charged by referral centre
+  isPaid              Boolean   @default(false)
+  paidDate            DateTime?
   trackingRef         String?
   notes               String?
   createdAt           DateTime @default(now())
@@ -337,7 +357,7 @@ model EmailTemplate {
   bodyHtml  String
   bodyText  String?
   variables String?  // JSON array of variable names
-  category  String?  // outsource | update | general
+  category  String?  // outsource | update | general | whatsapp
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -372,15 +392,17 @@ model Invoice {
 }
 
 model InvoiceLine {
-  id          String   @id @default(uuid())
-  invoiceId   String
-  caseId      String?
-  caseItemId  String?
-  description String
-  qty         Int      @default(1)
-  unitPrice   Float
-  total       Float
-  createdAt   DateTime @default(now())
+  id              String   @id @default(uuid())
+  invoiceId       String
+  caseId          String?
+  caseItemId      String?
+  description     String
+  qty             Int      @default(1)
+  unitPrice       Float
+  total           Float
+  toothCount      Int?     // Number of teeth for per-tooth pricing
+  additionalTeeth Int?     // Number of additional teeth above minimum
+  createdAt       DateTime @default(now())
 
   invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   case        Case?    @relation(fields: [caseId], references: [id])
@@ -401,6 +423,7 @@ model SupplierInvoice {
   date              DateTime
   dueDate           DateTime?
   paidDate          DateTime?
+  paidAmount        Float?    // Actual amount paid
   attachmentUrl     String?
   notes             String?
   createdAt         DateTime @default(now())
@@ -438,7 +461,7 @@ model Remake {
   id            String   @id @default(uuid())
   caseId        String
   caseItemId    String?
-  reasonCode    String   // MATERIAL_DEFECT | FIT_ISSUE | SHADE_MISMATCH | BREAKAGE | DESIGN_ERROR | OTHER
+  reasonCode    String   // MATERIAL_DEFECT | FIT_ISSUE | SHADE_MISMATCH | BREAKAGE | DESIGN_ERROR | IMPRESSION_ISSUE | WRONG_SHADE | OTHER
   reasonText    String?
   costEstimate  Float?
   createdById   String
@@ -468,21 +491,24 @@ model DAMASPrescription {
 }
 
 model CaseFile {
-  id          String   @id @default(uuid())
-  caseId      String
-  fileName    String
-  fileType    String   // stl | html | pdf | image | other
-  fileUrl     String   // URL or path to the file
-  fileSize    Int?     // Size in bytes
-  description String?
-  uploadedById String?
-  sharedWithDentist Boolean @default(false)
-  createdAt   DateTime @default(now())
+  id                String   @id @default(uuid())
+  caseId            String
+  fileName          String
+  fileType          String   // stl | html | pdf | image | other
+  fileUrl           String   // URL or path to the file
+  fileSize          Int?     // Size in bytes
+  description       String?
+  direction         String   @default("INBOUND") // INBOUND | OUTBOUND
+  uploadedById      String?
+  sharedWithDentist Boolean  @default(false)
+  dentistNotified   Boolean  @default(false) // Whether dentist was notified about this file
+  createdAt         DateTime @default(now())
 
   case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
   uploadedBy  User?    @relation("UploadedFiles", fields: [uploadedById], references: [id])
 
   @@index([caseId])
+  @@index([direction])
 }
 
 model Delivery {
@@ -547,10 +573,11 @@ model AuditLog {
 }
 
 model DepartmentStatusConfig {
-  id          String  @id @default(uuid())
-  department  String  // CERAMICS | APPLIANCES | DSD
-  statuses    String  // JSON array of ordered statuses
-  active      Boolean @default(true)
+  id                    String  @id @default(uuid())
+  department            String  // CERAMICS | APPLIANCES | DSD
+  statuses              String  // JSON array of ordered statuses
+  dentistVisibleStatuses String? // JSON array of statuses visible to dentists
+  active                Boolean @default(true)
 
   @@unique([department])
 }
@@ -560,7 +587,7 @@ model SystemSettings {
   key       String   @unique
   value     String
   label     String?
-  category  String   @default("general") // general | billing | branding | integrations
+  category  String   @default("general") // general | billing | branding | integrations | notifications
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -582,4 +609,48 @@ model WhatsAppMessage {
   @@index([contactPhone])
   @@index([caseId])
   @@index([createdAt])
+}
+
+// HaloChat - Internal messaging between dentist portal and lab
+model HaloChatMessage {
+  id          String   @id @default(uuid())
+  caseId      String?
+  senderId    String
+  senderType  String   // DENTIST | INTERNAL
+  message     String
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  case        Case?    @relation(fields: [caseId], references: [id])
+  sender      User     @relation("HaloChatSender", fields: [senderId], references: [id])
+
+  @@index([caseId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+// Notification automation rules
+model NotificationRule {
+  id          String   @id @default(uuid())
+  name        String
+  trigger     String   // STATUS_CHANGE | CASE_CREATED | FILE_SHARED | PRESCRIPTION_READY | REMAKE_FLAGGED
+  triggerValue String? // e.g. specific status value
+  channel     String   // EMAIL | WHATSAPP | BOTH
+  templateId  String?  // Optional email template
+  recipient   String   // DENTIST | CLINIC | LAB
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// WhatsApp message templates
+model WhatsAppTemplate {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  content   String   // Template text with {{variables}}
+  variables String?  // JSON array of variable names
+  category  String?  // status_update | case_notification | delivery | general
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
