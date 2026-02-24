@@ -113,6 +113,35 @@ export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
   OTHER: 'Other',
 }
 
+export const SCANNER_TYPES = ['ITERO', 'TRIOS', 'MEDIT', 'PRIMESCAN', 'OTHER'] as const
+export type ScannerType = (typeof SCANNER_TYPES)[number]
+
+export const SCANNER_LABELS: Record<ScannerType, string> = {
+  ITERO: 'iTero',
+  TRIOS: '3Shape TRIOS',
+  MEDIT: 'Medit',
+  PRIMESCAN: 'Primescan',
+  OTHER: 'Other',
+}
+
+export const SCANNER_PORTAL_URLS: Record<ScannerType, string> = {
+  ITERO: 'https://myitero.com',
+  TRIOS: 'https://communicate.3shapecommunicate.com',
+  MEDIT: 'https://medit.link',
+  PRIMESCAN: 'https://connect.dentsplysirona.com',
+  OTHER: '',
+}
+
+export const SCANNER_ORDER_STATUSES = ['NEW', 'DOWNLOADED', 'LINKED', 'COMPLETED'] as const
+export type ScannerOrderStatus = (typeof SCANNER_ORDER_STATUSES)[number]
+
+export const SCANNER_ORDER_STATUS_LABELS: Record<ScannerOrderStatus, string> = {
+  NEW: 'New',
+  DOWNLOADED: 'Downloaded',
+  LINKED: 'Linked to Case',
+  COMPLETED: 'Completed',
+}
+
 export const INTERNAL_ROLES: Role[] = ['SUPER_ADMIN', 'LAB_MANAGER', 'LAB_STAFF']
 export const CLINIC_ROLES: Role[] = ['CLINIC_ADMIN', 'CLINIC_FINANCE']
 export const DENTIST_ROLES: Role[] = ['DENTIST_USER']

@@ -1,10 +1,11 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { Sidebar, NavItem } from '@/components/shared/sidebar'
 import { canViewFinancials } from '@/lib/constants'
 
-const allNavItems: (NavItem & { financialOnly?: boolean })[] = [
+const allNavItems: (NavItem & { financialOnly?: boolean; badgeKey?: string })[] = [
   {
     label: 'Dashboard',
     href: '/lab/dashboard',
@@ -41,6 +42,12 @@ const allNavItems: (NavItem & { financialOnly?: boolean })[] = [
     label: 'Outsourcing',
     href: '/lab/outsourcing',
     icon: <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" /></svg>,
+  },
+  {
+    label: 'Scanner Inbox',
+    href: '/lab/scanners',
+    icon: <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25A2.25 2.25 0 0 1 5.25 3h13.5A2.25 2.25 0 0 1 21 5.25Z" /></svg>,
+    badgeKey: 'scannerCount',
   },
   {
     label: 'WhatsApp',
@@ -102,10 +109,33 @@ export function LabSidebar() {
   const { data: session } = useSession()
   const role = session?.user?.role || ''
   const showFinancials = canViewFinancials(role)
+  const [scannerCount, setScannerCount] = useState(0)
+
+  useEffect(() => {
+    async function fetchScannerCount() {
+      try {
+        const res = await fetch('/api/scanner-orders/count')
+        if (res.ok) {
+          const data = await res.json()
+          setScannerCount(data.count || 0)
+        }
+      } catch {
+        // ignore
+      }
+    }
+    fetchScannerCount()
+    const interval = setInterval(fetchScannerCount, 60000) // refresh every minute
+    return () => clearInterval(interval)
+  }, [])
+
+  const badges: Record<string, number> = { scannerCount }
 
   const navItems: NavItem[] = allNavItems
     .filter((item) => !item.financialOnly || showFinancials)
-    .map(({ financialOnly, ...item }) => item)
+    .map(({ financialOnly, badgeKey, ...item }) => ({
+      ...item,
+      badge: badgeKey && badges[badgeKey] ? badges[badgeKey] : undefined,
+    }))
 
   return (
     <Sidebar

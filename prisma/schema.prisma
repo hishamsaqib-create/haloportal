@@ -204,6 +204,7 @@ model Case {
   whatsappMessages  WhatsAppMessage[]
   files             CaseFile[]
   deliveryItems     DeliveryItem[]
+  scannerOrders     ScannerOrder[]
 
   @@index([clinicId])
   @@index([dentistId])
@@ -563,6 +564,30 @@ model SystemSettings {
   category  String   @default("general") // general | billing | branding | integrations
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ScannerOrder {
+  id              String   @id @default(uuid())
+  scanner         String   @default("ITERO") // ITERO | TRIOS | MEDIT | PRIMESCAN | OTHER
+  orderNumber     String   // e.g., 290008481 from the scanner notification
+  patientName     String?
+  doctorName      String?
+  clinicName      String?
+  status          String   @default("NEW") // NEW | DOWNLOADED | LINKED | COMPLETED
+  caseId          String?  // link to a case once created/linked
+  externalUrl     String?  // link to the order on the scanner's portal (e.g., myitero.com)
+  notes           String?
+  scannedAt       DateTime? // when the scan was taken
+  receivedAt      DateTime @default(now()) // when we received the notification
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  case            Case?    @relation(fields: [caseId], references: [id])
+
+  @@index([scanner])
+  @@index([status])
+  @@index([orderNumber])
+  @@index([receivedAt])
 }
 
 model WhatsAppMessage {
