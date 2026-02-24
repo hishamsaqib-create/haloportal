@@ -3,10 +3,24 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 
-interface ClinicSession {
+interface DentistSession {
   id: string
   name: string
-  dentists: { id: string; name: string; email: string | null }[]
+  clinicId: string
+  clinicName: string
+  allowCeramics: boolean
+  allowDsd: boolean
+  allowAppliances: boolean
+}
+
+interface RecentCase {
+  id: string
+  caseNumber: string
+  department: string
+  status: string
+  dueDate: string
+  createdAt: string
+  patient: { firstName: string | null; lastName: string | null; initials: string | null } | null
 }
 
 const ROTATING_WORDS = [
@@ -20,30 +34,66 @@ const ROTATING_WORDS = [
   'Aligners',
 ]
 
+const STATUS_LABELS: Record<string, string> = {
+  NEW: 'New',
+  REVIEWED: 'Reviewed',
+  IN_PRODUCTION: 'In Production',
+  SENT_OUTSOURCE: 'Outsourced',
+  RECEIVED: 'Received',
+  QC: 'Quality Check',
+  READY: 'Ready',
+  DISPATCHED: 'Dispatched',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+}
+
+const DEPT_LABELS: Record<string, string> = {
+  CERAMICS: 'Ceramics',
+  DSD: 'DSD',
+  APPLIANCES: 'Appliances',
+}
+
+function getFirstName(fullName: string): string {
+  return fullName.split(' ')[0]
+}
+
 export default function PublicHomePage() {
-  const [clinic, setClinic] = useState<ClinicSession | null>(null)
+  const [dentist, setDentist] = useState<DentistSession | null>(null)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [checking, setChecking] = useState(false)
   const [wordIndex, setWordIndex] = useState(0)
   const [wordVisible, setWordVisible] = useState(true)
+  const [recentCases, setRecentCases] = useState<RecentCase[]>([])
+  const [casesLoading, setCasesLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Session restore
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = sessionStorage.getItem('halo-clinic')
+      const stored = sessionStorage.getItem('halo-dentist')
       if (stored) {
         try {
-          setClinic(JSON.parse(stored))
+          setDentist(JSON.parse(stored))
         } catch { /* ignore */ }
       }
     }
   }, [])
 
+  // Load recent cases when dentist is set
+  useEffect(() => {
+    if (!dentist) return
+    setCasesLoading(true)
+    fetch(`/api/public/dentist-cases?dentistId=${dentist.id}`)
+      .then(res => res.json())
+      .then(data => setRecentCases(data.data || []))
+      .catch(() => {})
+      .finally(() => setCasesLoading(false))
+  }, [dentist])
+
   // Word rotation
   useEffect(() => {
-    if (!clinic) return
+    if (!dentist) return
     const interval = setInterval(() => {
       setWordVisible(false)
       setTimeout(() => {
@@ -52,12 +102,12 @@ export default function PublicHomePage() {
       }, 400)
     }, 2800)
     return () => clearInterval(interval)
-  }, [clinic])
+  }, [dentist])
 
   // Auto-focus
   useEffect(() => {
-    if (!clinic && inputRef.current) inputRef.current.focus()
-  }, [clinic])
+    if (!dentist && inputRef.current) inputRef.current.focus()
+  }, [dentist])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,9 +121,9 @@ export default function PublicHomePage() {
         body: JSON.stringify({ password: password.trim() }),
       })
       const data = await res.json()
-      if (data.success && data.clinic) {
-        sessionStorage.setItem('halo-clinic', JSON.stringify(data.clinic))
-        setClinic(data.clinic)
+      if (data.success && data.dentist) {
+        sessionStorage.setItem('halo-dentist', JSON.stringify(data.dentist))
+        setDentist(data.dentist)
       } else {
         setError('Incorrect password')
         setPassword('')
@@ -86,10 +136,13 @@ export default function PublicHomePage() {
   }, [password, checking])
 
   function handleLogout() {
-    sessionStorage.removeItem('halo-clinic')
-    setClinic(null)
+    sessionStorage.removeItem('halo-dentist')
+    setDentist(null)
     setPassword('')
+    setRecentCases([])
   }
+
+  const hasAnyForm = dentist && (dentist.allowDsd || dentist.allowCeramics || dentist.allowAppliances)
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/40 to-white">
@@ -99,7 +152,7 @@ export default function PublicHomePage() {
       <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6">
 
         {/* PASSWORD GATE */}
-        {!clinic && (
+        {!dentist && (
           <div className="flex flex-col items-center animate-fade-in">
             <div className="mb-12">
               <h1 className="text-center text-5xl font-bold tracking-tight text-gray-900 sm:text-6xl">
@@ -122,7 +175,7 @@ export default function PublicHomePage() {
                   type="password"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError('') }}
-                  placeholder="Enter clinic password"
+                  placeholder="Enter your password"
                   className="w-80 rounded-2xl border border-gray-200 bg-white py-4 pl-11 pr-4 text-base text-gray-900 placeholder-gray-400 outline-none shadow-sm transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
@@ -133,113 +186,168 @@ export default function PublicHomePage() {
               {error && <p className="text-sm text-red-500 animate-fade-in">{error}</p>}
             </form>
 
-            <div className="mt-16 flex items-center gap-6">
-              <Link href="/auth/login" className="text-sm text-gray-400 transition-colors hover:text-blue-500 no-underline hover:no-underline">
+            <div className="mt-16">
+              <Link href="/portal" className="text-sm text-gray-400 transition-colors hover:text-blue-500 no-underline hover:no-underline">
                 Lab Portal
-              </Link>
-              <span className="text-gray-200">|</span>
-              <Link href="/auth/login" className="text-sm text-gray-400 transition-colors hover:text-blue-500 no-underline hover:no-underline">
-                Dentist Portal
               </Link>
             </div>
           </div>
         )}
 
         {/* MAIN CONTENT (after password) */}
-        {clinic && (
-          <div className="flex flex-col items-center animate-fade-in">
-            {/* Clinic badge */}
+        {dentist && (
+          <div className="flex flex-col items-center animate-fade-in w-full max-w-3xl">
+            {/* Dentist badge + sign out */}
             <div className="mb-6 flex items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 border border-blue-100 px-4 py-1.5 text-sm font-medium text-blue-700">
-                {clinic.name}
+                {dentist.clinicName}
               </span>
               <button onClick={handleLogout} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
-                Switch clinic
+                Sign out
               </button>
+            </div>
+
+            {/* Personal welcome */}
+            <div className="mb-8 text-center">
+              <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
+                Welcome to Halo, <span className="text-blue-500">{getFirstName(dentist.name)}</span>
+              </h1>
             </div>
 
             {/* Rotating headline */}
             <div className="mb-8 text-center">
-              <h1 className="text-5xl font-bold tracking-tight text-gray-900 sm:text-6xl lg:text-7xl">
-                We make
-              </h1>
-              <div className="my-5 h-[70px] sm:h-[85px] lg:h-[100px] flex items-center justify-center overflow-hidden">
-                <span
-                  className={`block text-5xl font-bold tracking-tight text-blue-500 sm:text-6xl lg:text-7xl transition-all duration-500 ease-out ${
-                    wordVisible ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
-                  }`}
-                >
-                  {ROTATING_WORDS[wordIndex]}
-                </span>
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-2xl font-medium text-gray-400 sm:text-3xl">We make</span>
+                <div className="h-[40px] sm:h-[45px] flex items-center overflow-hidden">
+                  <span
+                    className={`block text-2xl font-bold tracking-tight text-blue-500 sm:text-3xl transition-all duration-500 ease-out ${
+                      wordVisible ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
+                    }`}
+                  >
+                    {ROTATING_WORDS[wordIndex]}
+                  </span>
+                </div>
+                <span className="text-2xl font-medium text-gray-400 sm:text-3xl">Effortless</span>
               </div>
-              <h1 className="text-5xl font-bold tracking-tight text-gray-900 sm:text-6xl lg:text-7xl">
-                Effortless
-              </h1>
             </div>
 
-            <p className="mb-14 max-w-lg text-center text-lg text-gray-500 leading-relaxed">
-              Premium dental laboratory services delivered with precision and care
-            </p>
+            {/* Form buttons */}
+            {hasAnyForm && (
+              <div className="flex flex-col gap-4 w-full max-w-2xl mb-10">
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">Submit a Case</p>
 
-            {/* Three form buttons */}
-            <div className="flex flex-col gap-5 w-full max-w-2xl">
-              <Link href="/dsd"
-                className="group flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-8 py-6 text-lg font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md hover:border-blue-200 hover:bg-blue-50/50 active:scale-[0.99] no-underline hover:no-underline">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 group-hover:bg-blue-100 transition-colors">
-                  <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
-                  </svg>
-                </div>
-                <div>
-                  <span className="block">Submit Design Case</span>
-                  <span className="block text-sm font-normal text-gray-400">DSD, smile design & wax-ups</span>
-                </div>
-                <svg className="ml-auto h-5 w-5 text-gray-300 group-hover:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                </svg>
-              </Link>
+                {dentist.allowDsd && (
+                  <Link href="/dsd"
+                    className="group flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-8 py-5 text-lg font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md hover:border-blue-200 hover:bg-blue-50/50 active:scale-[0.99] no-underline hover:no-underline">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 group-hover:bg-blue-100 transition-colors">
+                      <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <span className="block">Submit Design Case</span>
+                      <span className="block text-sm font-normal text-gray-400">DSD, smile design & wax-ups</span>
+                    </div>
+                    <svg className="ml-auto h-5 w-5 text-gray-300 group-hover:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </Link>
+                )}
 
-              <Link href="/ceramics"
-                className="group flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-8 py-6 text-lg font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md hover:border-blue-200 hover:bg-blue-50/50 active:scale-[0.99] no-underline hover:no-underline">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 group-hover:bg-blue-100 transition-colors">
-                  <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
-                  </svg>
-                </div>
-                <div>
-                  <span className="block">Submit Ceramic Case</span>
-                  <span className="block text-sm font-normal text-gray-400">Crowns, veneers, bridges & implants</span>
-                </div>
-                <svg className="ml-auto h-5 w-5 text-gray-300 group-hover:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                </svg>
-              </Link>
+                {dentist.allowCeramics && (
+                  <Link href="/ceramics"
+                    className="group flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-8 py-5 text-lg font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md hover:border-blue-200 hover:bg-blue-50/50 active:scale-[0.99] no-underline hover:no-underline">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 group-hover:bg-blue-100 transition-colors">
+                      <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <span className="block">Submit Ceramic Case</span>
+                      <span className="block text-sm font-normal text-gray-400">Crowns, veneers, bridges & implants</span>
+                    </div>
+                    <svg className="ml-auto h-5 w-5 text-gray-300 group-hover:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </Link>
+                )}
 
-              <Link href="/appliances"
-                className="group flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-8 py-6 text-lg font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md hover:border-blue-200 hover:bg-blue-50/50 active:scale-[0.99] no-underline hover:no-underline">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 group-hover:bg-blue-100 transition-colors">
-                  <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.049.58.025 1.193-.14 1.743" />
-                  </svg>
+                {dentist.allowAppliances && (
+                  <Link href="/appliances"
+                    className="group flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-8 py-5 text-lg font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md hover:border-blue-200 hover:bg-blue-50/50 active:scale-[0.99] no-underline hover:no-underline">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 group-hover:bg-blue-100 transition-colors">
+                      <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.049.58.025 1.193-.14 1.743" />
+                      </svg>
+                    </div>
+                    <div>
+                      <span className="block">Submit Appliance Case</span>
+                      <span className="block text-sm font-normal text-gray-400">Retainers, guards & orthodontics</span>
+                    </div>
+                    <svg className="ml-auto h-5 w-5 text-gray-300 group-hover:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </Link>
+                )}
+              </div>
+            )}
+
+            {/* My Cases section */}
+            <div className="w-full max-w-2xl">
+              <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+                <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                  <h2 className="text-sm font-semibold text-gray-900">My Recent Cases</h2>
                 </div>
-                <div>
-                  <span className="block">Submit Appliance Case</span>
-                  <span className="block text-sm font-normal text-gray-400">Retainers, guards & orthodontics</span>
-                </div>
-                <svg className="ml-auto h-5 w-5 text-gray-300 group-hover:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                </svg>
-              </Link>
+                {casesLoading ? (
+                  <div className="px-6 py-8 text-center text-sm text-gray-400">Loading cases...</div>
+                ) : recentCases.length === 0 ? (
+                  <div className="px-6 py-8 text-center text-sm text-gray-500">
+                    No cases yet. Submit your first case above.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {recentCases.map((c) => {
+                      const patientName = c.patient
+                        ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || ''
+                        : ''
+                      return (
+                        <div key={c.id} className="flex items-center justify-between px-6 py-3 hover:bg-gray-50/50 transition-colors">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-900">{c.caseNumber}</span>
+                              <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">
+                                {DEPT_LABELS[c.department] || c.department}
+                              </span>
+                              <span className={`inline-flex rounded-lg px-2 py-0.5 text-[10px] font-medium ${
+                                c.status === 'COMPLETED' ? 'bg-green-50 text-green-700' :
+                                c.status === 'CANCELLED' ? 'bg-red-50 text-red-700' :
+                                c.status === 'IN_PRODUCTION' ? 'bg-yellow-50 text-yellow-700' :
+                                c.status === 'READY' ? 'bg-blue-50 text-blue-700' :
+                                c.status === 'DISPATCHED' ? 'bg-purple-50 text-purple-700' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
+                                {STATUS_LABELS[c.status] || c.status}
+                              </span>
+                            </div>
+                            {patientName && (
+                              <p className="text-xs text-gray-500 mt-0.5">{patientName}</p>
+                            )}
+                          </div>
+                          <div className="text-right text-xs text-gray-400">
+                            {new Date(c.createdAt).toLocaleDateString('en-GB')}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Login links */}
-            <div className="mt-16 flex items-center gap-6">
-              <Link href="/auth/login" className="text-sm text-gray-400 transition-colors hover:text-blue-500 no-underline hover:no-underline">
+            {/* Portal link */}
+            <div className="mt-10">
+              <Link href="/portal" className="text-sm text-gray-400 transition-colors hover:text-blue-500 no-underline hover:no-underline">
                 Lab Portal
-              </Link>
-              <span className="text-gray-200">|</span>
-              <Link href="/auth/login" className="text-sm text-gray-400 transition-colors hover:text-blue-500 no-underline hover:no-underline">
-                Dentist Portal
               </Link>
             </div>
           </div>

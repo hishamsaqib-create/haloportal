@@ -9,8 +9,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Password required' }, { status: 400 })
     }
 
-    // Check against per-clinic portal passwords
-    const clinic = await prisma.clinic.findFirst({
+    // Check against per-dentist portal passwords
+    const dentist = await prisma.dentist.findFirst({
       where: {
         portalPassword: password,
         active: true,
@@ -18,25 +18,30 @@ export async function POST(req: NextRequest) {
       select: {
         id: true,
         name: true,
-        dentists: {
-          where: { active: true },
+        clinicId: true,
+        allowCeramics: true,
+        allowDsd: true,
+        allowAppliances: true,
+        clinic: {
           select: {
             id: true,
             name: true,
-            email: true,
           },
-          orderBy: { name: 'asc' },
         },
       },
     })
 
-    if (clinic) {
+    if (dentist) {
       return NextResponse.json({
         success: true,
-        clinic: {
-          id: clinic.id,
-          name: clinic.name,
-          dentists: clinic.dentists,
+        dentist: {
+          id: dentist.id,
+          name: dentist.name,
+          clinicId: dentist.clinicId,
+          clinicName: dentist.clinic.name,
+          allowCeramics: dentist.allowCeramics,
+          allowDsd: dentist.allowDsd,
+          allowAppliances: dentist.allowAppliances,
         },
       })
     }

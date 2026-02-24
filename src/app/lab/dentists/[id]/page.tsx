@@ -5,6 +5,7 @@ import { redirect, notFound } from 'next/navigation'
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/utils'
 import { CASE_STATUS_LABELS, canViewFinancials } from '@/lib/constants'
 import Link from 'next/link'
+import { DentistSettings } from './dentist-settings'
 
 export default async function DentistDetailPage({
   params,
@@ -89,12 +90,25 @@ export default async function DentistDetailPage({
       : Promise.resolve({ _sum: { total: null }, _count: 0 }),
   ])
 
+  // Fetch pricing variations for settings tab
+  const pricingVariations = activeTab === 'settings'
+    ? await prisma.pricingRule.groupBy({
+        by: ['variationName'],
+        _count: { id: true },
+        where: { variationName: { not: null } },
+      }).then(groups => groups.map(g => ({
+        name: g.variationName!,
+        ruleCount: g._count.id,
+      })))
+    : []
+
   const tabs = [
     { key: 'cases', label: `Cases (${caseCount})` },
     ...(showFinancials
       ? [{ key: 'invoices', label: `Invoices (${invoiceStats._count})` }]
       : []),
     { key: 'correspondence', label: 'Correspondence' },
+    { key: 'settings', label: 'Settings' },
   ]
 
   return (
@@ -364,6 +378,22 @@ export default async function DentistDetailPage({
             })
           )}
         </div>
+      )}
+
+      {/* Settings Tab */}
+      {activeTab === 'settings' && (
+        <DentistSettings
+          dentist={{
+            id: dentist.id,
+            name: dentist.name,
+            portalPassword: dentist.portalPassword,
+            allowCeramics: dentist.allowCeramics,
+            allowDsd: dentist.allowDsd,
+            allowAppliances: dentist.allowAppliances,
+            pricingVariationId: dentist.pricingVariationId,
+          }}
+          pricingVariations={pricingVariations}
+        />
       )}
     </div>
   )

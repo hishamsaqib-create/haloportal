@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     await requireInternal()
     const body = await req.json()
 
-    const { clinicId, name, email, phone, gdcNumber, paymentTermDays, notes } = body
+    const { clinicId, name, email, phone, gdcNumber, paymentTermDays, portalPassword, allowCeramics, allowDsd, allowAppliances, notes } = body
 
     if (!clinicId || !name) {
       return NextResponse.json(
@@ -86,6 +86,10 @@ export async function POST(req: NextRequest) {
         gdcNumber: gdcNumber || null,
         paymentTermDays: paymentTermDays ?? null,
         notes: notes || null,
+        portalPassword: portalPassword || null,
+        allowCeramics: allowCeramics !== undefined ? allowCeramics : true,
+        allowDsd: allowDsd !== undefined ? allowDsd : true,
+        allowAppliances: allowAppliances !== undefined ? allowAppliances : true,
         active: true,
       },
       include: {
