@@ -42,6 +42,26 @@ export default function DentistsPage() {
     fetchDentists()
   }, [fetchDentists])
 
+  async function toggleActive(dentistId: string, currentlyActive: boolean) {
+    const action = currentlyActive ? 'archive' : 'restore'
+    if (!confirm(`Are you sure you want to ${action} this dentist?`)) return
+
+    try {
+      const res = await fetch(`/api/dentists/${dentistId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !currentlyActive }),
+      })
+      if (res.ok) {
+        setDentists((prev) =>
+          prev.map((d) => d.id === dentistId ? { ...d, active: !currentlyActive } : d)
+        )
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -88,16 +108,17 @@ export default function DentistsPage() {
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">GDC Number</th>
                 <th className="px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400">Cases</th>
                 <th className="px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</th>
+                <th className="px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center text-sm text-gray-400">Loading dentists...</td>
+                  <td colSpan={7} className="px-6 py-16 text-center text-sm text-gray-400">Loading dentists...</td>
                 </tr>
               ) : dentists.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center text-sm text-gray-500">
+                  <td colSpan={7} className="px-6 py-16 text-center text-sm text-gray-500">
                     No dentists found.
                   </td>
                 </tr>
@@ -123,6 +144,18 @@ export default function DentistsPage() {
                       }`}>
                         {d.active ? 'Active' : 'Archived'}
                       </span>
+                    </td>
+                    <td className="px-6 py-3 text-center">
+                      <button
+                        onClick={() => toggleActive(d.id, d.active)}
+                        className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
+                          d.active
+                            ? 'text-amber-700 hover:bg-amber-50'
+                            : 'text-green-700 hover:bg-green-50'
+                        }`}
+                      >
+                        {d.active ? 'Archive' : 'Restore'}
+                      </button>
                     </td>
                   </tr>
                 ))
