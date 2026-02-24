@@ -28,6 +28,9 @@ export async function POST(req: NextRequest) {
       iteroScanId,
       // DSD fields
       teethOnDsd,
+      // Remake fields
+      isRemake,
+      remakeReason,
     } = body
 
     // Validate required fields
@@ -199,6 +202,8 @@ export async function POST(req: NextRequest) {
         dueDate: parsedDueDate,
         notes: caseNotes,
         source: 'WEBSITE',
+        isRemake: isRemake || false,
+        remakeReason: isRemake ? (remakeReason || null) : null,
         items: {
           create: [{
             productId: product?.id || null,
