@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { DentalChart } from '@/components/dental-chart'
 
 interface ClinicDentist {
   id: string
@@ -46,9 +47,13 @@ export default function AppliancesFormPage() {
   const [appliance, setAppliance] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [dueDate, setDueDate] = useState('')
+  const [teethNeeded, setTeethNeeded] = useState('')
+  const [selectedTeeth, setSelectedTeeth] = useState<number[]>([])
   const [iteroScanTaken, setIteroScanTaken] = useState('')
   const [iteroScanId, setIteroScanId] = useState('')
   const [notes, setNotes] = useState('')
+  const [isRemake, setIsRemake] = useState(false)
+  const [remakeReason, setRemakeReason] = useState('')
 
   useEffect(() => {
     const raw = sessionStorage.getItem('halo-clinic')
@@ -96,9 +101,12 @@ export default function AppliancesFormPage() {
           dueDate: dueDate || undefined,
           appliance,
           quantity: quantity || '1',
+          teethNeeded: teethNeeded || undefined,
           iteroScanTaken: iteroScanTaken || undefined,
           iteroScanId: iteroScanId || undefined,
           notes: notes || undefined,
+          isRemake,
+          remakeReason: isRemake ? remakeReason : undefined,
         }),
       })
 
@@ -238,6 +246,18 @@ export default function AppliancesFormPage() {
             </div>
           </fieldset>
 
+          {/* Teeth Selection */}
+          <fieldset className="space-y-4">
+            <legend className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Teeth Selection</legend>
+            <DentalChart
+              selectedTeeth={selectedTeeth}
+              onChange={(teeth) => {
+                setSelectedTeeth(teeth)
+                setTeethNeeded(teeth.join(', '))
+              }}
+            />
+          </fieldset>
+
           {/* iTero */}
           <fieldset className="space-y-4">
             <legend className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">iTero Scan</legend>
@@ -272,6 +292,33 @@ export default function AppliancesFormPage() {
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4}
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400 resize-none"
               placeholder="Any additional notes or special instructions..." />
+          </fieldset>
+
+          {/* Remake */}
+          <fieldset className="space-y-4">
+            <legend className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Remake Information</legend>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={isRemake} onChange={(e) => setIsRemake(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              <span className="text-sm text-gray-700">This is a remake of a previous case</span>
+            </label>
+            {isRemake && (
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5">Reason for Remake</label>
+                <select value={remakeReason} onChange={(e) => setRemakeReason(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-400">
+                  <option value="">Select a reason...</option>
+                  <option value="FIT_ISSUE">Fit Issue</option>
+                  <option value="SHADE_MISMATCH">Shade Mismatch</option>
+                  <option value="BREAKAGE">Breakage</option>
+                  <option value="DESIGN_ERROR">Design Error</option>
+                  <option value="MATERIAL_DEFECT">Material Defect</option>
+                  <option value="IMPRESSION_ISSUE">Impression Issue</option>
+                  <option value="WRONG_SHADE">Wrong Shade</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+            )}
           </fieldset>
 
           {/* Error */}
