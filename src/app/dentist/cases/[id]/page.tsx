@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/utils'
-import { CASE_STATUS_LABELS, DEPARTMENT_LABELS, CASE_STATUSES } from '@/lib/constants'
+import { DEPARTMENT_LABELS, DENTIST_STATUS_MAP, DENTIST_VISIBLE_STATUSES } from '@/lib/constants'
 import Link from 'next/link'
 
 export default async function DentistCaseDetailPage({ params }: { params: { id: string } }) {
@@ -32,7 +32,9 @@ export default async function DentistCaseDetailPage({ params }: { params: { id: 
   if (!caseData) notFound()
   if (caseData.dentistId !== session.user.dentistId) redirect('/dentist/dashboard')
 
-  const statusIndex = CASE_STATUSES.indexOf(caseData.status as any)
+  const dentistStatus = DENTIST_STATUS_MAP[caseData.status] || caseData.status
+  const dentistSteps = DENTIST_VISIBLE_STATUSES
+  const currentStepIndex = dentistSteps.indexOf(dentistStatus as any)
   const itemsTotal = caseData.items.reduce((sum, i) => sum + i.lineTotal, 0)
 
   return (
@@ -44,8 +46,13 @@ export default async function DentistCaseDetailPage({ params }: { params: { id: 
         </Link>
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold text-gray-900">{caseData.caseNumber}</h1>
-          <span className="inline-flex rounded-full px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700">
-            {CASE_STATUS_LABELS[caseData.status as keyof typeof CASE_STATUS_LABELS]}
+          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
+            dentistStatus === 'Delivered' ? 'bg-green-50 text-green-700' :
+            dentistStatus === 'With Courier' ? 'bg-indigo-50 text-indigo-700' :
+            dentistStatus === 'Submitted' ? 'bg-gray-100 text-gray-700' :
+            'bg-blue-50 text-blue-700'
+          }`}>
+            {dentistStatus}
           </span>
           <span className="text-sm text-gray-500">
             {DEPARTMENT_LABELS[caseData.department as keyof typeof DEPARTMENT_LABELS]}
@@ -58,22 +65,35 @@ export default async function DentistCaseDetailPage({ params }: { params: { id: 
         <div className="lg:col-span-2 space-y-6">
           {/* Status Timeline */}
           <div className="rounded-xl border border-gray-200 bg-white p-6">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4">Status Timeline</h2>
-            <div className="flex items-center gap-1 overflow-x-auto pb-2">
-              {CASE_STATUSES.filter(s => s !== 'CANCELLED').map((s, i) => {
-                const isCurrent = s === caseData.status
-                const isPast = statusIndex >= 0 && CASE_STATUSES.indexOf(s) < statusIndex
+            <h2 className="text-sm font-semibold text-gray-900 mb-4">Case Progress</h2>
+            <div className="flex items-center gap-0">
+              {dentistSteps.map((step, i) => {
+                const isCurrent = step === dentistStatus
+                const isPast = currentStepIndex >= 0 && i < currentStepIndex
                 return (
-                  <div key={s} className="flex items-center">
-                    <div className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
-                      isCurrent ? 'bg-brand-700 text-white' :
-                      isPast ? 'bg-green-100 text-green-700' :
-                      'bg-gray-100 text-gray-400'
-                    }`}>
-                      {CASE_STATUS_LABELS[s]}
+                  <div key={step} className="flex items-center flex-1">
+                    <div className="flex flex-col items-center flex-1">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
+                        isCurrent ? 'bg-blue-600 text-white ring-4 ring-blue-100' :
+                        isPast ? 'bg-green-500 text-white' :
+                        'bg-gray-200 text-gray-400'
+                      }`}>
+                        {isPast ? (
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                        ) : (
+                          i + 1
+                        )}
+                      </div>
+                      <span className={`mt-1.5 text-[11px] font-medium text-center ${
+                        isCurrent ? 'text-blue-700' : isPast ? 'text-green-700' : 'text-gray-400'
+                      }`}>
+                        {step}
+                      </span>
                     </div>
-                    {i < CASE_STATUSES.length - 2 && (
-                      <div className={`h-0.5 w-4 ${isPast ? 'bg-green-300' : 'bg-gray-200'}`} />
+                    {i < dentistSteps.length - 1 && (
+                      <div className={`h-0.5 w-full -mt-4 ${isPast ? 'bg-green-400' : 'bg-gray-200'}`} />
                     )}
                   </div>
                 )

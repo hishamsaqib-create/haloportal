@@ -110,7 +110,7 @@ export default async function DentistDashboard() {
                     <td className="px-6 py-3">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                         DENTIST_STATUS_MAP[c.status] === 'Delivered' ? 'bg-green-50 text-green-700' :
-                        DENTIST_STATUS_MAP[c.status] === 'Out for Delivery' ? 'bg-indigo-50 text-indigo-700' :
+                        DENTIST_STATUS_MAP[c.status] === 'With Courier' ? 'bg-indigo-50 text-indigo-700' :
                         DENTIST_STATUS_MAP[c.status] === 'Cancelled' ? 'bg-red-50 text-red-700' :
                         DENTIST_STATUS_MAP[c.status] === 'Submitted' ? 'bg-gray-100 text-gray-700' :
                         'bg-blue-50 text-blue-700'
