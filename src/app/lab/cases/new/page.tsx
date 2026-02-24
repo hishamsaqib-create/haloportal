@@ -85,6 +85,8 @@ export default function NewCasePage() {
   const [priority, setPriority] = useState('NORMAL')
   const [dueDate, setDueDate] = useState('')
   const [patientRef, setPatientRef] = useState('')
+  const [patientFirstName, setPatientFirstName] = useState('')
+  const [patientLastName, setPatientLastName] = useState('')
   const [patientInitials, setPatientInitials] = useState('')
   const [autoRef, setAutoRef] = useState(true)
   const [notes, setNotes] = useState('')
@@ -231,6 +233,8 @@ export default function NewCasePage() {
       priority,
       dueDate: dueDate || undefined,
       patientRef: patientRef || undefined,
+      patientFirstName: patientFirstName || undefined,
+      patientLastName: patientLastName || undefined,
       patientInitials: patientInitials || undefined,
       notes: notes || undefined,
       items: items.map((item) => ({
@@ -405,7 +409,41 @@ export default function NewCasePage() {
         {/* Patient */}
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <h2 className="mb-4 text-sm font-semibold uppercase text-gray-500">Patient Information</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label className={labelClass}>First Name</label>
+              <input
+                type="text"
+                value={patientFirstName}
+                onChange={(e) => setPatientFirstName(e.target.value)}
+                placeholder="e.g. John"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Last Name</label>
+              <input
+                type="text"
+                value={patientLastName}
+                onChange={(e) => setPatientLastName(e.target.value)}
+                placeholder="e.g. Doe"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Patient Initials</label>
+              <input
+                type="text"
+                value={patientInitials}
+                onChange={(e) => setPatientInitials(e.target.value.toUpperCase())}
+                placeholder="e.g. JD"
+                maxLength={5}
+                className={inputClass}
+              />
+            </div>
+
             <div>
               <label className={labelClass}>Patient Reference</label>
               <div className="flex items-center gap-2">
@@ -427,18 +465,6 @@ export default function NewCasePage() {
                   Auto
                 </label>
               </div>
-            </div>
-
-            <div>
-              <label className={labelClass}>Patient Initials</label>
-              <input
-                type="text"
-                value={patientInitials}
-                onChange={(e) => setPatientInitials(e.target.value.toUpperCase())}
-                placeholder="e.g. JD"
-                maxLength={5}
-                className={inputClass}
-              />
             </div>
           </div>
         </div>
