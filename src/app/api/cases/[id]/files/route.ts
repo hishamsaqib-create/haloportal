@@ -47,6 +47,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const file = formData.get('file') as File | null
     const description = formData.get('description') as string | null
     const sharedWithDentist = formData.get('sharedWithDentist') === 'true'
+    const direction = (formData.get('direction') as string) || 'INBOUND'
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         fileUrl,
         fileSize: buffer.length,
         description: description || null,
+        direction,
         uploadedById: user.id,
         sharedWithDentist,
       },

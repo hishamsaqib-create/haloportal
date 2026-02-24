@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatDate, getDueStatus } from '@/lib/utils'
-import { CASE_STATUS_LABELS, DEPARTMENT_LABELS, DEPARTMENTS, CASE_STATUSES } from '@/lib/constants'
+import { DEPARTMENT_LABELS, DEPARTMENTS, DENTIST_STATUS_MAP, DENTIST_VISIBLE_STATUSES } from '@/lib/constants'
 
 interface CaseRow {
   id: string
@@ -29,12 +29,16 @@ export default function DentistCasesPage() {
   async function fetchCases() {
     setLoading(true)
     const params = new URLSearchParams()
-    if (filters.status) params.set('status', filters.status)
     if (filters.department) params.set('department', filters.department)
     const res = await fetch(`/api/portal/dentist/cases?${params}`)
     if (res.ok) {
       const data = await res.json()
-      setCases(data.cases || [])
+      let fetched: CaseRow[] = data.cases || []
+      // Filter by dentist-visible status client-side
+      if (filters.status) {
+        fetched = fetched.filter((c) => DENTIST_STATUS_MAP[c.status] === filters.status)
+      }
+      setCases(fetched)
     }
     setLoading(false)
   }
@@ -63,8 +67,8 @@ export default function DentistCasesPage() {
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
         >
           <option value="">All Statuses</option>
-          {CASE_STATUSES.map((s) => (
-            <option key={s} value={s}>{CASE_STATUS_LABELS[s]}</option>
+          {DENTIST_VISIBLE_STATUSES.map((s) => (
+            <option key={s} value={s}>{s}</option>
           ))}
         </select>
       </div>
@@ -73,8 +77,8 @@ export default function DentistCasesPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Case #</th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Patient</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Case #</th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Dept</th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Due Date</th>
@@ -91,20 +95,26 @@ export default function DentistCasesPage() {
                 const dueStatus = getDueStatus(c.dueDate)
                 return (
                   <tr key={c.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-3 text-sm text-gray-600">
+                      {c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : '—'}
+                    </td>
                     <td className="px-6 py-3">
                       <Link href={`/dentist/cases/${c.id}`} className="text-sm font-medium text-brand-700 hover:underline">
                         {c.caseNumber}
                       </Link>
                     </td>
-                    <td className="px-6 py-3 text-sm text-gray-600">
-                      {c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : '—'}
-                    </td>
                     <td className="px-6 py-3 text-xs font-medium text-gray-600">
                       {DEPARTMENT_LABELS[c.department as keyof typeof DEPARTMENT_LABELS]}
                     </td>
                     <td className="px-6 py-3">
-                      <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700">
-                        {CASE_STATUS_LABELS[c.status as keyof typeof CASE_STATUS_LABELS]}
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                        DENTIST_STATUS_MAP[c.status] === 'Delivered' ? 'bg-green-50 text-green-700' :
+                        DENTIST_STATUS_MAP[c.status] === 'Out for Delivery' ? 'bg-indigo-50 text-indigo-700' :
+                        DENTIST_STATUS_MAP[c.status] === 'Cancelled' ? 'bg-red-50 text-red-700' :
+                        DENTIST_STATUS_MAP[c.status] === 'Submitted' ? 'bg-gray-100 text-gray-700' :
+                        'bg-blue-50 text-blue-700'
+                      }`}>
+                        {DENTIST_STATUS_MAP[c.status] || c.status}
                       </span>
                     </td>
                     <td className="px-6 py-3">

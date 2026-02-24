@@ -150,12 +150,17 @@ export async function POST(req: NextRequest) {
         let unitPrice = item.unitPrice ?? 0
 
         // Resolve price from pricing rules if productId provided and no explicit price
+        let minTeeth: number | null = null
+        let additionalToothPrice: number | null = null
         if (item.productId && item.unitPrice === undefined) {
-          unitPrice = await resolvePrice(
+          const resolved = await resolvePrice(
             item.productId,
             validated.clinicId,
             validated.dentistId
           )
+          unitPrice = resolved.price
+          minTeeth = resolved.minTeeth
+          additionalToothPrice = resolved.additionalToothPrice
         }
 
         const toothNumbersJson = item.toothNumbers
@@ -165,7 +170,9 @@ export async function POST(req: NextRequest) {
         const lineTotal = calculateLineTotal(
           unitPrice,
           item.qty,
-          toothNumbersJson
+          toothNumbersJson,
+          minTeeth,
+          additionalToothPrice
         )
 
         return {
@@ -192,9 +199,11 @@ export async function POST(req: NextRequest) {
         department: validated.department,
         status: 'NEW',
         priority: validated.priority,
-        dueDate: validated.dueDate ? new Date(validated.dueDate) : null,
+        dueDate: new Date(validated.dueDate),
         notes: validated.notes || null,
         source: 'MANUAL',
+        isRemake: validated.isRemake || false,
+        remakeReason: validated.isRemake ? (validated.remakeReason || null) : null,
         items: {
           create: itemsData,
         },
@@ -211,6 +220,18 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // Auto-create a Remake record if this case is flagged as a remake
+    if (validated.isRemake && validated.remakeReason) {
+      await prisma.remake.create({
+        data: {
+          caseId: newCase.id,
+          reasonCode: validated.remakeReason,
+          reasonText: validated.remakeReason === 'OTHER' ? (validated.notes || null) : null,
+          createdById: user.id,
+        },
+      })
+    }
+
     await createAuditLog({
       caseId: newCase.id,
       userId: user.id,
@@ -223,6 +244,8 @@ export async function POST(req: NextRequest) {
         clinicId: newCase.clinicId,
         dentistId: newCase.dentistId,
         itemCount: itemsData.length,
+        isRemake: validated.isRemake || false,
+        remakeReason: validated.remakeReason,
       },
     })
 

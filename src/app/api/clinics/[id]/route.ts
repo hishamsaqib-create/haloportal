@@ -20,6 +20,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
             email: true,
             phone: true,
             gdcNumber: true,
+            portalPassword: true,
             active: true,
           },
           orderBy: { name: 'asc' },

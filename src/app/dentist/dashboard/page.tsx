@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { formatDate, formatCurrency, getDueStatus } from '@/lib/utils'
-import { CASE_STATUS_LABELS, DEPARTMENT_LABELS } from '@/lib/constants'
+import { DEPARTMENT_LABELS, DENTIST_STATUS_MAP } from '@/lib/constants'
 import Link from 'next/link'
 
 export default async function DentistDashboard() {
@@ -56,8 +56,8 @@ export default async function DentistDashboard() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Welcome back, {session.user.name}</h1>
-        <p className="text-sm text-gray-500">Your case overview</p>
+        <h1 className="text-2xl font-bold text-gray-900">Welcome back, Dr. {session.user.name}</h1>
+        <p className="text-sm text-gray-500">Here is your latest case overview</p>
       </div>
 
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -83,8 +83,8 @@ export default async function DentistDashboard() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Case</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Patient</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Case</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Dept</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Due</th>
@@ -96,20 +96,26 @@ export default async function DentistDashboard() {
                 const dueStatus = getDueStatus(c.dueDate)
                 return (
                   <tr key={c.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-3 text-sm text-gray-600">
+                      {c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : '—'}
+                    </td>
                     <td className="px-6 py-3">
                       <Link href={`/dentist/cases/${c.id}`} className="text-sm font-medium text-brand-700 hover:underline">
                         {c.caseNumber}
                       </Link>
                     </td>
-                    <td className="px-6 py-3 text-sm text-gray-600">
-                      {c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : '—'}
-                    </td>
                     <td className="px-6 py-3 text-xs font-medium text-gray-600">
                       {DEPARTMENT_LABELS[c.department as keyof typeof DEPARTMENT_LABELS]}
                     </td>
                     <td className="px-6 py-3">
-                      <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700">
-                        {CASE_STATUS_LABELS[c.status as keyof typeof CASE_STATUS_LABELS]}
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                        DENTIST_STATUS_MAP[c.status] === 'Delivered' ? 'bg-green-50 text-green-700' :
+                        DENTIST_STATUS_MAP[c.status] === 'Out for Delivery' ? 'bg-indigo-50 text-indigo-700' :
+                        DENTIST_STATUS_MAP[c.status] === 'Cancelled' ? 'bg-red-50 text-red-700' :
+                        DENTIST_STATUS_MAP[c.status] === 'Submitted' ? 'bg-gray-100 text-gray-700' :
+                        'bg-blue-50 text-blue-700'
+                      }`}>
+                        {DENTIST_STATUS_MAP[c.status] || c.status}
                       </span>
                     </td>
                     <td className="px-6 py-3">

@@ -11,7 +11,9 @@ interface CaseFileData {
   fileUrl: string
   fileSize: number | null
   description: string | null
+  direction: string
   sharedWithDentist: boolean
+  dentistNotified: boolean
   createdAt: string | Date
   uploadedBy: { name: string } | null
 }
@@ -41,13 +43,21 @@ const FILE_TYPE_BADGES: Record<string, { bg: string; text: string }> = {
   other: { bg: 'bg-gray-50', text: 'text-gray-700' },
 }
 
+const DIRECTION_BADGES: Record<string, { bg: string; text: string; label: string }> = {
+  INBOUND: { bg: 'bg-cyan-50', text: 'text-cyan-700', label: 'Inbound' },
+  OUTBOUND: { bg: 'bg-orange-50', text: 'text-orange-700', label: 'Outbound' },
+}
+
 export function CaseFilesTab({ caseId, initialFiles }: { caseId: string; initialFiles: CaseFileData[] }) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<CaseFileData[]>(initialFiles)
   const [uploading, setUploading] = useState(false)
   const [shareWithDentist, setShareWithDentist] = useState(true)
+  const [direction, setDirection] = useState<'INBOUND' | 'OUTBOUND'>('INBOUND')
   const [description, setDescription] = useState('')
+  const [notifyingId, setNotifyingId] = useState<string | null>(null)
+  const [sharingId, setSharingId] = useState<string | null>(null)
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -58,6 +68,7 @@ export function CaseFilesTab({ caseId, initialFiles }: { caseId: string; initial
       const formData = new FormData()
       formData.append('file', file)
       formData.append('sharedWithDentist', String(shareWithDentist))
+      formData.append('direction', direction)
       if (description.trim()) formData.append('description', description.trim())
 
       const res = await fetch(`/api/cases/${caseId}/files`, {
@@ -80,20 +91,41 @@ export function CaseFilesTab({ caseId, initialFiles }: { caseId: string; initial
     }
   }
 
-  async function toggleShare(fileId: string, currentlyShared: boolean) {
+  async function handleShareToggle(fileId: string, currentlyShared: boolean) {
+    setSharingId(fileId)
     try {
-      const res = await fetch(`/api/cases/${caseId}/files/${fileId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sharedWithDentist: !currentlyShared }),
+      const res = await fetch(`/api/cases/${caseId}/files/${fileId}/share`, {
+        method: 'POST',
       })
       if (!res.ok) throw new Error('Failed to update')
+      const data = await res.json()
       setFiles((prev) =>
-        prev.map((f) => (f.id === fileId ? { ...f, sharedWithDentist: !currentlyShared } : f))
+        prev.map((f) => (f.id === fileId ? { ...f, sharedWithDentist: data.data.sharedWithDentist } : f))
       )
       toast.success(currentlyShared ? 'Unshared from dentist' : 'Shared with dentist')
     } catch {
       toast.error('Failed to update sharing')
+    } finally {
+      setSharingId(null)
+    }
+  }
+
+  async function handleNotifyDentist(fileId: string) {
+    setNotifyingId(fileId)
+    try {
+      const res = await fetch(`/api/cases/${caseId}/files/${fileId}/notify`, {
+        method: 'POST',
+      })
+      if (!res.ok) throw new Error('Failed to notify')
+      const data = await res.json()
+      setFiles((prev) =>
+        prev.map((f) => (f.id === fileId ? { ...f, dentistNotified: data.data.dentistNotified } : f))
+      )
+      toast.success('Dentist notified about this file')
+    } catch {
+      toast.error('Failed to notify dentist')
+    } finally {
+      setNotifyingId(null)
     }
   }
 
@@ -128,6 +160,17 @@ export function CaseFilesTab({ caseId, initialFiles }: { caseId: string; initial
               placeholder="Optional description (e.g. Upper arch STL)"
               className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-gray-400"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Direction</label>
+            <select
+              value={direction}
+              onChange={(e) => setDirection(e.target.value as 'INBOUND' | 'OUTBOUND')}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-gray-400"
+            >
+              <option value="INBOUND">Inbound</option>
+              <option value="OUTBOUND">Outbound</option>
+            </select>
           </div>
           <label className="flex items-center gap-2 text-xs text-gray-600">
             <input
@@ -166,12 +209,18 @@ export function CaseFilesTab({ caseId, initialFiles }: { caseId: string; initial
         <div className="divide-y divide-gray-100">
           {files.map((file) => {
             const badge = FILE_TYPE_BADGES[file.fileType] || FILE_TYPE_BADGES.other
+            const dirBadge = DIRECTION_BADGES[file.direction] || DIRECTION_BADGES.INBOUND
             return (
               <div key={file.id} className="flex items-center justify-between px-6 py-3 hover:bg-gray-50">
                 <div className="flex items-center gap-3">
-                  <span className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${badge.bg} ${badge.text}`}>
-                    {file.fileType}
-                  </span>
+                  <div className="flex flex-col gap-1">
+                    <span className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${badge.bg} ${badge.text}`}>
+                      {file.fileType}
+                    </span>
+                    <span className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${dirBadge.bg} ${dirBadge.text}`}>
+                      {dirBadge.label}
+                    </span>
+                  </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">{file.fileName}</p>
                     <div className="flex items-center gap-2 mt-0.5">
@@ -187,17 +236,34 @@ export function CaseFilesTab({ caseId, initialFiles }: { caseId: string; initial
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Share with Dentist toggle */}
                   <button
-                    onClick={() => toggleShare(file.id, file.sharedWithDentist)}
-                    className={`rounded-lg px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                    onClick={() => handleShareToggle(file.id, file.sharedWithDentist)}
+                    disabled={sharingId === file.id}
+                    className={`rounded-lg px-3 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50 ${
                       file.sharedWithDentist
                         ? 'bg-green-50 text-green-700 hover:bg-green-100'
                         : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                     }`}
-                    title={file.sharedWithDentist ? 'Visible to dentist' : 'Not shared'}
+                    title={file.sharedWithDentist ? 'Visible to dentist — click to unshare' : 'Not shared — click to share'}
                   >
-                    {file.sharedWithDentist ? 'Shared' : 'Not shared'}
+                    {sharingId === file.id ? '...' : file.sharedWithDentist ? 'Shared' : 'Not shared'}
                   </button>
+
+                  {/* Notify Dentist button */}
+                  <button
+                    onClick={() => handleNotifyDentist(file.id)}
+                    disabled={notifyingId === file.id || file.dentistNotified}
+                    className={`rounded-lg px-3 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                      file.dentistNotified
+                        ? 'bg-blue-50 text-blue-400 cursor-default'
+                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                    }`}
+                    title={file.dentistNotified ? 'Dentist already notified' : 'Send notification to dentist'}
+                  >
+                    {notifyingId === file.id ? 'Notifying...' : file.dentistNotified ? 'Notified' : 'Notify Dentist'}
+                  </button>
+
                   {file.fileType === 'stl' && (
                     <a
                       href={file.fileUrl}

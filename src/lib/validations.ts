@@ -10,8 +10,10 @@ export const createCaseSchema = z.object({
   patientInitials: z.string().optional(),
   department: z.enum(DEPARTMENTS),
   priority: z.enum(PRIORITIES).default('NORMAL'),
-  dueDate: z.string().optional(),
+  dueDate: z.string().min(1, 'Due date is required'),
   notes: z.string().optional(),
+  isRemake: z.boolean().optional(),
+  remakeReason: z.string().optional(),
   items: z.array(z.object({
     productId: z.string().optional(),
     description: z.string().min(1),
@@ -38,6 +40,8 @@ export const createProductSchema = z.object({
   basePrice: z.number().min(0),
   requiresToothCount: z.boolean().default(false),
   requiresToothSelection: z.boolean().default(false),
+  minTeeth: z.number().int().min(1).optional().nullable(),
+  additionalToothPrice: z.number().min(0).optional().nullable(),
   parameterSchema: z.string().optional(),
 })
 
@@ -55,7 +59,7 @@ export const createInvoiceSchema = z.object({
   periodStart: z.string().optional(),
   periodEnd: z.string().optional(),
   caseIds: z.array(z.string()).optional(),
-  vatRate: z.number().min(0).max(100).default(20),
+  vatRate: z.number().min(0).max(100).default(20),  // 0 = no VAT
 })
 
 export const createOutsourceOrderSchema = z.object({

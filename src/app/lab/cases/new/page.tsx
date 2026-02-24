@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { DEPARTMENTS, PRIORITIES, DEPARTMENT_LABELS, PRIORITY_LABELS } from '@/lib/constants'
+import { DEPARTMENTS, PRIORITIES, DEPARTMENT_LABELS, PRIORITY_LABELS, REMAKE_REASON_CODES, REMAKE_REASON_LABELS } from '@/lib/constants'
+import { DentalChart } from '@/components/dental-chart'
 
 interface Clinic {
   id: string
@@ -29,21 +30,12 @@ interface CaseItem {
   productId: string
   description: string
   qty: number
-  toothNumbers: string[]
+  toothNumbers: number[]
   material: string
   shade: string
   notes: string
   unitPrice: number
 }
-
-// UK dental notation: quadrant (UR/UL/LR/LL) + tooth number (1-8)
-const UK_QUADRANTS = [
-  { label: 'UR', teeth: ['UR8', 'UR7', 'UR6', 'UR5', 'UR4', 'UR3', 'UR2', 'UR1'] },
-  { label: 'UL', teeth: ['UL1', 'UL2', 'UL3', 'UL4', 'UL5', 'UL6', 'UL7', 'UL8'] },
-  { label: 'LR', teeth: ['LR8', 'LR7', 'LR6', 'LR5', 'LR4', 'LR3', 'LR2', 'LR1'] },
-  { label: 'LL', teeth: ['LL1', 'LL2', 'LL3', 'LL4', 'LL5', 'LL6', 'LL7', 'LL8'] },
-]
-const ALL_TEETH = UK_QUADRANTS.flatMap(q => q.teeth)
 
 function generatePatientRef(): string {
   const now = new Date()
@@ -90,6 +82,8 @@ export default function NewCasePage() {
   const [patientInitials, setPatientInitials] = useState('')
   const [autoRef, setAutoRef] = useState(true)
   const [notes, setNotes] = useState('')
+  const [isRemake, setIsRemake] = useState(false)
+  const [remakeReason, setRemakeReason] = useState('')
   const [items, setItems] = useState<CaseItem[]>([emptyItem()])
 
   // Load clinics
@@ -200,27 +194,6 @@ export default function NewCasePage() {
     }
   }
 
-  function toggleTooth(index: number, tooth: string) {
-    setItems((prev) => {
-      const updated = [...prev]
-      const current = updated[index].toothNumbers
-      if (current.includes(tooth)) {
-        updated[index] = {
-          ...updated[index],
-          toothNumbers: current.filter((t) => t !== tooth),
-        }
-      } else {
-        updated[index] = {
-          ...updated[index],
-          toothNumbers: [...current, tooth].sort(
-            (a, b) => ALL_TEETH.indexOf(a) - ALL_TEETH.indexOf(b)
-          ),
-        }
-      }
-      return updated
-    })
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -231,12 +204,14 @@ export default function NewCasePage() {
       dentistId,
       department,
       priority,
-      dueDate: dueDate || undefined,
+      dueDate,
       patientRef: patientRef || undefined,
       patientFirstName: patientFirstName || undefined,
       patientLastName: patientLastName || undefined,
       patientInitials: patientInitials || undefined,
       notes: notes || undefined,
+      isRemake: isRemake || undefined,
+      remakeReason: isRemake && remakeReason ? remakeReason : undefined,
       items: items.map((item) => ({
         productId: item.productId || undefined,
         description: item.description,
@@ -384,12 +359,15 @@ export default function NewCasePage() {
             </div>
 
             <div>
-              <label className={labelClass}>Due Date</label>
+              <label className={labelClass}>
+                Due Date <span className="text-red-500">*</span>
+              </label>
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 className={inputClass}
+                required
               />
             </div>
 
@@ -403,6 +381,42 @@ export default function NewCasePage() {
                 className={inputClass}
               />
             </div>
+          </div>
+
+          {/* Remake Tracking */}
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isRemake}
+                onChange={(e) => {
+                  setIsRemake(e.target.checked)
+                  if (!e.target.checked) setRemakeReason('')
+                }}
+                className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+              />
+              <span className="text-sm font-medium text-gray-700">Is this a remake?</span>
+            </label>
+            {isRemake && (
+              <div className="mt-3">
+                <label className={labelClass}>
+                  Remake Reason <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={remakeReason}
+                  onChange={(e) => setRemakeReason(e.target.value)}
+                  className={inputClass}
+                  required={isRemake}
+                >
+                  <option value="">Select reason</option>
+                  {REMAKE_REASON_CODES.map((code) => (
+                    <option key={code} value={code}>
+                      {REMAKE_REASON_LABELS[code]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -600,71 +614,13 @@ export default function NewCasePage() {
                   </div>
                 </div>
 
-                {/* Tooth Selection - UK Notation */}
+                {/* Tooth Selection - FDI Notation */}
                 <div className="mt-3">
-                  <label className={labelClass}>Tooth Numbers (UK Notation)</label>
-                  <div className="rounded-lg border border-gray-200 bg-white p-3">
-                    {/* Upper teeth */}
-                    <div className="flex gap-0.5 justify-center mb-0.5">
-                      {UK_QUADRANTS[0].teeth.map((tooth) => (
-                        <button key={tooth} type="button" onClick={() => toggleTooth(idx, tooth)}
-                          className={`h-8 w-10 rounded-t text-[10px] font-semibold transition-colors ${
-                            item.toothNumbers.includes(tooth)
-                              ? 'bg-brand-700 text-white'
-                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
-                          }`}>
-                          {tooth}
-                        </button>
-                      ))}
-                      <div className="w-px bg-gray-300 mx-0.5" />
-                      {UK_QUADRANTS[1].teeth.map((tooth) => (
-                        <button key={tooth} type="button" onClick={() => toggleTooth(idx, tooth)}
-                          className={`h-8 w-10 rounded-t text-[10px] font-semibold transition-colors ${
-                            item.toothNumbers.includes(tooth)
-                              ? 'bg-brand-700 text-white'
-                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
-                          }`}>
-                          {tooth}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Divider */}
-                    <div className="border-t-2 border-gray-300 my-0.5" />
-                    {/* Lower teeth */}
-                    <div className="flex gap-0.5 justify-center mt-0.5">
-                      {UK_QUADRANTS[2].teeth.map((tooth) => (
-                        <button key={tooth} type="button" onClick={() => toggleTooth(idx, tooth)}
-                          className={`h-8 w-10 rounded-b text-[10px] font-semibold transition-colors ${
-                            item.toothNumbers.includes(tooth)
-                              ? 'bg-brand-700 text-white'
-                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
-                          }`}>
-                          {tooth}
-                        </button>
-                      ))}
-                      <div className="w-px bg-gray-300 mx-0.5" />
-                      {UK_QUADRANTS[3].teeth.map((tooth) => (
-                        <button key={tooth} type="button" onClick={() => toggleTooth(idx, tooth)}
-                          className={`h-8 w-10 rounded-b text-[10px] font-semibold transition-colors ${
-                            item.toothNumbers.includes(tooth)
-                              ? 'bg-brand-700 text-white'
-                              : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
-                          }`}>
-                          {tooth}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Labels */}
-                    <div className="flex justify-between mt-2 px-2">
-                      <span className="text-[10px] text-gray-400 font-medium">Right</span>
-                      <span className="text-[10px] text-gray-400 font-medium">Left</span>
-                    </div>
-                  </div>
-                  {item.toothNumbers.length > 0 && (
-                    <p className="mt-1.5 text-xs text-gray-500">
-                      Selected: {item.toothNumbers.join(', ')}
-                    </p>
-                  )}
+                  <label className={labelClass}>Tooth Numbers</label>
+                  <DentalChart
+                    selectedTeeth={item.toothNumbers}
+                    onChange={(teeth) => updateItem(idx, 'toothNumbers', teeth)}
+                  />
                 </div>
 
                 {/* Item Notes */}

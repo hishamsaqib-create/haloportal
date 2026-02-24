@@ -5,6 +5,7 @@ export const ROLES = [
   'SUPER_ADMIN',
   'LAB_MANAGER',
   'LAB_STAFF',
+  'LAB_TECHNICIAN',
   'CLINIC_ADMIN',
   'CLINIC_FINANCE',
   'DENTIST_USER',
@@ -27,6 +28,22 @@ export const CASE_STATUSES = [
   'CANCELLED',
 ] as const
 export type CaseStatus = (typeof CASE_STATUSES)[number]
+
+// Status mapping for dentist portal - maps internal statuses to dentist-visible labels
+export const DENTIST_STATUS_MAP: Record<string, string> = {
+  NEW: 'Submitted',
+  REVIEWED: 'In Progress',
+  IN_PRODUCTION: 'In Progress',
+  SENT_OUTSOURCE: 'In Progress',
+  RECEIVED: 'In Progress',
+  QC: 'In Progress',
+  READY: 'In Progress',
+  DISPATCHED: 'Out for Delivery',
+  COMPLETED: 'Delivered',
+  CANCELLED: 'Cancelled',
+}
+
+export const DENTIST_VISIBLE_STATUSES = ['Submitted', 'In Progress', 'Out for Delivery', 'Delivered'] as const
 
 export const DEPARTMENT_STATUSES: Record<Department, CaseStatus[]> = {
   CERAMICS: ['NEW', 'REVIEWED', 'IN_PRODUCTION', 'SENT_OUTSOURCE', 'RECEIVED', 'QC', 'READY', 'DISPATCHED', 'COMPLETED', 'CANCELLED'],
@@ -52,6 +69,8 @@ export const REMAKE_REASON_CODES = [
   'SHADE_MISMATCH',
   'BREAKAGE',
   'DESIGN_ERROR',
+  'IMPRESSION_ISSUE',
+  'WRONG_SHADE',
   'OTHER',
 ] as const
 export type RemakeReasonCode = (typeof REMAKE_REASON_CODES)[number]
@@ -62,6 +81,8 @@ export const REMAKE_REASON_LABELS: Record<RemakeReasonCode, string> = {
   SHADE_MISMATCH: 'Shade Mismatch',
   BREAKAGE: 'Breakage',
   DESIGN_ERROR: 'Design Error',
+  IMPRESSION_ISSUE: 'Impression Issue',
+  WRONG_SHADE: 'Wrong Shade',
   OTHER: 'Other',
 }
 
@@ -91,6 +112,13 @@ export const DEPARTMENT_LABELS: Record<Department, string> = {
   DSD: 'DSD',
 }
 
+// Department letter codes for case numbering
+export const DEPARTMENT_CODES: Record<Department, string> = {
+  CERAMICS: 'C',
+  APPLIANCES: 'A',
+  DSD: 'D',
+}
+
 export const DELIVERY_STATUSES = ['PENDING', 'COLLECTED', 'IN_TRANSIT', 'DELIVERED', 'FAILED'] as const
 export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number]
 
@@ -113,7 +141,38 @@ export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
   OTHER: 'Other',
 }
 
-export const INTERNAL_ROLES: Role[] = ['SUPER_ADMIN', 'LAB_MANAGER', 'LAB_STAFF']
+export const FILE_DIRECTIONS = ['INBOUND', 'OUTBOUND'] as const
+export type FileDirection = (typeof FILE_DIRECTIONS)[number]
+
+export const FILE_DIRECTION_LABELS: Record<FileDirection, string> = {
+  INBOUND: 'Inbound',
+  OUTBOUND: 'Outbound',
+}
+
+export const NOTIFICATION_CHANNELS = ['EMAIL', 'WHATSAPP', 'BOTH'] as const
+export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number]
+
+export const NOTIFICATION_TRIGGERS = [
+  'STATUS_CHANGE',
+  'CASE_CREATED',
+  'FILE_SHARED',
+  'PRESCRIPTION_READY',
+  'REMAKE_FLAGGED',
+  'DELIVERY_DISPATCHED',
+  'DELIVERY_COMPLETED',
+] as const
+
+export const NOTIFICATION_TRIGGER_LABELS: Record<string, string> = {
+  STATUS_CHANGE: 'Status Change',
+  CASE_CREATED: 'Case Created',
+  FILE_SHARED: 'File Shared with Dentist',
+  PRESCRIPTION_READY: 'Prescription Ready',
+  REMAKE_FLAGGED: 'Remake Flagged',
+  DELIVERY_DISPATCHED: 'Delivery Dispatched',
+  DELIVERY_COMPLETED: 'Delivery Completed',
+}
+
+export const INTERNAL_ROLES: Role[] = ['SUPER_ADMIN', 'LAB_MANAGER', 'LAB_STAFF', 'LAB_TECHNICIAN']
 export const CLINIC_ROLES: Role[] = ['CLINIC_ADMIN', 'CLINIC_FINANCE']
 export const DENTIST_ROLES: Role[] = ['DENTIST_USER']
 
@@ -134,13 +193,26 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     'referral-centres:read', 'referral-centres:write',
     'supplier-invoices:read', 'supplier-invoices:write',
     'statements:read', 'statements:write',
+    'communications:read', 'communications:write',
+    'settings:read', 'settings:write',
   ],
   LAB_STAFF: [
+    'cases:read', 'cases:write', 'cases:status',
+    'products:read',
+    'outsource:read', 'outsource:write',
+    'remakes:read', 'remakes:write',
+    'prescriptions:read', 'prescriptions:write',
+    'communications:read', 'communications:write',
+    'clinics:read', 'dentists:read',
+  ],
+  LAB_TECHNICIAN: [
     'cases:read', 'cases:status',
     'products:read',
     'outsource:read',
     'remakes:read',
     'prescriptions:read',
+    'clinics:read', 'dentists:read',
+    // NO: invoices, reports, communications, settings, financial data
   ],
   CLINIC_ADMIN: [
     'portal:clinic:cases:read',
@@ -157,10 +229,12 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
   ],
   DENTIST_USER: [
     'portal:dentist:cases:read',
+    'portal:dentist:cases:submit',
     'portal:dentist:invoices:read',
     'portal:dentist:statements:read',
     'portal:dentist:prescriptions:read',
     'portal:dentist:messages:read', 'portal:dentist:messages:write',
+    'portal:dentist:files:read',
   ],
 }
 
@@ -174,4 +248,9 @@ export function hasPermission(role: Role, permission: string): boolean {
 /** Roles that can view financial data (costs, prices, invoices, revenue) */
 export function canViewFinancials(role: string): boolean {
   return role === 'SUPER_ADMIN' || role === 'LAB_MANAGER'
+}
+
+/** Roles that can view communications (email, whatsapp, halochat) */
+export function canViewCommunications(role: string): boolean {
+  return role !== 'LAB_TECHNICIAN'
 }

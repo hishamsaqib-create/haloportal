@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { formatDateTime, formatCurrency } from '@/lib/utils'
-import { REMAKE_REASON_CODES, REMAKE_REASON_LABELS } from '@/lib/constants'
+import { formatDateTime, formatDate, formatCurrency, getDueStatus } from '@/lib/utils'
+import { REMAKE_REASON_CODES, REMAKE_REASON_LABELS, CASE_STATUS_LABELS } from '@/lib/constants'
+
+type ViewTab = 'remake-records' | 'remake-cases'
 
 interface Remake {
   id: string
@@ -25,6 +27,21 @@ interface Remake {
   }
 }
 
+interface RemakeCase {
+  id: string
+  caseNumber: string
+  department: string
+  status: string
+  priority: string
+  dueDate: string | null
+  isRemake: boolean
+  remakeReason: string | null
+  createdAt: string
+  patient: { id: string; reference: string; firstName: string | null; lastName: string | null; initials: string | null } | null
+  clinic: { id: string; name: string } | null
+  dentist: { id: string; name: string } | null
+}
+
 interface ReasonStat {
   reason: string
   count: number
@@ -32,13 +49,35 @@ interface ReasonStat {
 }
 
 export default function RemakesPage() {
+  const [activeTab, setActiveTab] = useState<ViewTab>('remake-records')
   const [remakes, setRemakes] = useState<Remake[]>([])
+  const [remakeCases, setRemakeCases] = useState<RemakeCase[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingCases, setLoadingCases] = useState(true)
   const [filterReason, setFilterReason] = useState('')
 
   useEffect(() => {
     fetchRemakes()
   }, [filterReason])
+
+  useEffect(() => {
+    fetchRemakeCases()
+  }, [])
+
+  async function fetchRemakeCases() {
+    setLoadingCases(true)
+    try {
+      const res = await fetch('/api/cases?limit=100&isRemake=true')
+      if (res.ok) {
+        const data = await res.json()
+        setRemakeCases((data.data || []).filter((c: RemakeCase) => c.isRemake))
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingCases(false)
+    }
+  }
 
   async function fetchRemakes() {
     setLoading(true)
@@ -72,11 +111,106 @@ export default function RemakesPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Remakes</h1>
-        <p className="text-sm text-gray-500">Track and analyze remake reasons and costs</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Remakes</h1>
+          <p className="text-sm text-gray-500">Track and analyze remake reasons and costs</p>
+        </div>
+        <div className="flex rounded-xl border border-gray-200 p-0.5">
+          <button
+            onClick={() => setActiveTab('remake-records')}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+              activeTab === 'remake-records' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Remake Records
+          </button>
+          <button
+            onClick={() => setActiveTab('remake-cases')}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+              activeTab === 'remake-cases' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Cases Marked as Remake ({remakeCases.length})
+          </button>
+        </div>
       </div>
 
+      {activeTab === 'remake-cases' ? (
+        /* ---- Cases Marked as Remake View ---- */
+        <div>
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Case #</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Patient</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Clinic</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Dentist</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Due Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Remake Reason</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Created</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {loadingCases ? (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-500">Loading...</td>
+                    </tr>
+                  ) : remakeCases.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-500">No cases marked as remakes found.</td>
+                    </tr>
+                  ) : (
+                    remakeCases.map((c) => {
+                      const dueStatus = getDueStatus(c.dueDate)
+                      return (
+                        <tr key={c.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-3">
+                            <Link href={`/lab/cases/${c.id}`} className="text-sm font-medium text-brand-700 hover:underline">
+                              {c.caseNumber}
+                            </Link>
+                          </td>
+                          <td className="px-6 py-3 text-sm text-gray-600">
+                            {c.patient ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference : '\u2014'}
+                          </td>
+                          <td className="px-6 py-3 text-sm text-gray-600">{c.clinic?.name || '\u2014'}</td>
+                          <td className="px-6 py-3 text-sm text-gray-600">{c.dentist?.name || '\u2014'}</td>
+                          <td className="px-6 py-3">
+                            <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700">
+                              {CASE_STATUS_LABELS[c.status as keyof typeof CASE_STATUS_LABELS] || c.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-3">
+                            <span className={`text-sm ${
+                              dueStatus === 'overdue' ? 'font-semibold text-red-600' :
+                              dueStatus === 'today' ? 'font-semibold text-orange-600' :
+                              'text-gray-600'
+                            }`}>
+                              {formatDate(c.dueDate)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-3">
+                            {c.remakeReason ? (
+                              <span className="inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                                {REMAKE_REASON_LABELS[c.remakeReason as keyof typeof REMAKE_REASON_LABELS] || c.remakeReason}
+                              </span>
+                            ) : '\u2014'}
+                          </td>
+                          <td className="px-6 py-3 text-sm text-gray-600">{formatDate(c.createdAt)}</td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : (
+      <div>
       {/* Summary Stats */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -203,6 +337,8 @@ export default function RemakesPage() {
           </table>
         </div>
       </div>
+      </div>
+      )}
     </div>
   )
 }
