@@ -695,6 +695,220 @@
   .delay-500 { animation-delay: 500ms; }
 
   /* ----------------------------------------------------------
+     Halo shooting star animation system
+     ---------------------------------------------------------- */
+  @keyframes shooting-star {
+    0% {
+      transform: translate(-120vw, -60vh) rotate(35deg);
+      opacity: 0;
+    }
+    5% {
+      opacity: 1;
+    }
+    45% {
+      opacity: 1;
+    }
+    55% {
+      transform: translate(10vw, 5vh) rotate(35deg);
+      opacity: 0.6;
+    }
+    100% {
+      transform: translate(120vw, 60vh) rotate(35deg);
+      opacity: 0;
+    }
+  }
+
+  @keyframes halo-ring-expand {
+    0% {
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0;
+    }
+    30% {
+      opacity: 0.9;
+    }
+    60% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 0.5;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(1.3);
+      opacity: 0;
+    }
+  }
+
+  @keyframes halo-ring-inner {
+    0% {
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0;
+    }
+    40% {
+      opacity: 1;
+    }
+    70% {
+      transform: translate(-50%, -50%) scale(0.8);
+      opacity: 0.6;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(1.1);
+      opacity: 0;
+    }
+  }
+
+  @keyframes halo-ambient {
+    0%, 100% {
+      opacity: 0.08;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+      opacity: 0.15;
+      transform: translate(-50%, -50%) scale(1.05);
+    }
+  }
+
+  @keyframes sparkle {
+    0% {
+      transform: scale(0) rotate(0deg);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+      transform: scale(1) rotate(90deg);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(0) rotate(180deg);
+    }
+  }
+
+  @keyframes star-trail {
+    0% {
+      width: 0;
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.8;
+    }
+    50% {
+      width: 300px;
+      opacity: 0.5;
+    }
+    100% {
+      width: 0;
+      opacity: 0;
+    }
+  }
+
+  @keyframes flash-burst {
+    0% {
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0;
+    }
+    30% {
+      opacity: 0.7;
+    }
+    50% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 0.3;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(2);
+      opacity: 0;
+    }
+  }
+
+  .halo-shooting-star {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #ffffff 0%, #e0e7ff 30%, #c7d2fe 60%, transparent 100%);
+    box-shadow:
+      0 0 20px 8px rgba(255, 255, 255, 0.8),
+      0 0 60px 20px rgba(199, 210, 254, 0.6),
+      0 0 100px 40px rgba(165, 180, 252, 0.3);
+    animation: shooting-star 2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+    z-index: 60;
+  }
+
+  .halo-shooting-star::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 100%;
+    transform: translateY(-50%);
+    height: 2px;
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.9), rgba(199, 210, 254, 0.5), rgba(165, 180, 252, 0.2), transparent);
+    border-radius: 999px;
+    animation: star-trail 2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+
+  .halo-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    background: radial-gradient(circle, transparent 55%, rgba(199, 210, 254, 0.4) 65%, rgba(165, 180, 252, 0.2) 75%, transparent 85%);
+    animation: halo-ring-expand 2.2s cubic-bezier(0.16, 1, 0.3, 1) 0.6s forwards;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    z-index: 55;
+  }
+
+  .halo-ring-inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 350px;
+    height: 350px;
+    border-radius: 50%;
+    background: radial-gradient(circle, transparent 45%, rgba(255, 255, 255, 0.3) 60%, rgba(224, 231, 255, 0.15) 75%, transparent 90%);
+    animation: halo-ring-inner 2s cubic-bezier(0.16, 1, 0.3, 1) 0.8s forwards;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    z-index: 55;
+  }
+
+  .halo-flash {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, rgba(224, 231, 255, 0.2) 30%, transparent 70%);
+    animation: flash-burst 1.5s cubic-bezier(0.16, 1, 0.3, 1) 0.5s forwards;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    z-index: 54;
+  }
+
+  .halo-ambient-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 700px;
+    height: 700px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(199, 210, 254, 0.15) 0%, rgba(165, 180, 252, 0.08) 40%, transparent 70%);
+    transform: translate(-50%, -50%) scale(1);
+    animation: halo-ambient 4s ease-in-out infinite;
+    z-index: 1;
+  }
+
+  .halo-sparkle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.8), 0 0 12px 4px rgba(199, 210, 254, 0.4);
+    z-index: 61;
+  }
+
+  /* ----------------------------------------------------------
      Smooth transition helpers
      ---------------------------------------------------------- */
   .transition-theme {

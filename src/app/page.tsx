@@ -36,16 +36,16 @@ const ROTATING_WORDS = [
   'Aligners',
 ]
 
-const STATUS_LABELS: Record<string, string> = {
-  NEW: 'New',
-  REVIEWED: 'Reviewed',
-  IN_PRODUCTION: 'In Production',
-  SENT_OUTSOURCE: 'Outsourced',
-  RECEIVED: 'Received',
-  QC: 'Quality Check',
-  READY: 'Ready',
-  DISPATCHED: 'Dispatched',
-  COMPLETED: 'Completed',
+const DENTIST_STATUS: Record<string, string> = {
+  NEW: 'Submitted',
+  REVIEWED: 'In Progress',
+  IN_PRODUCTION: 'In Progress',
+  SENT_OUTSOURCE: 'In Progress',
+  RECEIVED: 'In Progress',
+  QC: 'In Progress',
+  READY: 'In Progress',
+  DISPATCHED: 'With Courier',
+  COMPLETED: 'Delivered',
   CANCELLED: 'Cancelled',
 }
 
@@ -53,6 +53,61 @@ const DEPT_LABELS: Record<string, string> = {
   CERAMICS: 'Ceramics',
   DSD: 'DSD',
   APPLIANCES: 'Appliances',
+}
+
+const SPARKLE_POSITIONS = [
+  { x: '20%', y: '35%', delay: '0.3s', size: 3 },
+  { x: '30%', y: '28%', delay: '0.5s', size: 4 },
+  { x: '38%', y: '40%', delay: '0.4s', size: 2 },
+  { x: '45%', y: '32%', delay: '0.7s', size: 5 },
+  { x: '52%', y: '45%', delay: '0.6s', size: 3 },
+  { x: '35%', y: '50%', delay: '0.8s', size: 2 },
+  { x: '55%', y: '38%', delay: '0.9s', size: 4 },
+  { x: '42%', y: '55%', delay: '1.0s', size: 3 },
+  { x: '60%', y: '42%', delay: '0.5s', size: 2 },
+  { x: '48%', y: '30%', delay: '1.1s', size: 3 },
+  { x: '25%', y: '48%', delay: '0.7s', size: 4 },
+  { x: '65%', y: '50%', delay: '0.9s', size: 2 },
+]
+
+function HaloAnimation({ onComplete }: { onComplete: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onComplete, 3500)
+    return () => clearTimeout(timer)
+  }, [onComplete])
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
+      {/* Shooting star */}
+      <div
+        className="halo-shooting-star"
+        style={{ top: '50%', left: '50%' }}
+      />
+
+      {/* Flash burst at center */}
+      <div className="halo-flash" />
+
+      {/* Expanding halo rings */}
+      <div className="halo-ring" />
+      <div className="halo-ring-inner" />
+
+      {/* Sparkle particles */}
+      {SPARKLE_POSITIONS.map((s, i) => (
+        <div
+          key={i}
+          className="halo-sparkle"
+          style={{
+            left: s.x,
+            top: s.y,
+            width: s.size,
+            height: s.size,
+            animation: `sparkle 1.2s ease-out ${s.delay} forwards`,
+            opacity: 0,
+          }}
+        />
+      ))}
+    </div>
+  )
 }
 
 function getFirstName(fullName: string): string {
@@ -70,6 +125,7 @@ export default function PublicHomePage() {
   const [wordVisible, setWordVisible] = useState(true)
   const [recentCases, setRecentCases] = useState<RecentCase[]>([])
   const [casesLoading, setCasesLoading] = useState(false)
+  const [showHalo, setShowHalo] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Session restore
@@ -127,6 +183,7 @@ export default function PublicHomePage() {
       const data = await res.json()
       if (data.success && data.dentist) {
         sessionStorage.setItem('halo-dentist', JSON.stringify(data.dentist))
+        setShowHalo(true)
         setDentist(data.dentist)
         // Auto-sign into next-auth for dentist portal access
         if (data.dentist.email) {
@@ -158,6 +215,12 @@ export default function PublicHomePage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/40 to-white">
+      {/* Halo animation on login */}
+      {showHalo && <HaloAnimation onComplete={() => setShowHalo(false)} />}
+
+      {/* Ambient halo glow (persists after animation) */}
+      {dentist && <div className="halo-ambient-glow" />}
+
       <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-blue-100/50 blur-3xl" />
       <div className="absolute -bottom-40 -left-40 h-[400px] w-[400px] rounded-full bg-blue-100/40 blur-3xl" />
 
@@ -340,14 +403,13 @@ export default function PublicHomePage() {
                                 {DEPT_LABELS[c.department] || c.department}
                               </span>
                               <span className={`inline-flex rounded-lg px-2 py-0.5 text-[10px] font-medium ${
-                                c.status === 'COMPLETED' ? 'bg-green-50 text-green-700' :
-                                c.status === 'CANCELLED' ? 'bg-red-50 text-red-700' :
-                                c.status === 'IN_PRODUCTION' ? 'bg-yellow-50 text-yellow-700' :
-                                c.status === 'READY' ? 'bg-blue-50 text-blue-700' :
-                                c.status === 'DISPATCHED' ? 'bg-purple-50 text-purple-700' :
-                                'bg-gray-100 text-gray-600'
+                                DENTIST_STATUS[c.status] === 'Delivered' ? 'bg-green-50 text-green-700' :
+                                DENTIST_STATUS[c.status] === 'With Courier' ? 'bg-indigo-50 text-indigo-700' :
+                                DENTIST_STATUS[c.status] === 'Cancelled' ? 'bg-red-50 text-red-700' :
+                                DENTIST_STATUS[c.status] === 'Submitted' ? 'bg-gray-100 text-gray-600' :
+                                'bg-blue-50 text-blue-700'
                               }`}>
-                                {STATUS_LABELS[c.status] || c.status}
+                                {DENTIST_STATUS[c.status] || c.status}
                               </span>
                             </div>
                             {patientName && (

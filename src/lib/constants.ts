@@ -38,12 +38,12 @@ export const DENTIST_STATUS_MAP: Record<string, string> = {
   RECEIVED: 'In Progress',
   QC: 'In Progress',
   READY: 'In Progress',
-  DISPATCHED: 'Out for Delivery',
+  DISPATCHED: 'With Courier',
   COMPLETED: 'Delivered',
   CANCELLED: 'Cancelled',
 }
 
-export const DENTIST_VISIBLE_STATUSES = ['Submitted', 'In Progress', 'Out for Delivery', 'Delivered'] as const
+export const DENTIST_VISIBLE_STATUSES = ['Submitted', 'In Progress', 'With Courier', 'Delivered'] as const
 
 export const DEPARTMENT_STATUSES: Record<Department, CaseStatus[]> = {
   CERAMICS: ['NEW', 'REVIEWED', 'IN_PRODUCTION', 'SENT_OUTSOURCE', 'RECEIVED', 'QC', 'READY', 'DISPATCHED', 'COMPLETED', 'CANCELLED'],
