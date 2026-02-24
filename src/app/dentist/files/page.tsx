@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { STLViewer } from '@/components/shared/stl-viewer'
 
 interface CaseFile {
@@ -23,8 +23,14 @@ interface CaseFile {
   uploadedBy: { name: string } | null
 }
 
+interface CaseOption {
+  id: string
+  caseNumber: string
+  patient: { firstName: string | null; lastName: string | null; initials: string | null } | null
+}
+
 function formatBytes(bytes: number | null): string {
-  if (!bytes) return '—'
+  if (!bytes) return '\u2014'
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -52,6 +58,14 @@ export default function DentistFilesPage() {
   const [selectedFile, setSelectedFile] = useState<CaseFile | null>(null)
   const [filterType, setFilterType] = useState<string>('all')
 
+  // Upload state
+  const [cases, setCases] = useState<CaseOption[]>([])
+  const [selectedCaseId, setSelectedCaseId] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadSuccess, setUploadSuccess] = useState('')
+  const [uploadError, setUploadError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const loadFiles = useCallback(async () => {
     setLoading(true)
     try {
@@ -67,9 +81,55 @@ export default function DentistFilesPage() {
     }
   }, [])
 
+  const loadCases = useCallback(async () => {
+    try {
+      const res = await fetch('/api/portal/dentist/cases?limit=100')
+      if (res.ok) {
+        const data = await res.json()
+        setCases(data.data || [])
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
   useEffect(() => {
     loadFiles()
-  }, [loadFiles])
+    loadCases()
+  }, [loadFiles, loadCases])
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !selectedCaseId) return
+
+    setUploading(true)
+    setUploadError('')
+    setUploadSuccess('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('caseId', selectedCaseId)
+
+      const res = await fetch('/api/portal/dentist/files', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Upload failed')
+      }
+
+      setUploadSuccess(`"${file.name}" uploaded successfully`)
+      setTimeout(() => setUploadSuccess(''), 4000)
+      loadFiles()
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload file')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   const filteredFiles = filterType === 'all' ? files : files.filter(f => f.fileType === filterType)
   const stlFiles = files.filter(f => f.fileType === 'stl')
@@ -80,8 +140,65 @@ export default function DentistFilesPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">3D Files & Designs</h1>
         <p className="mt-1 text-sm text-gray-500">
-          View STL files and design previews shared by the lab. Use the 3D viewer to inspect models before approving for printing.
+          View STL files and design previews shared by the lab, or upload files to your cases.
         </p>
+      </div>
+
+      {/* Upload Section */}
+      <div className="mb-6 rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="border-b border-gray-100 px-6 py-4">
+          <h2 className="text-sm font-semibold text-gray-900">Upload File</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Upload STL, PDF, images or other files to a case</p>
+        </div>
+        <div className="px-6 py-4 bg-gray-50/50">
+          <div className="flex items-end gap-4">
+            <div className="flex-1 max-w-xs">
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Select Case</label>
+              <select
+                value={selectedCaseId}
+                onChange={(e) => setSelectedCaseId(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-gray-400"
+              >
+                <option value="">Choose a case...</option>
+                {cases.map(c => {
+                  const patientName = c.patient
+                    ? [c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || ''
+                    : ''
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {c.caseNumber}{patientName ? ` — ${patientName}` : ''}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+            <div className="relative">
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleUpload}
+                accept=".stl,.html,.htm,.pdf,.jpg,.jpeg,.png,.gif,.webp"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                disabled={uploading || !selectedCaseId}
+              />
+              <button
+                disabled={uploading || !selectedCaseId}
+                className="rounded-lg bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {uploading ? 'Uploading...' : 'Choose File & Upload'}
+              </button>
+            </div>
+          </div>
+          {!selectedCaseId && (
+            <p className="mt-2 text-xs text-gray-400">Select a case first to upload a file</p>
+          )}
+          {uploadSuccess && (
+            <p className="mt-2 text-xs font-medium text-green-600">{uploadSuccess}</p>
+          )}
+          {uploadError && (
+            <p className="mt-2 text-xs font-medium text-red-600">{uploadError}</p>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -137,7 +254,7 @@ export default function DentistFilesPage() {
           <h3 className="mt-4 text-sm font-semibold text-gray-900">No files yet</h3>
           <p className="mt-1 text-sm text-gray-500">
             {filterType === 'all'
-              ? 'When the lab shares STL files or design previews with you, they will appear here.'
+              ? 'Upload files above, or wait for the lab to share STL files and design previews with you.'
               : `No ${filterType.toUpperCase()} files shared yet.`}
           </p>
         </div>

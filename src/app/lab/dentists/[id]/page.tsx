@@ -6,6 +6,7 @@ import { formatDate, formatDateTime, formatCurrency } from '@/lib/utils'
 import { CASE_STATUS_LABELS, canViewFinancials } from '@/lib/constants'
 import Link from 'next/link'
 import { DentistSettings } from './dentist-settings'
+import { ArchiveDentistButton } from './archive-dentist-button'
 
 export default async function DentistDetailPage({
   params,
@@ -144,7 +145,26 @@ export default async function DentistDetailPage({
                 {dentist.clinic.name}
               </Link>
             </div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs text-gray-400">Departments:</span>
+              <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                dentist.allowCeramics ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-400 line-through'
+              }`}>
+                Ceramics
+              </span>
+              <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                dentist.allowDsd ? 'bg-teal-50 text-teal-700' : 'bg-gray-100 text-gray-400 line-through'
+              }`}>
+                DSD
+              </span>
+              <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                dentist.allowAppliances ? 'bg-purple-50 text-purple-700' : 'bg-gray-100 text-gray-400 line-through'
+              }`}>
+                Appliances
+              </span>
+            </div>
           </div>
+          <ArchiveDentistButton dentistId={dentist.id} active={dentist.active} />
         </div>
 
         {/* Stats */}

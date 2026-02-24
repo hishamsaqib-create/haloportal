@@ -89,47 +89,83 @@ export function DentistSettings({ dentist, pricingVariations }: DentistSettingsP
         </div>
       </div>
 
-      {/* Form Permissions */}
+      {/* Department Access */}
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
         <div className="border-b border-gray-200 px-6 py-4">
-          <h3 className="text-sm font-semibold text-gray-900">Form Permissions</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Control which submission forms this dentist can access</p>
+          <h3 className="text-sm font-semibold text-gray-900">Department Access</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Activate or deactivate departments this dentist can submit cases to</p>
         </div>
         <div className="px-6 py-5 space-y-3">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={allowCeramics}
-              onChange={(e) => setAllowCeramics(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-            />
-            <div>
-              <span className="text-sm font-medium text-gray-900">Ceramics</span>
-              <p className="text-xs text-gray-500">Crowns, veneers, bridges & implants</p>
+          <label className="flex items-center justify-between gap-3 cursor-pointer rounded-lg border border-gray-100 px-4 py-3 transition-colors hover:bg-gray-50">
+            <div className="flex items-center gap-3">
+              <div>
+                <span className="text-sm font-medium text-gray-900">Ceramics</span>
+                <p className="text-xs text-gray-500">Crowns, veneers, bridges & implants</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`text-xs font-medium ${allowCeramics ? 'text-green-600' : 'text-gray-400'}`}>
+                {allowCeramics ? 'Active' : 'Inactive'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAllowCeramics(!allowCeramics)}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${
+                  allowCeramics ? 'bg-brand-600' : 'bg-gray-200'
+                }`}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  allowCeramics ? 'translate-x-5' : 'translate-x-0'
+                }`} />
+              </button>
             </div>
           </label>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={allowDsd}
-              onChange={(e) => setAllowDsd(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-            />
-            <div>
-              <span className="text-sm font-medium text-gray-900">Digital Smile Design</span>
-              <p className="text-xs text-gray-500">DSD, smile design & wax-ups</p>
+          <label className="flex items-center justify-between gap-3 cursor-pointer rounded-lg border border-gray-100 px-4 py-3 transition-colors hover:bg-gray-50">
+            <div className="flex items-center gap-3">
+              <div>
+                <span className="text-sm font-medium text-gray-900">Digital Smile Design</span>
+                <p className="text-xs text-gray-500">DSD, smile design & wax-ups</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`text-xs font-medium ${allowDsd ? 'text-green-600' : 'text-gray-400'}`}>
+                {allowDsd ? 'Active' : 'Inactive'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAllowDsd(!allowDsd)}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${
+                  allowDsd ? 'bg-brand-600' : 'bg-gray-200'
+                }`}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  allowDsd ? 'translate-x-5' : 'translate-x-0'
+                }`} />
+              </button>
             </div>
           </label>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={allowAppliances}
-              onChange={(e) => setAllowAppliances(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-            />
-            <div>
-              <span className="text-sm font-medium text-gray-900">Appliances</span>
-              <p className="text-xs text-gray-500">Retainers, guards & orthodontics</p>
+          <label className="flex items-center justify-between gap-3 cursor-pointer rounded-lg border border-gray-100 px-4 py-3 transition-colors hover:bg-gray-50">
+            <div className="flex items-center gap-3">
+              <div>
+                <span className="text-sm font-medium text-gray-900">Appliances</span>
+                <p className="text-xs text-gray-500">Retainers, guards & orthodontics</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`text-xs font-medium ${allowAppliances ? 'text-green-600' : 'text-gray-400'}`}>
+                {allowAppliances ? 'Active' : 'Inactive'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAllowAppliances(!allowAppliances)}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${
+                  allowAppliances ? 'bg-brand-600' : 'bg-gray-200'
+                }`}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  allowAppliances ? 'translate-x-5' : 'translate-x-0'
+                }`} />
+              </button>
             </div>
           </label>
         </div>
