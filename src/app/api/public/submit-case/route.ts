@@ -76,21 +76,25 @@ export async function POST(req: NextRequest) {
       patientId = patient.id
     }
 
-    // Generate case number: INITIALS-DD-MM
-    const nowDate = new Date()
-    const dd = String(nowDate.getDate()).padStart(2, '0')
-    const mm = String(nowDate.getMonth() + 1).padStart(2, '0')
+    // Generate case number: DEPT-INITIALS-0001
     const ptInitials = patientName
       ? patientName.split(/\s+/).map((w: string) => w[0]?.toUpperCase()).filter(Boolean).join('')
       : 'XX'
-    let caseNumber = `${ptInitials || 'XX'}-${dd}-${mm}`
-    let existingCase = await prisma.case.findUnique({ where: { caseNumber } })
-    let sfx = 1
-    while (existingCase) {
-      caseNumber = `${ptInitials || 'XX'}-${dd}-${mm}-${sfx}`
-      existingCase = await prisma.case.findUnique({ where: { caseNumber } })
-      sfx++
+    const deptCode = department === 'CERAMICS' ? 'C' : department === 'DSD' ? 'D' : 'A'
+    const prefix = `${deptCode}-${ptInitials || 'XX'}-`
+
+    const lastCase = await prisma.case.findFirst({
+      where: { caseNumber: { startsWith: prefix } },
+      orderBy: { caseNumber: 'desc' },
+      select: { caseNumber: true },
+    })
+
+    let seq = 1
+    if (lastCase) {
+      const lastNum = parseInt(lastCase.caseNumber.replace(prefix, ''), 10)
+      if (!isNaN(lastNum)) seq = lastNum + 1
     }
+    const caseNumber = `${prefix}${String(seq).padStart(4, '0')}`
 
     // Build description based on department
     const descriptionParts: string[] = []

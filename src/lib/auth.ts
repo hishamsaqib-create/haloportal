@@ -47,29 +47,74 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
+        // First try standard User login
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         })
 
-        if (!user || !user.active) return null
+        if (user && user.active) {
+          const isValid = await bcrypt.compare(credentials.password, user.passwordHash)
+          if (isValid) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { lastLogin: new Date() },
+            })
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              userType: user.userType,
+              role: user.role,
+              clinicId: user.clinicId,
+              dentistId: user.dentistId,
+            }
+          }
+        }
 
-        const isValid = await bcrypt.compare(credentials.password, user.passwordHash)
-        if (!isValid) return null
-
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLogin: new Date() },
+        // Fallback: try dentist portalPassword login
+        const dentist = await prisma.dentist.findFirst({
+          where: { email: credentials.email, active: true },
+          include: { clinic: true },
         })
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          userType: user.userType,
-          role: user.role,
-          clinicId: user.clinicId,
-          dentistId: user.dentistId,
+        if (dentist && dentist.portalPassword && dentist.portalPassword === credentials.password) {
+          // Find existing user linked to this dentist, or create one
+          let dentistUser = await prisma.user.findFirst({
+            where: { dentistId: dentist.id, userType: 'DENTIST' },
+          })
+
+          if (!dentistUser) {
+            const hashedPw = await bcrypt.hash(credentials.password, 12)
+            dentistUser = await prisma.user.create({
+              data: {
+                email: dentist.email!,
+                name: dentist.name,
+                passwordHash: hashedPw,
+                userType: 'DENTIST',
+                role: 'DENTIST_USER',
+                clinicId: dentist.clinicId,
+                dentistId: dentist.id,
+              },
+            })
+          }
+
+          await prisma.user.update({
+            where: { id: dentistUser.id },
+            data: { lastLogin: new Date() },
+          })
+
+          return {
+            id: dentistUser.id,
+            email: dentistUser.email,
+            name: dentistUser.name,
+            userType: dentistUser.userType,
+            role: dentistUser.role,
+            clinicId: dentistUser.clinicId,
+            dentistId: dentistUser.dentistId,
+          }
         }
+
+        return null
       },
     }),
   ],

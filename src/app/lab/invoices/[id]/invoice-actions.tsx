@@ -57,7 +57,7 @@ export function InvoiceActions({
       )}
 
       <button
-        onClick={() => alert('PDF download coming soon')}
+        onClick={() => window.open(`/api/invoices/${invoiceId}/pdf`, '_blank')}
         className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
       >
         Download PDF
