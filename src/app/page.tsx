@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 
 interface DentistSession {
   id: string
   name: string
+  email: string | null
   clinicId: string
   clinicName: string
   allowCeramics: boolean
@@ -54,7 +56,9 @@ const DEPT_LABELS: Record<string, string> = {
 }
 
 function getFirstName(fullName: string): string {
-  return fullName.split(' ')[0]
+  const titleRegex = /^(dr\.?|mr\.?|mrs\.?|ms\.?|miss|prof\.?)\s+/i
+  const stripped = fullName.replace(titleRegex, '')
+  return stripped.split(' ')[0] || fullName
 }
 
 export default function PublicHomePage() {
@@ -124,6 +128,14 @@ export default function PublicHomePage() {
       if (data.success && data.dentist) {
         sessionStorage.setItem('halo-dentist', JSON.stringify(data.dentist))
         setDentist(data.dentist)
+        // Auto-sign into next-auth for dentist portal access
+        if (data.dentist.email) {
+          signIn('credentials', {
+            email: data.dentist.email,
+            password: password.trim(),
+            redirect: false,
+          }).catch(() => {})
+        }
       } else {
         setError('Incorrect password')
         setPassword('')
@@ -197,11 +209,20 @@ export default function PublicHomePage() {
         {/* MAIN CONTENT (after password) */}
         {dentist && (
           <div className="flex flex-col items-center animate-fade-in w-full max-w-3xl">
-            {/* Dentist badge + sign out */}
+            {/* Dentist badge + portal link + sign out */}
             <div className="mb-6 flex items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 border border-blue-100 px-4 py-1.5 text-sm font-medium text-blue-700">
                 {dentist.clinicName}
               </span>
+              <Link
+                href="/dentist/dashboard"
+                className="inline-flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-1.5 text-sm font-medium text-white transition-all hover:bg-gray-800 no-underline hover:no-underline"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6Zm0 9.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6Zm0 9.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                </svg>
+                Dentist Portal
+              </Link>
               <button onClick={handleLogout} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
                 Sign out
               </button>
@@ -218,7 +239,7 @@ export default function PublicHomePage() {
             <div className="mb-8 text-center">
               <div className="flex items-center justify-center gap-3">
                 <span className="text-2xl font-medium text-gray-400 sm:text-3xl">We make</span>
-                <div className="h-[40px] sm:h-[45px] flex items-center overflow-hidden">
+                <div className="h-[40px] sm:h-[45px] flex items-center justify-center overflow-hidden min-w-[160px] sm:min-w-[200px]">
                   <span
                     className={`block text-2xl font-bold tracking-tight text-blue-500 sm:text-3xl transition-all duration-500 ease-out ${
                       wordVisible ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'

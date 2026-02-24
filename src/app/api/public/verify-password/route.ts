@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
       select: {
         id: true,
         name: true,
+        email: true,
         clinicId: true,
         allowCeramics: true,
         allowDsd: true,
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
         dentist: {
           id: dentist.id,
           name: dentist.name,
+          email: dentist.email,
           clinicId: dentist.clinicId,
           clinicName: dentist.clinic.name,
           allowCeramics: dentist.allowCeramics,

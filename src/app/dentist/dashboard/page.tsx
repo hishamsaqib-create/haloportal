@@ -56,7 +56,7 @@ export default async function DentistDashboard() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Welcome back, Dr. {session.user.name}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Welcome back, {session.user.name}</h1>
         <p className="text-sm text-gray-500">Here is your latest case overview</p>
       </div>
 
