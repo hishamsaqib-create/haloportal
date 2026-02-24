@@ -249,8 +249,8 @@ export default function CasesPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Case #</th>
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Patient</th>
+                <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Case #</th>
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Clinic / Dentist</th>
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Dept</th>
                 <th className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</th>
@@ -290,17 +290,17 @@ export default function CasesPage() {
                   const total = c.items.reduce((sum, i) => sum + i.lineTotal, 0)
                   return (
                     <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-3">
-                        <Link href={`/lab/cases/${c.id}`} className="text-sm font-medium text-brand-700 hover:underline">
-                          {c.caseNumber}
-                        </Link>
-                      </td>
                       <td className="px-6 py-3 text-sm text-gray-600">
                         {c.patient ? (
                           <Link href={`/lab/patients/${c.patient.id}`} className="hover:text-brand-700 hover:underline">
                             {[c.patient.firstName, c.patient.lastName].filter(Boolean).join(' ') || c.patient.initials || c.patient.reference}
                           </Link>
                         ) : '\u2014'}
+                      </td>
+                      <td className="px-6 py-3">
+                        <Link href={`/lab/cases/${c.id}`} className="text-sm font-medium text-brand-700 hover:underline">
+                          {c.caseNumber}
+                        </Link>
                       </td>
                       <td className="px-6 py-3">
                         <div className="text-sm text-gray-900">{c.clinic.name}</div>

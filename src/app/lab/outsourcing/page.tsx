@@ -75,6 +75,7 @@ export default function OutsourcingPage() {
   const [caseInfo, setCaseInfo] = useState<CaseInfo | null>(null)
   const [selectedCentreId, setSelectedCentreId] = useState('')
   const [orderNotes, setOrderNotes] = useState('')
+  const [includeFileLink, setIncludeFileLink] = useState(false)
   const [creating, setCreating] = useState(false)
 
   const fetchOrders = useCallback(async () => {
@@ -135,12 +136,14 @@ export default function OutsourcingPage() {
           caseId: caseIdParam,
           referralCentreId: selectedCentreId,
           notes: orderNotes || undefined,
+          includeFileLink,
         }),
       })
       if (res.ok) {
         setShowNewOrderForm(false)
         setSelectedCentreId('')
         setOrderNotes('')
+        setIncludeFileLink(false)
         setCaseInfo(null)
         // Remove caseId from URL
         router.replace('/lab/outsourcing')
@@ -250,6 +253,11 @@ export default function OutsourcingPage() {
               placeholder="Any special instructions for the referral centre..."
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
+              <label className="flex items-center gap-3 mt-3 cursor-pointer">
+                <input type="checkbox" checked={includeFileLink} onChange={(e) => setIncludeFileLink(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <span className="text-sm text-gray-700">Include link to case files in email to referral centre</span>
+              </label>
           </div>
 
           {/* Actions */}

@@ -641,8 +641,25 @@ export default function SettingsPage() {
     if (loadingSettings) return <LoadingPlaceholder />
     return (
       <SectionCard title="Billing Settings" description="Configure tax rates, payment terms and default currency for invoices."
-        onSave={() => saveSettings(['vat_rate', 'payment_terms_days', 'currency'], setSavingBilling)} saving={savingBilling}>
+        onSave={() => saveSettings(['vat_enabled', 'vat_rate', 'payment_terms_days', 'currency'], setSavingBilling)} saving={savingBilling}>
         <div className="space-y-5">
+          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 mb-4">
+            <div>
+              <p className="text-sm font-medium text-gray-900">VAT Enabled</p>
+              <p className="text-xs text-gray-500">Toggle to enable or disable VAT on invoices</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setS('vat_enabled', s('vat_enabled') === 'true' ? 'false' : 'true')}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                s('vat_enabled') !== 'false' ? 'bg-brand-700' : 'bg-gray-300'
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                s('vat_enabled') !== 'false' ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+          </div>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             <FieldGroup label="VAT Rate (%)" hint="Applied to all new invoices by default.">
               <TextInput type="number" value={s('vat_rate')} onChange={(v) => setS('vat_rate', v)} placeholder="20" />

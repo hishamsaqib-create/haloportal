@@ -114,6 +114,22 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // If includeFileLink, generate a shareable link
+    if (body.includeFileLink) {
+      const caseFiles = await prisma.caseFile.findMany({
+        where: { caseId: body.caseId },
+        select: { fileName: true, fileUrl: true, fileType: true },
+      })
+      // Store file links in the outsource order notes for email template use
+      if (caseFiles.length > 0) {
+        const fileList = caseFiles.map(f => `- ${f.fileName}: ${process.env.APP_URL || 'https://haloportal.co.uk'}${f.fileUrl}`).join('\n')
+        await prisma.outsourceOrder.update({
+          where: { id: order.id },
+          data: { notes: `${body.notes || ''}\n\nCase Files:\n${fileList}`.trim() },
+        })
+      }
+    }
+
     // Send email to referral centre if they have an email configured
     if (referralCentre.email) {
       try {

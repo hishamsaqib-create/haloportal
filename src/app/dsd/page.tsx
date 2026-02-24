@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { DentalChart } from '@/components/dental-chart'
 
 interface ClinicSession {
   id: string
@@ -26,8 +27,11 @@ export default function DSDFormPage() {
   const [dentistId, setDentistId] = useState('')
   const [dentistEmail, setDentistEmail] = useState('')
   const [teethOnDsd, setTeethOnDsd] = useState('')
+  const [selectedTeeth, setSelectedTeeth] = useState<number[]>([])
   const [dueDate, setDueDate] = useState('')
   const [notes, setNotes] = useState('')
+  const [isRemake, setIsRemake] = useState(false)
+  const [remakeReason, setRemakeReason] = useState('')
 
   useEffect(() => {
     const raw = sessionStorage.getItem('halo-clinic')
@@ -75,6 +79,8 @@ export default function DSDFormPage() {
           dueDate: dueDate || undefined,
           teethOnDsd: teethOnDsd || undefined,
           notes: notes || undefined,
+          isRemake,
+          remakeReason: isRemake ? remakeReason : undefined,
         }),
       })
 
@@ -192,9 +198,13 @@ export default function DSDFormPage() {
             <legend className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Design Details</legend>
             <div>
               <label className="block text-xs text-gray-500 mb-1.5">Teeth on DSD *</label>
-              <input type="text" value={teethOnDsd} onChange={(e) => setTeethOnDsd(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400"
-                placeholder="e.g. UR3-UL3 (Upper anteriors)" required />
+              <DentalChart
+                selectedTeeth={selectedTeeth}
+                onChange={(teeth) => {
+                  setSelectedTeeth(teeth)
+                  setTeethOnDsd(teeth.join(', '))
+                }}
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -229,6 +239,33 @@ export default function DSDFormPage() {
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4}
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400 resize-none"
               placeholder="Any additional notes or special instructions..." />
+          </fieldset>
+
+          {/* Remake */}
+          <fieldset className="space-y-4">
+            <legend className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Remake Information</legend>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={isRemake} onChange={(e) => setIsRemake(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              <span className="text-sm text-gray-700">This is a remake of a previous case</span>
+            </label>
+            {isRemake && (
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5">Reason for Remake</label>
+                <select value={remakeReason} onChange={(e) => setRemakeReason(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-400">
+                  <option value="">Select a reason...</option>
+                  <option value="FIT_ISSUE">Fit Issue</option>
+                  <option value="SHADE_MISMATCH">Shade Mismatch</option>
+                  <option value="BREAKAGE">Breakage</option>
+                  <option value="DESIGN_ERROR">Design Error</option>
+                  <option value="MATERIAL_DEFECT">Material Defect</option>
+                  <option value="IMPRESSION_ISSUE">Impression Issue</option>
+                  <option value="WRONG_SHADE">Wrong Shade</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+            )}
           </fieldset>
 
           {/* Error */}

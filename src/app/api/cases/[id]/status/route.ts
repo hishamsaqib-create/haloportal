@@ -86,6 +86,50 @@ export async function PUT(req: NextRequest, context: RouteContext) {
       newValue: { status: validated.status },
     })
 
+    // Auto-generate prescription when status changes to READY
+    if (validated.status === 'READY') {
+      const caseWithItems = await prisma.case.findUnique({
+        where: { id },
+        include: {
+          items: { include: { product: true } },
+          dentist: true,
+          patient: true,
+          clinic: true,
+        },
+      })
+
+      if (caseWithItems) {
+        const structuredData = {
+          caseNumber: caseWithItems.caseNumber,
+          department: caseWithItems.department,
+          clinic: caseWithItems.clinic.name,
+          dentist: caseWithItems.dentist.name,
+          patient: {
+            name: [caseWithItems.patient?.firstName, caseWithItems.patient?.lastName].filter(Boolean).join(' ') || caseWithItems.patient?.reference || 'N/A',
+            initials: caseWithItems.patient?.initials || '',
+            reference: caseWithItems.patient?.reference || '',
+          },
+          items: caseWithItems.items.map((item) => ({
+            description: item.description,
+            qty: item.qty,
+            material: item.material,
+            shade: item.shade,
+            toothNumbers: item.toothNumbers,
+            notes: item.notes,
+          })),
+          generatedAt: new Date().toISOString(),
+        }
+
+        await prisma.dAMASPrescription.create({
+          data: {
+            caseId: id,
+            generatedById: user.id,
+            structuredData: JSON.stringify(structuredData),
+          },
+        })
+      }
+    }
+
     return NextResponse.json({ data: updatedCase })
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {

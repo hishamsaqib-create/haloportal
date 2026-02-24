@@ -128,21 +128,24 @@ export async function POST(req: NextRequest) {
       patientId = patient.id
     }
 
-    // Generate case number: INITIALS-DD-MM (e.g. HS-23-02)
-    const now = new Date()
-    const dd = String(now.getDate()).padStart(2, '0')
-    const mm = String(now.getMonth() + 1).padStart(2, '0')
+    // Generate case number: DEPT-INITIALS-0001 (e.g. C-HS-0001)
+    const deptCode = validated.department === 'CERAMICS' ? 'C' : validated.department === 'DSD' ? 'D' : 'A'
     const initials = (validated.patientInitials || 'XX').toUpperCase().replace(/[^A-Z]/g, '') || 'XX'
-    let caseNumber = `${initials}-${dd}-${mm}`
+    const prefix = `${deptCode}-${initials}-`
 
-    // Ensure uniqueness by adding a suffix if needed
-    let existing = await prisma.case.findUnique({ where: { caseNumber } })
-    let suffix = 1
-    while (existing) {
-      caseNumber = `${initials}-${dd}-${mm}-${suffix}`
-      existing = await prisma.case.findUnique({ where: { caseNumber } })
-      suffix++
+    // Find the highest existing case number with this prefix
+    const lastCase = await prisma.case.findFirst({
+      where: { caseNumber: { startsWith: prefix } },
+      orderBy: { caseNumber: 'desc' },
+      select: { caseNumber: true },
+    })
+
+    let seq = 1
+    if (lastCase) {
+      const lastNum = parseInt(lastCase.caseNumber.replace(prefix, ''), 10)
+      if (!isNaN(lastNum)) seq = lastNum + 1
     }
+    const caseNumber = `${prefix}${String(seq).padStart(4, '0')}`
 
     // Resolve pricing for each item
     const itemsData = await Promise.all(
