@@ -152,19 +152,32 @@ function MessagesContent() {
     const res = await fetch(`/api/email?${params}`)
     if (res.ok) {
       const data = await res.json()
-      setThreads(data.threads || [])
+      setThreads(data.data || [])
     }
     setLoading(false)
   }
 
   async function handleSend() {
+    // Fetch lab email from settings
+    let labEmail = 'lab@halolab.co.uk'
+    try {
+      const settingsRes = await fetch('/api/settings')
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json()
+        const emailSetting = settingsData.data?.lab_email
+        if (emailSetting?.value) labEmail = emailSetting.value
+      }
+    } catch {
+      // Fall back to default
+    }
+
     const res = await fetch('/api/email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         subject: newMessage.subject,
         html: `<p>${newMessage.body.replace(/\n/g, '<br/>')}</p>`,
-        to: 'lab@halolab.co.uk',
+        to: labEmail,
         caseId: newMessage.caseId || undefined,
       }),
     })

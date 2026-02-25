@@ -6,25 +6,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function generateCaseNumber(initials?: string): string {
-  const now = new Date()
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const ptInitials = (initials || 'XX').toUpperCase().replace(/[^A-Z]/g, '') || 'XX'
-  return `${ptInitials}-${dd}-${mm}`
-}
-
 export function generateDeliveryNumber(): string {
   const year = new Date().getFullYear()
   const random = Math.floor(Math.random() * 9999).toString().padStart(4, '0')
   return `DEL-${year}-${random}`
-}
-
-export function generateInvoiceNumber(): string {
-  const year = new Date().getFullYear()
-  const month = (new Date().getMonth() + 1).toString().padStart(2, '0')
-  const random = Math.floor(Math.random() * 9999).toString().padStart(4, '0')
-  return `INV-${year}${month}-${random}`
 }
 
 export function formatDate(date: Date | string | null | undefined): string {
@@ -72,28 +57,3 @@ export function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
-export function parseJSON<T>(json: string | null | undefined, fallback: T): T {
-  if (!json) return fallback
-  try {
-    return JSON.parse(json) as T
-  } catch {
-    return fallback
-  }
-}
-
-export function toJSON(value: unknown): string {
-  return JSON.stringify(value)
-}
-
-export function truncate(str: string, length: number): string {
-  if (str.length <= length) return str
-  return str.slice(0, length) + '...'
-}
-
-export function slugify(str: string): string {
-  return str
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
