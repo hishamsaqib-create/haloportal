@@ -58,7 +58,7 @@ const SECTIONS: { key: SectionKey; label: string; icon: React.ReactNode; descrip
   {
     key: 'general',
     label: 'General',
-    description: 'Lab identity and numbering formats',
+    description: 'Lab identity and invoice numbering',
     icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.646.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.333.183-.582.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>,
   },
   {
@@ -70,7 +70,7 @@ const SECTIONS: { key: SectionKey; label: string; icon: React.ReactNode; descrip
   {
     key: 'branding',
     label: 'Branding',
-    description: 'Appearance, colors and contact details',
+    description: 'Contact details for documents and emails',
     icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.098 19.902a3.75 3.75 0 0 0 5.304 0l6.401-6.402M6.75 21A3.75 3.75 0 0 1 3 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 0 0 3.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008Z" /></svg>,
   },
   {
@@ -109,11 +109,6 @@ const SECTIONS: { key: SectionKey; label: string; icon: React.ReactNode; descrip
     description: 'Notification rules and automations',
     icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>,
   },
-]
-
-const ACCENT_SWATCHES = [
-  '#0071e3', '#34c759', '#ff9500', '#ff3b30', '#af52de',
-  '#ff2d55', '#5856d6', '#00c7be', '#1d1d1f', '#6e6e73',
 ]
 
 const CURRENCY_OPTIONS = [
@@ -618,20 +613,18 @@ export default function SettingsPage() {
   function renderGeneral() {
     if (loadingSettings) return <LoadingPlaceholder />
     return (
-      <SectionCard title="General Settings" description="Configure your lab name and document numbering formats."
-        onSave={() => saveSettings(['lab_name', 'case_number_format', 'invoice_number_format'], setSavingGeneral)} saving={savingGeneral}>
+      <SectionCard title="General Settings" description="Configure your lab name and invoice numbering."
+        onSave={() => saveSettings(['lab_name', 'invoice_number_format'], setSavingGeneral)} saving={savingGeneral}>
         <div className="space-y-5">
           <FieldGroup label="Lab Name" hint="The name displayed across the portal and on documents.">
             <TextInput value={s('lab_name')} onChange={(v) => setS('lab_name', v)} placeholder="Halo Dental Lab" />
           </FieldGroup>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <FieldGroup label="Case Number Format" hint="Use YYYY for year, XXXX for sequence.">
-              <TextInput value={s('case_number_format')} onChange={(v) => setS('case_number_format', v)} placeholder="HL-YYYY-XXXX" mono />
-            </FieldGroup>
-            <FieldGroup label="Invoice Number Format" hint="Use YYYY for year, MM for month, XXXX for sequence.">
-              <TextInput value={s('invoice_number_format')} onChange={(v) => setS('invoice_number_format', v)} placeholder="INV-YYYYMM-XXXX" mono />
-            </FieldGroup>
-          </div>
+          <FieldGroup label="Invoice Number Format" hint="Use YYYY for year, MM for month, XXXX for sequence.">
+            <TextInput value={s('invoice_number_format')} onChange={(v) => setS('invoice_number_format', v)} placeholder="INV-YYYYMM-XXXX" mono />
+          </FieldGroup>
+          <InfoBox title="About case numbers">
+            Case numbers are generated automatically using the format DEPT-INITIALS-XXXX (e.g. C-HS-0001) based on the department and patient initials.
+          </InfoBox>
         </div>
       </SectionCard>
     )
@@ -681,51 +674,17 @@ export default function SettingsPage() {
 
   function renderBranding() {
     if (loadingSettings) return <LoadingPlaceholder />
-    const currentAccent = s('theme_accent_color') || '#0071e3'
     return (
-      <SectionCard title="Branding" description="Customise the portal appearance and set your lab contact details."
-        onSave={() => saveSettings(['lab_name', 'lab_email', 'lab_phone', 'lab_address', 'theme_accent_color'], setSavingBranding)} saving={savingBranding}>
-        <div className="space-y-6">
-          <FieldGroup label="Accent Color" hint="Used for buttons, links and active elements across the portal.">
-            <div className="flex flex-wrap items-center gap-2">
-              {ACCENT_SWATCHES.map((color) => (
-                <button key={color} type="button" onClick={() => setS('theme_accent_color', color)}
-                  className={`relative h-8 w-8 rounded-full border-2 transition-all ${currentAccent === color ? 'border-gray-900 scale-110' : 'border-transparent hover:scale-105'}`}
-                  style={{ backgroundColor: color }} title={color}>
-                  {currentAccent === color && (
-                    <svg className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow-sm" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                    </svg>
-                  )}
-                </button>
-              ))}
-              <div className="flex items-center gap-2 ml-2 pl-2 border-l border-gray-200">
-                <label className="text-xs text-gray-500">Custom:</label>
-                <input type="color" value={currentAccent} onChange={(e) => setS('theme_accent_color', e.target.value)}
-                  className="h-8 w-8 cursor-pointer rounded-lg border border-gray-200 p-0.5" />
-                <input type="text" value={currentAccent} onChange={(e) => setS('theme_accent_color', e.target.value)}
-                  className="w-24 rounded-lg border border-gray-200 bg-gray-50/50 px-2.5 py-1.5 font-mono text-xs text-gray-700 outline-none focus:border-gray-400 focus:bg-white" placeholder="#0071e3" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl" style={{ backgroundColor: currentAccent }} />
-              <div>
-                <p className="text-sm font-medium text-gray-700">Preview</p>
-                <p className="font-mono text-xs text-gray-400">{currentAccent}</p>
-              </div>
-            </div>
-          </FieldGroup>
-          <hr className="border-gray-100" />
-          <div className="space-y-5">
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <FieldGroup label="Lab Name"><TextInput value={s('lab_name')} onChange={(v) => setS('lab_name', v)} placeholder="Halo Dental Lab" /></FieldGroup>
-              <FieldGroup label="Email Address"><TextInput value={s('lab_email')} onChange={(v) => setS('lab_email', v)} placeholder="lab@halolab.co.uk" type="email" /></FieldGroup>
-            </div>
+      <SectionCard title="Branding" description="Set your lab contact details displayed on documents and emails."
+        onSave={() => saveSettings(['lab_email', 'lab_phone', 'lab_address'], setSavingBranding)} saving={savingBranding}>
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <FieldGroup label="Email Address"><TextInput value={s('lab_email')} onChange={(v) => setS('lab_email', v)} placeholder="lab@halolab.co.uk" type="email" /></FieldGroup>
             <FieldGroup label="Phone Number"><TextInput value={s('lab_phone')} onChange={(v) => setS('lab_phone', v)} placeholder="+44 20 1234 5678" /></FieldGroup>
-            <FieldGroup label="Address" hint="Displayed on invoices and correspondence.">
-              <TextAreaInput value={s('lab_address')} onChange={(v) => setS('lab_address', v)} placeholder="123 High Street&#10;London&#10;SW1A 1AA" rows={3} />
-            </FieldGroup>
           </div>
+          <FieldGroup label="Address" hint="Displayed on invoices and correspondence.">
+            <TextAreaInput value={s('lab_address')} onChange={(v) => setS('lab_address', v)} placeholder="123 High Street&#10;London&#10;SW1A 1AA" rows={3} />
+          </FieldGroup>
         </div>
       </SectionCard>
     )

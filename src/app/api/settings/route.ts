@@ -3,20 +3,21 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth, requireInternal, handleAuthError } from '@/lib/rbac'
 
 const DEFAULT_SETTINGS: Record<string, { value: string; label: string; category: string }> = {
+  vat_enabled: { value: 'true', label: 'VAT Enabled', category: 'billing' },
   vat_rate: { value: '20', label: 'Default VAT Rate (%)', category: 'billing' },
   payment_terms_days: { value: '30', label: 'Default Payment Terms (days)', category: 'billing' },
-  case_number_format: { value: 'HL-YYYY-XXXX', label: 'Case Number Format', category: 'general' },
+  currency: { value: 'GBP', label: 'Default Currency', category: 'billing' },
   invoice_number_format: { value: 'INV-YYYYMM-XXXX', label: 'Invoice Number Format', category: 'general' },
-  lab_name: { value: 'Halo Dental Lab', label: 'Lab Name', category: 'branding' },
+  lab_name: { value: 'Halo Dental Lab', label: 'Lab Name', category: 'general' },
   lab_email: { value: 'lab@halolab.co.uk', label: 'Lab Email', category: 'branding' },
   lab_phone: { value: '', label: 'Lab Phone', category: 'branding' },
   lab_address: { value: '', label: 'Lab Address', category: 'branding' },
-  theme_primary_color: { value: '#1d1d1f', label: 'Primary Color', category: 'branding' },
-  theme_accent_color: { value: '#0071e3', label: 'Accent Color', category: 'branding' },
   whatsapp_phone_id: { value: '', label: 'WhatsApp Phone Number ID', category: 'integrations' },
   whatsapp_access_token: { value: '', label: 'WhatsApp Access Token', category: 'integrations' },
   whatsapp_verify_token: { value: '', label: 'WhatsApp Webhook Verify Token', category: 'integrations' },
   whatsapp_business_id: { value: '', label: 'WhatsApp Business Account ID', category: 'integrations' },
+  monday_api_key: { value: '', label: 'Monday.com API Key', category: 'integrations' },
+  monday_board_id: { value: '', label: 'Monday.com Board ID', category: 'integrations' },
 }
 
 export async function GET() {
