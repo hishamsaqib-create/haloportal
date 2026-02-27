@@ -7,18 +7,26 @@ export async function GET(req: NextRequest) {
     const user = await requireAuth()
     const { searchParams } = new URL(req.url)
     const caseId = searchParams.get('caseId')
+    const dentistId = searchParams.get('dentistId')
 
     const where: Record<string, unknown> = {}
 
     if (caseId) {
       where.caseId = caseId
+    } else if (dentistId && user.userType !== 'DENTIST') {
+      // Filter messages belonging to this dentist (via case or sender)
+      where.OR = [
+        { case: { dentistId } },
+        { sender: { dentistId } },
+      ]
     }
 
     // Dentists can only see messages for their own cases
     if (user.userType === 'DENTIST') {
-      where.case = {
-        dentistId: user.dentistId,
-      }
+      where.OR = [
+        { case: { dentistId: user.dentistId } },
+        { senderId: user.id },
+      ]
     }
 
     const messages = await prisma.haloChatMessage.findMany({
