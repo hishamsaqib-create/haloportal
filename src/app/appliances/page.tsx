@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { DentalChart } from '@/components/dental-chart'
+import { FileUploader } from '@/components/file-uploader'
 
 interface DentistSession {
   id: string
@@ -51,6 +52,8 @@ export default function AppliancesFormPage() {
   const [notes, setNotes] = useState('')
   const [isRemake, setIsRemake] = useState(false)
   const [remakeReason, setRemakeReason] = useState('')
+  const [uploadFiles, setUploadFiles] = useState<File[]>([])
+  const [uploadProgress, setUploadProgress] = useState('')
 
   useEffect(() => {
     const raw = sessionStorage.getItem('halo-dentist')
@@ -107,6 +110,25 @@ export default function AppliancesFormPage() {
 
       const data = await res.json()
       if (data.success) {
+        // Upload files if any were selected
+        if (uploadFiles.length > 0) {
+          setUploadProgress('Uploading files...')
+          const formData = new FormData()
+          formData.append('caseId', data.data.id)
+          formData.append('dentistId', dentistSession.id)
+          uploadFiles.forEach((f) => formData.append('files', f))
+
+          try {
+            await fetch('/api/public/upload-files', {
+              method: 'POST',
+              body: formData,
+            })
+          } catch {
+            // Files failed but case was created - still show success
+          }
+          setUploadProgress('')
+        }
+
         setCaseNumber(data.data.caseNumber)
         setSubmitted(true)
       } else {
@@ -277,6 +299,12 @@ export default function AppliancesFormPage() {
             )}
           </fieldset>
 
+          {/* File Upload */}
+          <fieldset className="space-y-4">
+            <legend className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">File Upload</legend>
+            <FileUploader files={uploadFiles} onChange={setUploadFiles} />
+          </fieldset>
+
           {/* Notes */}
           <fieldset className="space-y-4">
             <legend className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Notes</legend>
@@ -322,7 +350,7 @@ export default function AppliancesFormPage() {
           {/* Submit */}
           <button type="submit" disabled={submitting}
             className="w-full rounded-2xl bg-blue-500 py-3.5 text-sm font-semibold text-white transition-all hover:bg-blue-600 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed">
-            {submitting ? 'Submitting...' : 'Submit Appliance Case'}
+            {submitting ? (uploadProgress || 'Submitting...') : 'Submit Appliance Case'}
           </button>
         </form>
       </div>

@@ -85,7 +85,7 @@ export default function CeramicsFormPage() {
 
     if (!patientFirstName.trim()) { setError('Please enter patient first name'); return }
     if (!patientLastName.trim()) { setError('Please enter patient last name'); return }
-    if (!workRequired.length) { setError('Please select at least one type of work required'); return }
+    if (!workRequired.length) { setError('Please select at least one material'); return }
     if (!shade.trim()) { setError('Please enter a shade'); return }
 
     setSubmitting(true)

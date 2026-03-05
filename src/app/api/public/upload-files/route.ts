@@ -17,6 +17,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Validate UUID format to prevent path traversal
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidPattern.test(caseId) || !uuidPattern.test(dentistId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 })
+    }
+
     if (!files.length) {
       return NextResponse.json({ error: 'No files provided' }, { status: 400 })
     }
