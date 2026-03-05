@@ -158,6 +158,7 @@ model Product {
   minTeeth               Int?     // Minimum teeth for per-tooth pricing (e.g. 4)
   additionalToothPrice   Float?   // Price per additional tooth above minimum
   parameterSchema        String?  // JSON schema for additional parameters
+  turnaroundDays         Int?     // Minimum turnaround time in working days
   active                 Boolean  @default(true)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt

@@ -41,6 +41,7 @@ export default function AppliancesFormPage() {
   const [patientFirstName, setPatientFirstName] = useState('')
   const [patientLastName, setPatientLastName] = useState('')
   const [appliance, setAppliance] = useState('')
+  const [arch, setArch] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [dueDate, setDueDate] = useState('')
   const [teethNeeded, setTeethNeeded] = useState('')
@@ -78,6 +79,7 @@ export default function AppliancesFormPage() {
 
     if (!patientFirstName.trim()) { setError('Please enter patient name'); return }
     if (!appliance) { setError('Please select an appliance'); return }
+    if (!arch) { setError('Please select an arch (Upper, Lower, or Both)'); return }
 
     setSubmitting(true)
     try {
@@ -92,6 +94,7 @@ export default function AppliancesFormPage() {
           patientName,
           dueDate: dueDate || undefined,
           appliance,
+          arch: arch || undefined,
           quantity: quantity || '1',
           teethNeeded: teethNeeded || undefined,
           iteroScanTaken: iteroScanTaken || undefined,
@@ -204,6 +207,21 @@ export default function AppliancesFormPage() {
                   <option key={a} value={a}>{a}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5">Arch *</label>
+              <div className="flex gap-3">
+                {['Upper', 'Lower', 'Both'].map((opt) => (
+                  <button key={opt} type="button" onClick={() => setArch(opt)}
+                    className={`rounded-xl px-6 py-2.5 text-sm font-medium transition-all border ${
+                      arch === opt
+                        ? 'bg-blue-50 border-blue-300 text-blue-700'
+                        : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}>
+                    {opt}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

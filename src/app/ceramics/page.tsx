@@ -16,7 +16,8 @@ interface DentistSession {
   allowAppliances: boolean
 }
 
-const WORK_OPTIONS = ['Emax', 'Feldspathic', 'Zirconia', 'Implant']
+const MATERIAL_OPTIONS = ['Emax', 'Feldspathic', 'Zirconia', 'Implant']
+const PRODUCT_OPTIONS = ['Crown', 'Bridge', 'Veneer', 'Inlay', 'Onlay', 'Implant Crown', 'Implant Bridge']
 
 export default function CeramicsFormPage() {
   const router = useRouter()
@@ -31,11 +32,9 @@ export default function CeramicsFormPage() {
   const [patientTitle, setPatientTitle] = useState('')
   const [patientFirstName, setPatientFirstName] = useState('')
   const [patientLastName, setPatientLastName] = useState('')
-  const [patientDobDay, setPatientDobDay] = useState('')
-  const [patientDobMonth, setPatientDobMonth] = useState('')
-  const [patientDobYear, setPatientDobYear] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [workRequired, setWorkRequired] = useState<string[]>([])
+  const [productType, setProductType] = useState<string[]>([])
   const [teethNeeded, setTeethNeeded] = useState('')
   const [selectedTeeth, setSelectedTeeth] = useState<number[]>([])
   const [shade, setShade] = useState('')
@@ -73,20 +72,25 @@ export default function CeramicsFormPage() {
     )
   }
 
+  function toggleProduct(item: string) {
+    setProductType((prev) =>
+      prev.includes(item) ? prev.filter((p) => p !== item) : [...prev, item]
+    )
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (submitting || !dentistSession) return
     setError('')
 
-    if (!patientFirstName.trim()) { setError('Please enter patient name'); return }
+    if (!patientFirstName.trim()) { setError('Please enter patient first name'); return }
+    if (!patientLastName.trim()) { setError('Please enter patient last name'); return }
     if (!workRequired.length) { setError('Please select at least one type of work required'); return }
+    if (!shade.trim()) { setError('Please enter a shade'); return }
 
     setSubmitting(true)
     try {
       const patientName = [patientTitle, patientFirstName, patientLastName].filter(Boolean).join(' ')
-      const patientDob = patientDobDay && patientDobMonth && patientDobYear
-        ? `${patientDobDay}/${patientDobMonth}/${patientDobYear}`
-        : undefined
 
       const res = await fetch('/api/public/submit-case', {
         method: 'POST',
@@ -95,9 +99,9 @@ export default function CeramicsFormPage() {
           department: 'CERAMICS',
           dentistId: dentistSession.id,
           patientName,
-          patientDob,
           dueDate: dueDate || undefined,
           workRequired,
+          productType: productType.length ? productType : undefined,
           teethNeeded: teethNeeded || undefined,
           shade: shade || undefined,
           translucency: translucency || undefined,
@@ -209,24 +213,10 @@ export default function CeramicsFormPage() {
                   placeholder="First name" required />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs text-gray-500 mb-1.5">Last Name</label>
+                <label className="block text-xs text-gray-500 mb-1.5">Last Name *</label>
                 <input type="text" value={patientLastName} onChange={(e) => setPatientLastName(e.target.value)}
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400"
-                  placeholder="Last name" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1.5">Date of Birth</label>
-              <div className="grid grid-cols-3 gap-3">
-                <input type="text" value={patientDobDay} onChange={(e) => setPatientDobDay(e.target.value)}
-                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400"
-                  placeholder="DD" maxLength={2} />
-                <input type="text" value={patientDobMonth} onChange={(e) => setPatientDobMonth(e.target.value)}
-                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400"
-                  placeholder="MM" maxLength={2} />
-                <input type="text" value={patientDobYear} onChange={(e) => setPatientDobYear(e.target.value)}
-                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400"
-                  placeholder="YYYY" maxLength={4} />
+                  placeholder="Last name" required />
               </div>
             </div>
           </fieldset>
@@ -248,14 +238,34 @@ export default function CeramicsFormPage() {
             </div>
           </fieldset>
 
-          {/* Work Required */}
+          {/* Material */}
           <fieldset className="space-y-4">
-            <legend className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Work Required *</legend>
+            <legend className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Material *</legend>
             <div className="flex flex-wrap gap-3">
-              {WORK_OPTIONS.map((item) => {
+              {MATERIAL_OPTIONS.map((item) => {
                 const selected = workRequired.includes(item)
                 return (
                   <button key={item} type="button" onClick={() => toggleWork(item)}
+                    className={`rounded-xl px-5 py-2.5 text-sm font-medium transition-all border ${
+                      selected
+                        ? 'bg-blue-50 border-blue-300 text-blue-700'
+                        : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}>
+                    {item}
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+
+          {/* Product Type */}
+          <fieldset className="space-y-4">
+            <legend className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Product Type</legend>
+            <div className="flex flex-wrap gap-3">
+              {PRODUCT_OPTIONS.map((item) => {
+                const selected = productType.includes(item)
+                return (
+                  <button key={item} type="button" onClick={() => toggleProduct(item)}
                     className={`rounded-xl px-5 py-2.5 text-sm font-medium transition-all border ${
                       selected
                         ? 'bg-blue-50 border-blue-300 text-blue-700'
@@ -283,10 +293,10 @@ export default function CeramicsFormPage() {
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs text-gray-500 mb-1.5">Shade</label>
+                <label className="block text-xs text-gray-500 mb-1.5">Shade *</label>
                 <input type="text" value={shade} onChange={(e) => setShade(e.target.value)}
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-400"
-                  placeholder="e.g. A2" />
+                  placeholder="e.g. A2" required />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1.5">Translucency</label>

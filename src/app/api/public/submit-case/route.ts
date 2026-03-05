@@ -17,12 +17,14 @@ export async function POST(req: NextRequest) {
       notes,
       // Ceramics fields
       workRequired,
+      productType,
       teethNeeded,
       shade,
       translucency,
       anatomy,
       // Appliances fields
       appliance,
+      arch,
       quantity,
       iteroScanTaken,
       iteroScanId,
@@ -105,10 +107,15 @@ export async function POST(req: NextRequest) {
 
     switch (department) {
       case 'CERAMICS':
+        if (productType?.length) {
+          const types = Array.isArray(productType) ? productType : [productType]
+          descriptionParts.push(types.join(', '))
+          productSearchTerm = types[0]
+        }
         if (workRequired?.length) {
           const items = Array.isArray(workRequired) ? workRequired : [workRequired]
           descriptionParts.push(items.join(', '))
-          productSearchTerm = items[0]
+          if (!productSearchTerm) productSearchTerm = items[0]
         }
         if (shade) descriptionParts.push(`Shade: ${shade}`)
         if (translucency) descriptionParts.push(`Translucency: ${translucency}`)
@@ -118,6 +125,9 @@ export async function POST(req: NextRequest) {
         if (appliance) {
           descriptionParts.push(appliance)
           productSearchTerm = appliance
+        }
+        if (arch) {
+          descriptionParts.push(`Arch: ${arch}`)
         }
         if (iteroScanTaken) descriptionParts.push(`iTero: ${iteroScanTaken}`)
         if (iteroScanId) descriptionParts.push(`Scan ID: ${iteroScanId}`)
@@ -141,6 +151,20 @@ export async function POST(req: NextRequest) {
           active: true,
         },
       })
+    }
+
+    // Validate turnaround time if product has one configured
+    if (product?.turnaroundDays && dueDate) {
+      const requestedDue = new Date(dueDate)
+      const now = new Date()
+      const minDue = new Date(now)
+      minDue.setDate(minDue.getDate() + product.turnaroundDays)
+      if (requestedDue < minDue) {
+        return NextResponse.json(
+          { error: `Due date is too soon. Minimum turnaround for this product is ${product.turnaroundDays} working days.` },
+          { status: 400 }
+        )
+      }
     }
 
     const qty = quantity ? parseInt(quantity) || 1 : 1
@@ -214,8 +238,10 @@ export async function POST(req: NextRequest) {
             shade: shade || null,
             notes: notes || null,
             parameters: JSON.stringify({
+              ...(productType?.length && { productType }),
               ...(translucency && { translucency }),
               ...(anatomy && { anatomy }),
+              ...(arch && { arch }),
               ...(iteroScanId && { iteroScanId }),
               ...(iteroScanTaken && { iteroScanTaken }),
               ...(teethOnDsd && { teethOnDsd }),
