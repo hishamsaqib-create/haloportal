@@ -265,6 +265,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
+        id: newCase.id,
         caseNumber: newCase.caseNumber,
         department,
         clinic: clinic.name,
