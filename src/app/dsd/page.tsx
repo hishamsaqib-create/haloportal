@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { DentalChart } from '@/components/dental-chart'
+import { FileUploader } from '@/components/file-uploader'
 
 interface DentistSession {
   id: string
@@ -34,6 +35,8 @@ export default function DSDFormPage() {
   const [notes, setNotes] = useState('')
   const [isRemake, setIsRemake] = useState(false)
   const [remakeReason, setRemakeReason] = useState('')
+  const [uploadFiles, setUploadFiles] = useState<File[]>([])
+  const [uploadProgress, setUploadProgress] = useState('')
 
   useEffect(() => {
     const raw = sessionStorage.getItem('halo-dentist')
@@ -84,6 +87,25 @@ export default function DSDFormPage() {
 
       const data = await res.json()
       if (data.success) {
+        // Upload files if any were selected
+        if (uploadFiles.length > 0) {
+          setUploadProgress('Uploading files...')
+          const formData = new FormData()
+          formData.append('caseId', data.data.id)
+          formData.append('dentistId', dentistSession.id)
+          uploadFiles.forEach((f) => formData.append('files', f))
+
+          try {
+            await fetch('/api/public/upload-files', {
+              method: 'POST',
+              body: formData,
+            })
+          } catch {
+            // Files failed but case was created - still show success
+          }
+          setUploadProgress('')
+        }
+
         setCaseNumber(data.data.caseNumber)
         setSubmitted(true)
       } else {
@@ -199,17 +221,10 @@ export default function DSDFormPage() {
             </div>
           </fieldset>
 
-          {/* File Upload placeholder */}
+          {/* File Upload */}
           <fieldset className="space-y-4">
             <legend className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">File Upload</legend>
-            <div className="flex items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 px-6 py-8">
-              <div className="text-center">
-                <svg className="mx-auto h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
-                </svg>
-                <p className="mt-2 text-xs text-gray-400">Upload coming soon — email files to design@halolab.co.uk</p>
-              </div>
-            </div>
+            <FileUploader files={uploadFiles} onChange={setUploadFiles} />
           </fieldset>
 
           {/* Notes */}
@@ -257,7 +272,7 @@ export default function DSDFormPage() {
           {/* Submit */}
           <button type="submit" disabled={submitting}
             className="w-full rounded-2xl bg-blue-500 py-3.5 text-sm font-semibold text-white transition-all hover:bg-blue-600 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed">
-            {submitting ? 'Submitting...' : 'Submit DSD Case'}
+            {submitting ? (uploadProgress || 'Submitting...') : 'Submit DSD Case'}
           </button>
         </form>
       </div>
