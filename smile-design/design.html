@@ -1,0 +1,1429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Halo Smile Design</title>
+<meta name="description" content="Digital smile design from an intraoral scan and clinical photos, with occlusion and prep checks and a printable mock-up.">
+<style>html{color-scheme:dark light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: CAD workstation. Header strip, control rail on the left, 3D model and patient photo side by side. Dark-first. */
+:root{
+  --bg:#0f1216; --rail:#151a20; --raised:#1c222a; --line:#29313b; --fg:#e7e9ec; --muted:#8c96a3;
+  --enamel:#efe9dc; --gold:#e3b35c; --cyan:#58c4da; --ok:#6cc790; --warn:#e3a14a; --bad:#e46a5d;
+  --stage:#0b0e11;
+  --f-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-head:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#eceff2; --rail:#f8f9fa; --raised:#ffffff; --line:#d5dae0; --fg:#14181d; --muted:#5b6571;
+  --enamel:#8a7a55; --gold:#a8771a; --cyan:#17809a; --ok:#2e8a55; --warn:#a96a12; --bad:#b83d31; --stage:#dde2e7; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#eceff2; --rail:#f8f9fa; --raised:#ffffff; --line:#d5dae0; --fg:#14181d; --muted:#5b6571;
+  --enamel:#8a7a55; --gold:#a8771a; --cyan:#17809a; --ok:#2e8a55; --warn:#a96a12; --bad:#b83d31; --stage:#dde2e7; color-scheme:light}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font:13px/1.45 var(--f-ui);margin:0;overflow:hidden}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,select,input{font:inherit;color:inherit}
+#app{height:100%;display:grid;grid-template-rows:auto 1fr;grid-template-columns:330px 1fr;grid-template-areas:"top top" "rail stage"}
+header{grid-area:top;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);background:var(--rail)}
+.brand{font:600 15px/1 var(--f-head);letter-spacing:.02em;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.brand i{width:14px;height:14px;border-radius:50%;border:2px solid var(--gold);display:inline-block}
+.case{color:var(--muted);font-family:var(--f-num);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.steps{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+.step{font:500 11px/1 var(--f-head);text-transform:uppercase;letter-spacing:.08em;padding:6px 9px;border-radius:3px;border:1px solid var(--line);color:var(--muted)}
+.step.done{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.step.now{color:var(--fg);border-color:var(--gold)}
+aside{grid-area:rail;overflow-y:auto;background:var(--rail);border-right:1px solid var(--line);padding:4px 0 40px}
+.sec{border-bottom:1px solid var(--line);padding:12px 16px 14px;display:grid;gap:10px}
+.sec h2{margin:0;font:600 11px/1 var(--f-head);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);display:flex;align-items:center;gap:8px}
+.sec h2 b{font-family:var(--f-num);font-weight:500;color:var(--gold);letter-spacing:0}
+.drop{border:1px dashed var(--line);border-radius:4px;padding:14px;text-align:center;color:var(--muted);cursor:pointer;display:grid;gap:4px}
+.drop.over{border-color:var(--gold);color:var(--fg)}
+.drop strong{color:var(--fg);font-weight:500}
+.list{display:grid;gap:4px;font-size:12px}
+.li{display:flex;justify-content:space-between;gap:8px}
+.li span:last-child{color:var(--muted);font-family:var(--f-num)}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn{background:var(--raised);border:1px solid var(--line);border-radius:4px;padding:6px 10px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible,.chip:focus-visible,.seg button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
+.btn.primary{background:var(--gold);border-color:var(--gold);color:#16130c;font-weight:600}
+.btn.armed{border-color:var(--cyan);color:var(--cyan)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.lm{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;font-size:12px}
+.lm .st{font-family:var(--f-num);font-size:11px;color:var(--muted)}
+.lm .st.set{color:var(--ok)}.lm .st.auto{color:var(--warn)}
+.seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{flex:1;background:transparent;border:0;padding:6px 4px;cursor:pointer;color:var(--muted);font-size:12px}
+.seg button.on{background:var(--raised);color:var(--fg);box-shadow:inset 0 -2px 0 var(--gold)}
+.field{display:grid;grid-template-columns:96px 1fr 52px;gap:8px;align-items:center;font-size:12px}
+.field label{color:var(--muted)}
+.field output{font-family:var(--f-num);text-align:right;font-size:12px}
+input[type=range]{width:100%;accent-color:var(--gold)}
+.chips{display:flex;flex-wrap:wrap;gap:3px}
+.chip{font-family:var(--f-num);font-size:11px;padding:4px 6px;border-radius:3px;border:1px solid var(--line);background:transparent;cursor:pointer;min-width:30px}
+.chip.on{border-color:var(--gold);color:var(--gold)}
+.chip.off{opacity:.35}
+.notes{margin:0;padding-left:16px;display:grid;gap:4px;font-size:12px;color:var(--muted)}
+.notes b{color:var(--fg);font-weight:500}
+table.t{width:100%;border-collapse:collapse;font-family:var(--f-num);font-size:11px;font-variant-numeric:tabular-nums}
+table.t th{font:500 10px/1 var(--f-head);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:right;padding:4px 3px;border-bottom:1px solid var(--line)}
+table.t td{text-align:right;padding:3px 3px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+table.t td:first-child,table.t th:first-child{text-align:left}
+table.t tr.sel td{color:var(--gold)}
+.warn{color:var(--warn)}.bad{color:var(--bad)}.okc{color:var(--ok)}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.tblwrap{overflow-x:auto}
+main{grid-area:stage;display:grid;grid-template-columns:1fr 1fr;min-height:0;min-width:0}
+main.only3d{grid-template-columns:1fr 0}
+main.onlyph{grid-template-columns:0 1fr}
+.pane{position:relative;min-width:0;min-height:0;background:var(--stage);overflow:hidden;border-left:1px solid var(--line)}
+.pane canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.bar{position:absolute;left:10px;right:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;pointer-events:none;z-index:2}
+.bar>*{pointer-events:auto}
+.bar .tag{font:600 10px/1 var(--f-head);text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:6px 8px;background:color-mix(in srgb,var(--rail) 85%,transparent);border:1px solid var(--line);border-radius:3px}
+.bar .btn{background:color-mix(in srgb,var(--rail) 88%,transparent);padding:5px 8px;font-size:12px}
+.bar select{background:color-mix(in srgb,var(--rail) 88%,transparent);border:1px solid var(--line);border-radius:4px;padding:5px 6px;font-size:12px;max-width:180px}
+.foot{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;z-index:2;pointer-events:none}
+.foot>*{pointer-events:auto}
+.toast{font-size:12px;padding:6px 10px;border-radius:3px;background:color-mix(in srgb,var(--rail) 92%,transparent);border:1px solid var(--line)}
+.toast.cyan{border-color:var(--cyan);color:var(--cyan)}
+.wipe{display:flex;align-items:center;gap:6px;font-size:12px;background:color-mix(in srgb,var(--rail) 88%,transparent);border:1px solid var(--line);border-radius:4px;padding:4px 8px}
+.wipe input{width:120px}
+.legend{display:flex;align-items:center;gap:8px;font-size:11px;font-family:var(--f-num);background:color-mix(in srgb,var(--rail) 88%,transparent);border:1px solid var(--line);border-radius:4px;padding:4px 8px}
+.legend i{width:120px;height:10px;border-radius:2px;background:linear-gradient(90deg,#3fbf6f,#f0c040 50%,#d93a2b)}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);padding:24px;pointer-events:none}
+.empty div{max-width:340px;display:grid;gap:6px}
+.empty strong{color:var(--fg);font:600 14px/1.3 var(--f-head);letter-spacing:.02em}
+.layout{display:flex;gap:4px}
+.busy{position:fixed;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 70%,transparent);z-index:20;font-family:var(--f-num)}
+@media (max-width:860px){
+  body{overflow:auto}
+  #app{height:auto;grid-template-columns:1fr;grid-template-rows:auto auto auto;grid-template-areas:"top" "stage" "rail"}
+  main,main.only3d,main.onlyph{grid-template-columns:1fr;grid-template-rows:auto auto}
+  .pane{height:62vh;border-left:0;border-bottom:1px solid var(--line)}
+  aside{border-right:0;overflow:visible}
+  .steps{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div id="app">
+  <header>
+    <div class="brand"><i></i>Halo Smile Design</div>
+    <div class="case" id="caseName">No case loaded</div>
+    <div class="steps" id="steps">
+      <span class="step" data-s="load">1 Load</span>
+      <span class="step" data-s="mark">2 Landmarks</span>
+      <span class="step" data-s="prop">3 Propose</span>
+      <span class="step" data-s="refine">4 Refine</span>
+      <span class="step" data-s="export">5 Export</span>
+    </div>
+    <div class="layout">
+      <button class="btn" id="lay3d" title="3D only">3D</button>
+      <button class="btn" id="laySplit" title="Side by side">Split</button>
+      <button class="btn" id="layPh" title="Photo only">Photo</button>
+    </div>
+  </header>
+
+  <aside>
+    <section class="sec">
+      <h2>Case</h2>
+      <label class="drop" id="drop" for="fileIn">
+        <strong>Drop the iTero ZIP, STLs or photos</strong>
+        <span>Upper and lower scans, a retracted portrait and a frontal smile. Files stay on this computer.</span>
+      </label>
+      <input type="file" id="fileIn" multiple accept=".zip,.stl,.jpg,.jpeg,.png" hidden>
+      <div class="list" id="fileList"></div>
+      <div class="row" id="orientRow" hidden>
+        <button class="btn" id="rot180">Turn scan 180°</button>
+        <button class="btn" id="flipUp">Flip upside down</button>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>Landmarks</h2>
+      <p class="hint" id="lmHint">On the 3D scan, check the dental midline and both canine tips. Then mark each photo.</p>
+      <div class="lm"><span>Dental midline (11/21)</span><span class="st" id="st-mid">–</span><button class="btn" data-tool="mid">Place</button></div>
+      <div class="lm"><span>Canine tip 13</span><span class="st" id="st-c13">–</span><button class="btn" data-tool="c13">Place</button></div>
+      <div class="lm"><span>Canine tip 23</span><span class="st" id="st-c23">–</span><button class="btn" data-tool="c23">Place</button></div>
+      <div class="lm"><span>Gingival zeniths 13 to 23</span><span class="st" id="st-zen">–</span><button class="btn" data-tool="zen">Place</button></div>
+      <div class="lm"><span>Extra photo pairs</span><span class="st" id="st-pair">–</span><button class="btn" data-tool="pair">Add</button></div>
+      <div class="row"><button class="btn" id="clearPairs">Clear pairs on this photo</button><span class="hint">Each pair is one click on the scan, then the same spot on the photo. Three or more sharpen the fit.</span></div>
+      <div class="row" style="justify-content:space-between">
+        <span class="hint">Current photo is a</span>
+        <div class="seg" id="kindSeg" style="flex:0 0 190px">
+          <button data-k="portrait">Portrait</button><button data-k="smile">Smile</button><button data-k="other">Other</button>
+        </div>
+      </div>
+      <div id="lmPortrait" class="list">
+        <div class="lm"><span>Pupils</span><span class="st" id="st-pupils">–</span><button class="btn" data-tool="pupils">Mark</button></div>
+        <div class="lm"><span>Facial midline</span><span class="st" id="st-face">–</span><button class="btn" data-tool="face">Mark</button></div>
+        <div class="lm"><span>Teeth: 13, 11/21, 23</span><span class="st" id="st-pcan">–</span><button class="btn" data-tool="pcan">Mark</button></div>
+      </div>
+      <div id="lmSmile" class="list">
+        <div class="lm"><span>Inner lip outline</span><span class="st" id="st-lip">–</span><button class="btn" data-tool="lip">Trace</button></div>
+        <div class="lm"><span>Teeth: 13, 11/21, 23</span><span class="st" id="st-scan2">–</span><button class="btn" data-tool="scan2">Mark</button></div>
+      </div>
+      <p class="hint" id="toolHint"></p>
+    </section>
+
+    <section class="sec">
+      <h2>Patient brief</h2>
+      <textarea id="brief" rows="3" placeholder="What the patient wants, e.g. longer and whiter front teeth, close the gap, less pointy canines, not too big." style="background:var(--raised);border:1px solid var(--line);border-radius:4px;padding:6px 8px;font:inherit;color:inherit;resize:vertical;min-height:56px"></textarea>
+      <div class="row"><button class="btn" id="briefBtn">Apply brief</button><span class="hint" id="briefHint">Reads the brief for length, shape, colour, gaps, canines and size, then re-proposes.</span></div>
+      <ul class="notes" id="briefNotes"></ul>
+    </section>
+
+    <section class="sec">
+      <h2>Proposal</h2>
+      <div class="field"><label>Approach</label>
+        <div class="seg" id="modeSeg" style="grid-column:2/4"><button data-m="additive">Additive only</button><button data-m="reductive">Allow reduction</button></div></div>
+      <div class="field"><label for="fLib">Tooth library</label>
+        <select id="fLib" style="grid-column:2/4;background:var(--raised);border:1px solid var(--line);border-radius:4px;padding:5px">
+          <option value="textbook">Anatomic: textbook</option><option value="youthful">Anatomic: youthful</option><option value="mature">Anatomic: mature</option><option value="worn">Anatomic: worn</option><option value="param">Simple (fast)</option>
+        </select></div>
+      <div class="field"><label for="fStyle">Tooth form</label>
+        <select id="fStyle" style="grid-column:2/4;background:var(--raised);border:1px solid var(--line);border-radius:4px;padding:5px">
+          <option value="natural">Natural</option><option value="square">Square (strong)</option><option value="oval">Oval (soft)</option><option value="triangular">Triangular</option>
+        </select></div>
+      <div class="field"><label>Teeth</label>
+        <div class="seg" id="countSeg" style="grid-column:2/4"><button data-n="6">3–3</button><button data-n="8">4–4</button><button data-n="10">5–5</button><button data-n="12">6–6</button></div></div>
+      <div class="field"><label for="fWL">Central W/L</label><input type="range" id="fWL" min="70" max="86" step="1" value="78"><output id="oWL">78%</output></div>
+      <div class="field"><label for="fClear">Occlusal clearance</label><input type="range" id="fClear" min="0" max="1" step="0.05" value="0.2"><output id="oClear">0.20</output></div>
+      <div class="field"><label for="fGap">Edge above lip</label><input type="range" id="fGap" min="-1" max="3" step="0.1" value="0.8"><output id="oGap">0.8</output></div>
+      <div class="field"><label for="fMax">Max lengthen</label><input type="range" id="fMax" min="0" max="4" step="0.1" value="2"><output id="oMax">2.0</output></div>
+      <div class="field"><label for="fThick">Mock-up add</label><input type="range" id="fThick" min="0" max="1.5" step="0.05" value="0.5"><output id="oThick">0.50</output></div>
+      <button class="btn primary" id="proposeBtn" disabled>Propose smile</button>
+      <ul class="notes" id="notes"></ul>
+    </section>
+
+    <section class="sec">
+      <h2>Tooth <b id="selName">11</b></h2>
+      <div class="chips" id="toothChips"></div>
+      <div class="row"><label style="display:flex;gap:6px;align-items:center;font-size:12px"><input type="checkbox" id="sym" checked> Mirror edits to the other side</label></div>
+      <div class="field"><label for="tW">Width</label><input type="range" id="tW" min="4" max="12" step="0.1"><output id="oW"></output></div>
+      <div class="field"><label for="tL">Crown length</label><input type="range" id="tL" min="5" max="14" step="0.1"><output id="oL"></output></div>
+      <div class="field"><label for="tE">Lengthen edge</label><input type="range" id="tE" min="-2" max="4" step="0.1"><output id="oE"></output></div>
+      <div class="field"><label for="tA">Labial add</label><input type="range" id="tA" min="0" max="3" step="0.05"><output id="oA"></output></div>
+      <div class="field"><label for="tS">Shift distal</label><input type="range" id="tS" min="-2" max="2" step="0.1"><output id="oS"></output></div>
+      <div class="field"><label for="tT">Tip</label><input type="range" id="tT" min="-12" max="12" step="0.5"><output id="oT"></output></div>
+      <div class="field"><label for="tR">Rotation</label><input type="range" id="tR" min="-20" max="20" step="0.5"><output id="oR"></output></div>
+      <div class="tblwrap"><table class="t" id="tbl"></table></div>
+    </section>
+
+    <section class="sec">
+      <h2>Checks</h2>
+      <ul class="notes" id="checkNotes"></ul>
+    </section>
+
+    <section class="sec">
+      <h2>Prep</h2>
+      <div class="field"><label for="fMinT">Min thickness</label><input type="range" id="fMinT" min="0" max="1.5" step="0.05" value="0.5"><output id="oMinT">0.50</output></div>
+      <p class="hint">Minimum material thickness over the prepped tooth. The prep map colours the scan where the tooth must be cut back for the design to have at least this thickness, and by how much.</p>
+      <div class="row"><button class="btn" id="tgPrep2">Show prep map</button></div>
+      <ul class="notes" id="prepNotes"></ul>
+    </section>
+
+    <section class="sec">
+      <h2>Export</h2>
+      <div class="field"><label for="fBase">Model base</label><input type="range" id="fBase" min="1" max="8" step="0.5" value="3"><output id="oBase">3.0</output></div>
+      <button class="btn primary" id="exportBtn" disabled>Download print files (.zip)</button>
+      <p class="hint">The ZIP holds the printable model (scan with closed base plus the new teeth), the teeth on their own, the smile preview and the design file. Your slicer merges the overlapping parts when it slices.</p>
+      <div class="row"><button class="btn" id="saveJson" disabled>Save design</button><button class="btn" id="loadJson">Open design</button><input type="file" id="jsonIn" accept=".json" hidden></div>
+    </section>
+  </aside>
+
+  <main id="stage">
+    <section class="pane" id="pane3d">
+      <canvas id="c3d"></canvas>
+      <div class="bar">
+        <span class="tag">Model</span>
+        <button class="btn" data-view="front">Front</button>
+        <button class="btn" data-view="occ">Occlusal</button>
+        <button class="btn" data-view="right">Right</button>
+        <button class="btn" data-view="left">Left</button>
+        <button class="btn" id="tgDesign">Design on</button>
+        <button class="btn" id="tgLower">Lower on</button>
+        <button class="btn" id="tgPrep">Prep map off</button>
+        <button class="btn" id="tgOcc">Collisions on</button>
+      </div>
+      <div class="foot">
+        <div class="legend" id="prepLegend" hidden><span>Prep depth</span><i></i><span id="prepLegendMax">0 to 1.5 mm</span></div>
+        <span class="toast" id="toast3d" hidden></span>
+      </div>
+      <div class="empty" id="empty3d"><div><strong>No scan yet</strong><span>Drop the iTero export on the left. The upper and lower scans load here in occlusion.</span></div></div>
+    </section>
+    <section class="pane" id="panePh">
+      <canvas id="cph"></canvas>
+      <div class="bar">
+        <span class="tag">Photo</span>
+        <select id="photoSel" aria-label="Photo"></select>
+        <button class="btn" id="tgOverlay">Mock-up on</button>
+        <button class="btn" id="tgGuides">Guides on</button>
+        <button class="btn" id="tgScanOv">Scan off</button>
+        <button class="btn" id="fitPh">Fit</button>
+      </div>
+      <div class="foot">
+        <label class="wipe" for="wipe">Before <input type="range" id="wipe" min="0" max="1" step="0.01" value="1"> After</label>
+        <span class="toast" id="toastPh" hidden></span>
+      </div>
+      <div class="empty" id="emptyPh"><div><strong>No photos yet</strong><span>Add a retracted portrait for the facial lines and a frontal smile for the lip line and preview.</span></div></div>
+    </section>
+  </main>
+</div>
+<div class="busy" id="busy" hidden>Working…</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t)};
+const r1=v=>(Math.round(v*10)/10).toFixed(1), r2=v=>(Math.round(v*100)/100).toFixed(2);
+const DEG=Math.PI/180;
+
+/* ---------------- tooth library ---------------- */
+// pos 1 central, 2 lateral, 3 canine, 4/5 premolars, 6 first molar. Millimetres.
+const BASE={
+ 1:{W:8.6,L:10.8,D:7.0,dInc:.7,cerv:.74,rM:.35,rD:1.0,cusp:0},
+ 2:{W:6.7,L:9.2,D:6.0,dInc:.7,cerv:.70,rM:.8,rD:1.7,cusp:0},
+ 3:{W:7.7,L:10.4,D:7.4,dInc:1.4,cerv:.68,rM:.7,rD:.9,cusp:1.6},
+ 4:{W:7.0,L:8.2,D:5.4,dInc:2.6,cerv:.74,rM:.9,rD:.9,cusp:1.25},
+ 5:{W:6.6,L:7.4,D:5.2,dInc:2.6,cerv:.76,rM:.9,rD:.9,cusp:1.0},
+ 6:{W:10.2,L:6.6,D:6.0,dInc:3.2,cerv:.80,rM:1.1,rD:1.3,cusp:0,molar:true}
+};
+const STYLE={
+ natural:{incW:1,cervK:1,rK:1,nL:2.5},
+ square:{incW:1.0,cervK:1.1,rK:.55,nL:3.3},
+ oval:{incW:.9,cervK:.94,rK:1.7,nL:2.15},
+ triangular:{incW:1.03,cervK:.84,rK:.8,nL:2.5}
+};
+function spow(v,e){return Math.sign(v)*Math.pow(Math.abs(v),e)}
+function makeTooth(pos,W,L,style,dsign){
+  const B=BASE[pos], st=STYLE[style]||STYLE.natural;
+  const NU=64, NV=34, a0=W/2;
+  const cerv=Math.min(.95,B.cerv*st.cervK);
+  const rM=Math.min(B.rM*st.rK,a0*.85), rD=Math.min(B.rD*st.rK,a0*.85);
+  const P=[], idx=[], COL=[], TP=[];
+  const cBody=[.95,.93,.88],cCerv=[.92,.86,.74],cInc=[.80,.84,.87];
+  const edge=(xn)=>{
+    const distal=xn*dsign>0, r=distal?rD:rM, ax=Math.abs(xn)*a0;
+    let e=0;
+    if(ax>a0-r){const u=Math.min(1,(ax-(a0-r))/r);e=r*(1-Math.sqrt(Math.max(0,1-u*u)));}
+    if(B.cusp) e+=B.cusp*Math.pow(Math.abs(xn+0.06*dsign),1.3);
+    if(B.molar) e+=0.75*(1+Math.cos(2*Math.PI*xn))/2;
+    return Math.min(e,L*.6);
+  };
+  for(let j=0;j<=NV;j++){
+    const t=Math.pow(j/NV,1.25);
+    let f;
+    if(pos<=3) f=t<.25?lerp(st.incW,1,smooth(t/.25)):lerp(1,cerv,Math.pow(smooth((t-.4)/.6),1.3));
+    else f=t<.3?lerp(.95,1,smooth(t/.3)):lerp(1,cerv,smooth((t-.3)/.7));
+    const a=a0*f;
+    const d=B.dInc+(B.D-B.dInc)*smooth(t/.6);
+    const bL=d*.36,bP=d*.64;
+    const yLab=0.45*Math.sin(Math.PI*Math.min(1,t)*0.85);
+    const yc=yLab-bL;
+    for(let i=0;i<NU;i++){
+      const th=2*Math.PI*i/NU, c=Math.cos(th), s=Math.sin(th);
+      const lab=s>=0, n=lab?st.nL:2.3;
+      const x=a*spow(c,2/n);
+      const xn=clamp(x/a,-1,1);
+      let y=lab?yc+bL*Math.pow(Math.abs(s),2/n):yc-bP*Math.pow(Math.abs(s),2/n);
+      if(lab&&pos<=2){
+        const g=Math.exp(-(((xn-.33)/.13)**2))+Math.exp(-(((xn+.33)/.13)**2));
+        y-=0.09*g*Math.abs(s)*(1-smooth(t/.85));
+      }
+      if(!lab&&pos<=3){ y+=Math.min(bP*.45,0.9)*(1-xn*xn)*Math.sin(Math.PI*clamp((t-.08)/.6,0,1))*Math.abs(s); }
+      const e=edge(xn);
+      const Ltop=L-(pos<=3?1.6:1.0)*xn*xn;
+      const z=e+t*(Ltop-e);
+      TP.push(t);
+      P.push(x,y,z);
+      const tc=smooth((t-.45)/.55),ti=pos<=3?(1-smooth(t/.3))*(1-.5*smooth((Math.abs(xn)-.75)/.25)):0,edgeDark=1-.08*smooth((Math.abs(xn)-.8)/.2);
+      const col=[0,1,2].map(k=>(lerp(lerp(cBody[k],cCerv[k],tc),cInc[k],ti*.8))*edgeDark);
+      COL.push(...col);
+    }
+  }
+  const ring=j=>j*NU;
+  for(let j=0;j<NV;j++)for(let i=0;i<NU;i++){
+    const a=ring(j)+i,b=ring(j)+(i+1)%NU,c=ring(j+1)+(i+1)%NU,d=ring(j+1)+i;
+    idx.push(a,b,c,a,c,d);
+  }
+  const cap=(j,top)=>{
+    let cx=0,cy=0,cz=0;for(let i=0;i<NU;i++){const k=(ring(j)+i)*3;cx+=P[k];cy+=P[k+1];cz+=P[k+2];}
+    const ci=P.length/3;P.push(cx/NU,cy/NU,cz/NU);COL.push(...(top?cCerv:(pos<=3?cInc:cBody)));TP.push(top?1:0);
+    for(let i=0;i<NU;i++){const a=ring(j)+i,b=ring(j)+(i+1)%NU; top?idx.push(ci,a,b):idx.push(ci,b,a);}
+  };
+  cap(0,false);cap(NV,true);
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));
+  g.setAttribute('color',new THREE.Float32BufferAttribute(COL,3));
+  g.setAttribute('tpar',new THREE.Float32BufferAttribute(TP,1));
+  g.setIndex(idx);g.computeVertexNormals();
+  return g;
+}
+
+/* ---------------- anatomic library ---------------- */
+// Crowns from DentCraft's parametric anatomy library (MIT / Apache-2.0, Dr Mahmoud ElNajar), built from
+// Wheeler's Dental Anatomy averages, quadrant 1, frame +X mesial, +Y facial, +Z occlusal. Decimated to ~4k triangles.
+const LIBDATA={};fetch('/toothlib.json').then(r=>r.json()).then(d=>{Object.assign(LIBDATA,d);if(S.upper)rebuildTeeth();}).catch(()=>{});
+const libCache={};
+function b64(s,T){const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new T(u.buffer)}
+function libSrc(v,pos){
+  const k=v+pos;if(libCache[k])return libCache[k];
+  const d=LIBDATA[v][10+pos],q=b64(d.v,Int16Array),P=new Float32Array(q.length);for(let i=0;i<q.length;i++)P[i]=q[i]*.005;
+  const F=b64(d.f,Uint16Array),C=b64(d.c,Uint16Array);
+  let zmax=-1e9,xmin=1e9,xmax=-1e9;for(let i=0;i<P.length;i+=3){zmax=Math.max(zmax,P[i+2]);xmin=Math.min(xmin,P[i]);xmax=Math.max(xmax,P[i]);}
+  let fy=-1e9,zz=0;for(const c of C){if(P[c*3+1]>fy){fy=P[c*3+1];zz=P[c*3+2];}}
+  const Ls=zmax-zz;let yref=-1e9;for(let i=0;i<P.length;i+=3)if(P[i+2]>zmax-.25*Ls)yref=Math.max(yref,P[i+1]);
+  return libCache[k]={P,F,C,zmax,Ls,Ws:xmax-xmin,cx:(xmin+xmax)/2,yref};
+}
+const WARP={natural:t=>1,square:t=>1+.10*smooth((t-.35)/.65),triangular:t=>1-.13*smooth((t-.35)/.65)+.03*(1-smooth(t/.3)),oval:t=>1-.07*(1-smooth(t/.3))-.05*smooth((t-.5)/.5)};
+function libTooth(v,pos,W,L,style,dsign){
+  const S0=libSrc(v,pos),n=S0.P.length/3,sx=W/S0.Ws,sz=L/S0.Ls,sy=(sx+sz)/2,warp=WARP[style]||WARP.natural;
+  const P=new Float32Array((n+1)*3),COL=new Float32Array((n+1)*3),TP=new Float32Array(n+1);
+  const cBody=[.95,.93,.88],cCerv=[.92,.86,.74],cInc=[.80,.84,.87];
+  for(let i=0;i<n;i++){
+    const X=S0.P[i*3],Y=S0.P[i*3+1],Z=S0.P[i*3+2],z=(S0.zmax-Z)*sz,t=clamp(z/L,0,1.3);
+    const x=-dsign*(X-S0.cx)*sx*warp(t),y=(Y-S0.yref)*sy;
+    P[i*3]=x;P[i*3+1]=y;P[i*3+2]=z;TP[i]=t;
+    const xn=clamp(x/(W/2),-1,1),tc=smooth((t-.45)/.55),ti=pos<=3?(1-smooth(t/.3))*(1-.5*smooth((Math.abs(xn)-.75)/.25)):0,ed=1-.08*smooth((Math.abs(xn)-.8)/.2);
+    for(let k=0;k<3;k++)COL[i*3+k]=lerp(lerp(cBody[k],cCerv[k],tc),cInc[k],ti*.8)*ed;
+  }
+  let cx=0,cy=0,cz=0;for(const c of S0.C){cx+=P[c*3];cy+=P[c*3+1];cz+=P[c*3+2];}const nc=S0.C.length;
+  P[n*3]=cx/nc;P[n*3+1]=cy/nc;P[n*3+2]=cz/nc;TP[n]=1;COL.set(cCerv,n*3);
+  const F=Array.from(S0.F);for(let k=0;k<nc;k++){const a=S0.C[k],b=S0.C[(k+1)%nc];F.push(n,b,a);}
+  if(dsign<0)for(let i=0;i<F.length;i+=3){const t=F[i+1];F[i+1]=F[i+2];F[i+2]=t;}
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setAttribute('color',new THREE.BufferAttribute(COL,3));g.setAttribute('tpar',new THREE.BufferAttribute(TP,1));
+  g.setIndex(F);g.computeVertexNormals();return g;
+}
+function buildTooth(pos,W,L,dsign){return S.D.lib&&S.D.lib!=='param'&&LIBDATA[S.D.lib]?libTooth(S.D.lib,pos,W,L,S.D.style,dsign):makeTooth(pos,W,L,S.D.style,dsign)}
+
+/* ---------------- state ---------------- */
+const S={
+  upper:null, lower:null, caseName:'', arch:null, sub:null,
+  photos:[], cur:-1,
+  lm3d:{mid:null,c13:null,c23:null,zen:{}}, lmAuto:{}, pairPending:null, zenNext:0, checks:[],
+  D:{lib:'textbook',style:'natural',mode:'additive',minT:.5,clear:.2,midGap:0,brief:'',briefNotes:[],canineSoft:0,count:10,wl:.78,gap:.8,maxLen:2,thick:.5,midShift:0,roll:0,teeth:{},proposed:false,notes:[]},
+  sel:'11', tool:null, show:{design:true,lower:true,overlay:true,guides:true,scanOv:false,prep:false,occ:true}, wipe:1, baseH:3
+};
+const codesFor=n=>{const k=n/2,out=[];for(let p=k;p>=1;p--)out.push('1'+p);for(let p=1;p<=k;p++)out.push('2'+p);return out};
+
+/* ---------------- 3D scene ---------------- */
+let dirty=true;const req=()=>{dirty=true};
+const c3d=$('#c3d');
+const R=new THREE.WebGLRenderer({canvas:c3d,antialias:true});
+R.setPixelRatio(Math.min(2,devicePixelRatio));
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(30,1,1,2000);
+cam.up.set(0,0,1);cam.position.set(0,-160,20);
+const ctl=new OrbitControls(cam,c3d);ctl.enableDamping=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0x40454d,1.1));
+const key=new THREE.DirectionalLight(0xffffff,1.6);key.position.set(40,-120,80);scene.add(key);
+const head=new THREE.DirectionalLight(0xffffff,.8);cam.add(head);scene.add(cam);
+const stoneMat=new THREE.MeshStandardMaterial({color:0xcfc6b8,roughness:.75,metalness:0});
+const stoneMatVC=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.75,metalness:0});
+const lowerMat=new THREE.MeshStandardMaterial({color:0xa9b0b8,roughness:.8,transparent:true,opacity:.55});
+const toothMat=new THREE.MeshPhysicalMaterial({color:0xffffff,vertexColors:true,roughness:.32,clearcoat:.4,clearcoatRoughness:.4,sheen:.3});
+const selMat=toothMat.clone();selMat.color.set(0xf6d48e);
+const ghostMat=new THREE.MeshStandardMaterial({color:0xdfe8ee,transparent:true,opacity:.22,depthWrite:false,roughness:.5});
+const designGroup=new THREE.Group();scene.add(designGroup);
+const markGroup=new THREE.Group();scene.add(markGroup);
+const toothMeshes={};
+
+function themeStage(){dirty=true;const c=getComputedStyle(document.documentElement).getPropertyValue('--stage').trim()||'#0b0e11';scene.background=new THREE.Color(c);}
+themeStage();matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{themeStage();});
+new MutationObserver(themeStage).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+function resize3d(){const r=c3d.parentElement.getBoundingClientRect();if(!r.width||!r.height)return;R.setSize(r.width,r.height,false);cam.aspect=r.width/r.height;cam.updateProjectionMatrix();req();}
+new ResizeObserver(()=>{resize3d();drawPhoto();}).observe($('#pane3d'));
+new ResizeObserver(()=>drawPhoto()).observe($('#panePh'));
+ctl.addEventListener('change',req);
+(function loop(){requestAnimationFrame(loop);ctl.update();if(dirty){dirty=false;R.render(scene,cam);}})();
+
+function setView(v){
+  const g=S.upper?.mesh.geometry;if(!g)return;g.computeBoundingBox();
+  const b=g.boundingBox,c=b.getCenter(new THREE.Vector3());
+  ctl.target.copy(c);const d=150;
+  if(v==='front'){cam.up.set(0,0,1);cam.position.set(c.x,b.min.y-d,c.z);}
+  if(v==='occ'){cam.up.set(0,-1,0);cam.position.set(c.x,c.y,b.min.z-d);}
+  if(S.lower)S.lower.mesh.visible=v==='occ'?false:S.show.lower;
+  if(v==='right'){cam.up.set(0,0,1);cam.position.set(c.x-d,c.y-20,c.z);}
+  if(v==='left'){cam.up.set(0,0,1);cam.position.set(c.x+d,c.y-20,c.z);}
+  cam.lookAt(c);ctl.update();req();
+}
+$$('[data-view]').forEach(b=>b.onclick=()=>setView(b.dataset.view));
+
+/* ---------------- loading ---------------- */
+const drop=$('#drop');
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',ev=>handleFiles([...ev.dataTransfer.files]));
+$('#fileIn').onchange=e=>handleFiles([...e.target.files]);
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{e.preventDefault();if(e.target.closest('#drop'))return;handleFiles([...e.dataTransfer.files])});
+
+async function handleFiles(files){
+  busy(true);
+  try{
+    const items=[];
+    for(const f of files){
+      const n=f.name.toLowerCase();
+      if(n.endsWith('.zip')){
+        if(!S.caseName)S.caseName=f.name.replace(/\.zip$/i,'').replace(/_/g,' ');
+        const z=await JSZip.loadAsync(f);
+        for(const [name,entry] of Object.entries(z.files)){
+          if(entry.dir)continue;const ln=name.toLowerCase();
+          if(ln.endsWith('.stl'))items.push({name,kind:'stl',buf:await entry.async('arraybuffer')});
+          else if(/\.(jpe?g|png)$/.test(ln)&&!/logo/.test(ln))items.push({name,kind:'img',blob:await entry.async('blob')});
+        }
+      }else if(n.endsWith('.stl'))items.push({name:f.name,kind:'stl',buf:await f.arrayBuffer()});
+      else if(/\.(jpe?g|png)$/.test(n))items.push({name:f.name,kind:'img',blob:f});
+    }
+    const stls=items.filter(i=>i.kind==='stl');
+    const loader=new STLLoader();
+    const parsed=stls.map(s=>{const g=loader.parse(s.buf);g.computeBoundingBox();return {name:s.name,g}});
+    for(const p of parsed){
+      const ln=p.name.toLowerCase();
+      let jaw=/(_u\.stl|upper|maxill)/.test(ln)?'upper':/(_l\.stl|lower|mandib)/.test(ln)?'lower':null;
+      if(!jaw){const other=parsed.find(q=>q!==p);jaw=other?(p.g.boundingBox.getCenter(new THREE.Vector3()).z>other.g.boundingBox.getCenter(new THREE.Vector3()).z?'upper':'lower'):'upper';}
+      setScan(jaw,p.g,p.name);
+    }
+    for(const im of items.filter(i=>i.kind==='img')){
+      const url=URL.createObjectURL(im.blob);const img=new Image();img.src=url;await img.decode();
+      const short=im.name.split('/').pop();
+      if(/^gallery_|_m\.jpg$/i.test(short))continue; // iTero model renders, not clinical photos
+      const kind=img.naturalHeight>img.naturalWidth?'portrait':'other';
+      S.photos.push({name:short,img,kind,pts:{}});
+    }
+    if(S.photos.length&&!S.photos.some(p=>p.kind==='smile')){
+      const land=S.photos.filter(p=>p.kind==='other');
+      if(land.length)land[0].kind='smile';
+    }
+    if(S.cur<0&&S.photos.length)S.cur=Math.max(0,S.photos.findIndex(p=>p.kind==='smile'));
+    if(stls.length&&S.upper){autoOrient();prepareArch();if(!S.D.proposed)propose(true);setView('front');}
+    refreshAll();fitPhoto();
+  }catch(err){console.error(err);toast('#toastPh','That file could not be read. Check it is an iTero ZIP, an STL or a JPEG.');}
+  busy(false);
+}
+function setScan(jaw,g,name){
+  if(S[jaw]){scene.remove(S[jaw].mesh);S[jaw].mesh.geometry.dispose();}
+  g.computeVertexNormals();
+  const mesh=new THREE.Mesh(g,jaw==='upper'?stoneMat:lowerMat);
+  scene.add(mesh);S[jaw]={mesh,name};req();
+}
+// iTero exports put +z towards the upper gum and the anterior at -y. Other scanners differ, so check both.
+function autoOrient(){
+  const fixes=[];
+  // up/down: the open edge of the scan is on the gum side, the teeth are at the other end
+  const bz=boundaryMeanZ(S.upper.mesh.geometry);
+  if(bz!==null&&bz.boundary<bz.all){applyOrient(new THREE.Matrix4().makeRotationY(Math.PI));fixes.push('turned the right way up');}
+  // front/back: the anterior end of the tooth band is the narrow one
+  const q=S.upper.mesh.geometry.attributes.position.array,n=q.length/3;let z0=1e9;for(let i=0;i<n;i++)z0=Math.min(z0,q[i*3+2]);
+  let ymin=1e9,ymax=-1e9;for(let i=0;i<n;i++){if(q[i*3+2]>z0+6)continue;const y=q[i*3+1];if(y<ymin)ymin=y;if(y>ymax)ymax=y;}
+  const spread=(a,b)=>{let sx=0,sx2=0,c=0;for(let i=0;i<n;i++){if(q[i*3+2]>z0+6)continue;const y=q[i*3+1];if(y<a||y>b)continue;const x=q[i*3];sx+=x;sx2+=x*x;c++;}return c>50?Math.sqrt(sx2/c-(sx/c)**2):1e9;};
+  const r=ymax-ymin,front=spread(ymin,ymin+r*.15),back=spread(ymax-r*.15,ymax);
+  if(back<front){applyOrient(new THREE.Matrix4().makeRotationZ(Math.PI));fixes.push('turned to face forward');}
+  S.orientNote=fixes.length?`Scan ${fixes.join(' and ')} automatically.`:'';
+}
+function boundaryMeanZ(geom){
+  const p=geom.attributes.position.array,nv=p.length/3,map=new Map(),id=new Uint32Array(nv);let NV=0;const zs=[];
+  for(let i=0;i<nv;i++){const k=Math.round(p[i*3]*1e3)+'_'+Math.round(p[i*3+1]*1e3)+'_'+Math.round(p[i*3+2]*1e3);let j=map.get(k);if(j===undefined){j=NV++;map.set(k,j);zs.push(p[i*3+2]);}id[i]=j;}
+  const cnt=new Map(),ek=(a,b)=>a<b?a*NV+b:b*NV+a;
+  for(let t=0;t<nv;t+=3){const a=id[t],b=id[t+1],c=id[t+2];for(const [u,v] of [[a,b],[b,c],[c,a]]){const k=ek(u,v);cnt.set(k,(cnt.get(k)||0)+1);}}
+  let bz=0,bc=0;for(const [k,c] of cnt){if(c!==1)continue;const u=Math.floor(k/NV),v=k%NV;bz+=zs[u]+zs[v];bc+=2;}
+  if(bc<30)return null;let az=0;for(const z of zs)az+=z;return {boundary:bz/bc,all:az/zs.length};
+}
+function applyOrient(m){for(const j of ['upper','lower'])if(S[j]){S[j].mesh.geometry.applyMatrix4(m);S[j].mesh.geometry.computeVertexNormals();S[j].mesh.geometry.computeBoundingBox();}}
+function orient(m){
+  for(const j of ['upper','lower'])if(S[j]){S[j].mesh.geometry.applyMatrix4(m);S[j].mesh.geometry.computeVertexNormals();S[j].mesh.geometry.computeBoundingBox();}
+  S.lm3d={mid:null,c13:null,c23:null,zen:{}};prepareArch();propose(true);setView('front');refreshAll();
+}
+$('#rot180').onclick=()=>orient(new THREE.Matrix4().makeRotationZ(Math.PI));
+$('#flipUp').onclick=()=>orient(new THREE.Matrix4().makeRotationY(Math.PI));
+
+/* ---------------- arch analysis ---------------- */
+// Frame: +x patient left, -y anterior, +z towards the gum (iTero occlusion export).
+function hullLower(pts){ // monotone chain lower hull (min y side) from min x to max x
+  pts.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);const h=[];
+  const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  for(const p of pts){while(h.length>=2&&cr(h[h.length-2],h[h.length-1],p)<=0)h.pop();h.push(p);}
+  return h;
+}
+function makeCurve(chain){
+  const xs=[],ys=[];
+  for(let i=0;i<chain.length-1;i++){
+    const [x0,y0]=chain[i],[x1,y1]=chain[i+1],l=Math.hypot(x1-x0,y1-y0),n=Math.max(1,Math.ceil(l/.25));
+    for(let k=0;k<n;k++){xs.push(x0+(x1-x0)*k/n);ys.push(y0+(y1-y0)*k/n);}
+  }
+  xs.push(chain.at(-1)[0]);ys.push(chain.at(-1)[1]);
+  const w=6,sx=[],sy=[];
+  for(let i=0;i<xs.length;i++){let a=0,b=0,c=0;for(let k=-w;k<=w;k++){const j=clamp(i+k,0,xs.length-1);a+=xs[j];b+=ys[j];c++;}sx.push(a/c);sy.push(b/c);}
+  const cum=[0];for(let i=1;i<sx.length;i++)cum.push(cum[i-1]+Math.hypot(sx[i]-sx[i-1],sy[i]-sy[i-1]));
+  const C={xs:sx,ys:sy,cum,len:cum.at(-1)};
+  C.at=s=>{ // absolute arc length
+    if(s<=0){const t=C.tan(0);return [sx[0]+t[0]*s,sy[0]+t[1]*s];}
+    if(s>=C.len){const t=C.tan(C.len);return [sx.at(-1)+t[0]*(s-C.len),sy.at(-1)+t[1]*(s-C.len)];}
+    let lo=0,hi=cum.length-1;while(hi-lo>1){const m=(lo+hi)>>1;cum[m]<=s?lo=m:hi=m;}
+    const f=(s-cum[lo])/((cum[hi]-cum[lo])||1);return [lerp(sx[lo],sx[hi],f),lerp(sy[lo],sy[hi],f)];
+  };
+  C.tan=s=>{const a=C.atIn(s-1),b=C.atIn(s+1),l=Math.hypot(b[0]-a[0],b[1]-a[1])||1;return [(b[0]-a[0])/l,(b[1]-a[1])/l]};
+  C.atIn=s=>C.at(clamp(s,0,C.len));
+  C.proj=(x,y)=>{let best=0,bd=1e9;for(let i=0;i<sx.length;i++){const d=(sx[i]-x)**2+(sy[i]-y)**2;if(d<bd){bd=d;best=i;}}return cum[best];};
+  return C;
+}
+function prepareArch(){
+  const p=S.upper.mesh.geometry.attributes.position.array,n=p.length/3;
+  let ymin=1e9,xAtYmin=0;
+  for(let i=0;i<n;i++)if(p[i*3+1]<ymin){ymin=p[i*3+1];}
+  const zs=[];let sx=0,c=0;
+  for(let i=0;i<n;i++){const y=p[i*3+1];if(y<ymin+8){const x=p[i*3];if(Math.abs(x)<40){zs.push(p[i*3+2]);}}}
+  zs.sort((a,b)=>a-b);const zInc=zs[Math.floor(zs.length*.01)]??0;
+  const band=(z0,z1)=>{const pts=[];for(let i=0;i<n;i+=1){const z=p[i*3+2];if(z>=z0&&z<=z1)pts.push([p[i*3],p[i*3+1]]);}return pts};
+  const A=makeCurve(hullLower(band(zInc+1.5,zInc+3.5)));
+  const C=makeCurve(hullLower(band(zInc+6.5,zInc+8.5)));
+  // front-most point of A for auto midline
+  let iy=0;for(let i=0;i<A.xs.length;i++)if(A.ys[i]<A.ys[iy])iy=i;
+  const sub=[],subIdx=[];for(let i=0;i<n;i++){const z=p[i*3+2];if(z<zInc+18){sub.push(p[i*3],p[i*3+1],z);subIdx.push(i);}}
+  S.sub=new Float32Array(sub);S.subIdx=new Uint32Array(subIdx);S.prep=null;
+  S.arch={zInc,zA:zInc+2.5,zC:zInc+7.5,A,C,sMidAuto:A.cum[iy]};
+  buildDepthMap();buildGrids();
+  autoLandmarks();
+}
+// Outer surface of the scan in cylindrical coordinates around the arch centre, for blending the mock-up into the gum.
+function buildDepthMap(){
+  const ar=S.arch,A=ar.A;let fy=1e9,fx=0;for(let i=0;i<A.xs.length;i++)if(A.ys[i]<fy){fy=A.ys[i];fx=A.xs[i];}
+  const c=[fx,fy+26],NP=720,z0=ar.zInc-4,NZ=96,dz=.25,map=new Float32Array(NP*NZ).fill(-1);
+  const p=S.sub;
+  for(let i=0;i<p.length;i+=3){const dx=p[i]-c[0],dy=p[i+1]-c[1],zb=Math.floor((p[i+2]-z0)/dz);if(zb<0||zb>=NZ)continue;
+    const pb=Math.floor((Math.atan2(dy,dx)/Math.PI+1)/2*NP)%NP,r=Math.hypot(dx,dy),k=pb*NZ+zb;if(r>map[k])map[k]=r;}
+  ar.dm={c,NP,z0,NZ,dz,map};
+}
+function surfR(x,y,z){
+  const d=S.arch.dm,dx=x-d.c[0],dy=y-d.c[1];const pb=Math.floor((Math.atan2(dy,dx)/Math.PI+1)/2*d.NP)%d.NP,zb=Math.floor((z-d.z0)/d.dz);
+  let best=-1;for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const zz=zb+b;if(zz<0||zz>=d.NZ)continue;const v=d.map[((pb+a+d.NP)%d.NP)*d.NZ+zz];if(v>best)best=v;}
+  return best>0?{r:best,dx,dy}:null;
+}
+function blendCervical(g,M){
+  const pos=g.attributes.position,tp=g.attributes.tpar,inv=new THREE.Matrix4().copy(M).invert(),v=new THREE.Vector3(),c=S.arch.dm.c;
+  for(let i=0;i<pos.count;i++){
+    const t=tp.getX(i);if(t<.5)continue;
+    v.fromBufferAttribute(pos,i).applyMatrix4(M);
+    const s=surfR(v.x,v.y,v.z);if(!s)continue;
+    const rv=Math.hypot(s.dx,s.dy),lim=s.r-.3;if(rv<=lim)continue;
+    const w=smooth((t-.5)/.35),rn=lerp(rv,lim,w);
+    v.x=c[0]+s.dx/rv*rn;v.y=c[1]+s.dy/rv*rn;v.applyMatrix4(inv);pos.setXYZ(i,v.x,v.y,v.z);
+  }
+  pos.needsUpdate=true;g.computeVertexNormals();
+}
+function minZNear(x,y,rad){
+  const p=S.sub;let best=null;
+  for(let i=0;i<p.length;i+=3){const dx=p[i]-x,dy=p[i+1]-y;if(dx*dx+dy*dy<rad*rad&&(!best||p[i+2]<best[2]))best=[p[i],p[i+1],p[i+2]];}
+  return best?new THREE.Vector3(...best):null;
+}
+function autoLandmarks(){
+  const A=S.arch.A,s0=S.arch.sMidAuto;
+  const m=A.at(s0);S.lmAuto.mid=minZNear(m[0],m[1]+1.2,1.6)||new THREE.Vector3(m[0],m[1],S.arch.zInc);
+  for(const [k,sg] of [['c13',-1],['c23',1]]){
+    const s=s0+sg*19.5,q=A.at(s),t=A.tan(s),nrm=[t[1],-t[0]];
+    S.lmAuto[k]=minZNear(q[0]-nrm[0]*1.5,q[1]-nrm[1]*1.5,3.5);
+  }
+  if(S.lmAuto.c13&&S.lmAuto.c23){
+    const sm=(A.proj(S.lmAuto.c13.x,S.lmAuto.c13.y)+A.proj(S.lmAuto.c23.x,S.lmAuto.c23.y))/2,mm=A.at(sm);
+    S.lmAuto.mid=minZNear(mm[0],mm[1]+1.2,1.6)||new THREE.Vector3(mm[0],mm[1],S.arch.zInc);
+  }
+}
+const lm=k=>S.lm3d[k]||S.lmAuto[k];
+const sMid=()=>{const m=lm('mid');return S.arch.A.proj(m.x,m.y)};
+
+/* ---------------- spatial queries ---------------- */
+// Uniform grid over a point cloud with normals. signed(): distance to the nearest surface point, negative inside.
+class PointGrid{
+  constructor(pos,nrm,sel,cell=.6){this.pos=pos;this.nrm=nrm;this.cell=cell;this.map=new Map();
+    const add=i=>{const k=this.key(pos[i*3],pos[i*3+1],pos[i*3+2]);let a=this.map.get(k);if(!a){a=[];this.map.set(k,a);}a.push(i);};
+    if(sel)for(const i of sel)add(i);else for(let i=0;i<pos.length/3;i++)add(i);}
+  key(x,y,z){return (Math.floor(x/this.cell)+2000)*4e6+(Math.floor(y/this.cell)+2000)*2000+(Math.floor(z/this.cell)+1000)}
+  nearest(x,y,z,r){const c=this.cell,R=Math.ceil(r/c),ix=Math.floor(x/c),iy=Math.floor(y/c),iz=Math.floor(z/c),p=this.pos;let best=-1,bd=r*r;
+    for(let a=-R;a<=R;a++)for(let b=-R;b<=R;b++)for(let d=-R;d<=R;d++){const arr=this.map.get((ix+a+2000)*4e6+(iy+b+2000)*2000+(iz+d+1000));if(!arr)continue;
+      for(const i of arr){const dx=p[i*3]-x,dy=p[i*3+1]-y,dz=p[i*3+2]-z,q=dx*dx+dy*dy+dz*dz;if(q<bd){bd=q;best=i;}}}
+    return best<0?null:{i:best,dist:Math.sqrt(bd)};}
+  signed(x,y,z,r){const q=this.nearest(x,y,z,r);if(!q)return null;const i=q.i,p=this.pos,n=this.nrm;
+    return {d:(x-p[i*3])*n[i*3]+(y-p[i*3+1])*n[i*3+1]+(z-p[i*3+2])*n[i*3+2],dist:q.dist};}
+}
+function buildGrids(){
+  const ug=S.upper.mesh.geometry;S.upperGrid=new PointGrid(ug.attributes.position.array,ug.attributes.normal.array,S.subIdx,.6);
+  S.lowerGrid=null;
+  if(S.lower){const lg=S.lower.mesh.geometry,p=lg.attributes.position.array,sel=[];const zl=S.arch.zInc+14;for(let i=0;i<p.length/3;i++)if(p[i*3+2]<zl)sel.push(i);S.lowerGrid=new PointGrid(p,lg.attributes.normal.array,sel,.6);}
+}
+// Build one design tooth and return its vertices and normals in scan space.
+function toothSample(code){
+  const tp=S.D.teeth[code],pl=place(code),g=buildTooth(+code[1],tp.W,pl.Lg,pl.dsign);
+  const Lc=g.attributes.position.array,P=Lc.slice(),N=g.attributes.normal.array.slice(),T=g.attributes.tpar.array,v=new THREE.Vector3(),nm=new THREE.Matrix3().setFromMatrix4(pl.M);
+  let ymin=1e9,ymax=-1e9;for(let i=1;i<Lc.length;i+=3){if(Lc[i]<ymin)ymin=Lc[i];if(Lc[i]>ymax)ymax=Lc[i];}
+  const Ln=g.attributes.normal.array,V=new Uint8Array(Lc.length/3);for(let i=0;i<Lc.length;i+=3)V[i/3]=Ln[i+1]>-.15?1:0; // veneer surface: anything not facing palatally
+  for(let i=0;i<P.length;i+=3){v.set(P[i],P[i+1],P[i+2]).applyMatrix4(pl.M);P[i]=v.x;P[i+1]=v.y;P[i+2]=v.z;v.set(N[i],N[i+1],N[i+2]).applyMatrix3(nm).normalize();N[i]=v.x;N[i+1]=v.y;N[i+2]=v.z;}
+  g.dispose();return {P,N,T,V,pl};
+}
+// Deepest penetration of a design tooth into the lower arch, ignoring vertices buried in the existing upper tooth.
+function penetration(sample){
+  if(!S.lowerGrid)return 0;const {P,T,V}=sample;let worst=0;
+  for(let i=0;i<P.length;i+=3){if(T[i/3]>.97||!V[i/3])continue;const x=P[i],y=P[i+1],z=P[i+2];
+    const su=S.upperGrid.signed(x,y,z,3.5);if(su&&su.d<-.05)continue;
+    const sl=S.lowerGrid.signed(x,y,z,2.5);if(sl&&sl.d<-worst)worst=-sl.d;}
+  return worst;
+}
+// Overlap (+) or gap (-) between two design teeth.
+function contact(a,b){
+  const gb=new PointGrid(b.P,b.N,null,.5);let overlap=0,gap=1e9;
+  for(let i=0;i<a.P.length;i+=3){if(a.T[i/3]>.95)continue;const q=gb.signed(a.P[i],a.P[i+1],a.P[i+2],2.5);if(!q)continue;
+    if(q.d<0){if(-q.d>overlap)overlap=-q.d;}else if(q.dist<gap)gap=q.dist;}
+  return overlap>0?overlap:(gap<1e9?-gap:-2.5);
+}
+
+/* ---------------- placement ---------------- */
+function frameAt(s){const A=S.arch.A,q=A.at(s),t=A.tan(s);return {q,t,n:[t[1],-t[0]]}}
+function cervicalOffset(q,n){
+  const C=S.arch.C;let best=null,bd=1e9;
+  for(let i=0;i<C.xs.length;i+=2){const dx=C.xs[i]-q[0],dy=C.ys[i]-q[1];if(dx*dx+dy*dy>144)continue;const d=Math.abs(dx*n[1]-dy*n[0]);if(d<bd){bd=d;best=dx*n[0]+dy*n[1];}}
+  return best??-1;
+}
+function arcCenter(code){
+  const D=S.D,pos=+code[1],side=code[0]==='1'?-1:1,tp=D.teeth[code];
+  let acc=D.midGap/2;for(let k=1;k<pos;k++){const c=code[0]+k;acc+=(D.teeth[c]?.W??BASE[k].W)+(D.teeth[c]?.gapD||0);}
+  return sMid()+D.midShift+side*(acc+tp.W/2+tp.shift);
+}
+const SINK=0.4;
+function place(code){
+  const D=S.D,tp=D.teeth[code],side=code[0]==='1'?-1:1,ar=S.arch;
+  const s=arcCenter(code),{q,t,n}=frameAt(s);
+  const dC=cervicalOffset(q,n);
+  const lab=z=>(z-ar.zA)/(ar.zC-ar.zA)*dC;
+  const edge=tp.edge,zc=edge+tp.L;
+  const vInc=lab(edge)+tp.add, vCerv=Math.min(lab(zc)-SINK,vInc);
+  const N=new THREE.Vector3(n[0],n[1],0),Z=new THREE.Vector3(0,0,1);
+  const Ax=N.clone().multiplyScalar(vCerv-vInc).add(Z.clone().multiplyScalar(tp.L)).normalize();
+  const Y=N.clone().sub(Ax.clone().multiplyScalar(N.dot(Ax))).normalize();
+  const X=new THREE.Vector3().crossVectors(Y,Ax);
+  const Td=new THREE.Vector3(t[0]*side,t[1]*side,0);
+  const dsign=Math.sign(X.dot(Td))||1;
+  const O=new THREE.Vector3(q[0],q[1],edge).add(N.clone().multiplyScalar(vInc));
+  const M=new THREE.Matrix4().makeBasis(X,Y,Ax).setPosition(O);
+  const Rl=new THREE.Matrix4().makeRotationZ(tp.rot*DEG*dsign).multiply(new THREE.Matrix4().makeRotationY(tp.tip*DEG*dsign));
+  M.multiply(Rl);
+  const Lg=Math.hypot(tp.L,vInc-vCerv);
+  return {M,dsign,O,X,N,s,Lg,q,n,t};
+}
+function existingEdge(code,pl){
+  const p=S.sub,W=S.D.teeth[code].W;let mz=null;
+  for(let i=0;i<p.length;i+=3){
+    const dx=p[i]-pl.q[0],dy=p[i+1]-pl.q[1];
+    const u=dx*pl.t[0]+dy*pl.t[1],v=dx*pl.n[0]+dy*pl.n[1];
+    if(Math.abs(u)<W*.3&&v>-5&&v<2.5&&(mz===null||p[i+2]<mz))mz=p[i+2];
+  }
+  return mz;
+}
+
+/* ---------------- patient brief ---------------- */
+function applyBrief(text){
+  const D=S.D,t=' '+text.toLowerCase().replace(/[^a-z0-9 ]+/g,' ')+' ',has=(...ws)=>ws.some(w=>t.includes(' '+w)),notes=[];
+  D.brief=text;
+  const set=(k,v)=>{D[k]=v;};
+  if(has('longer','long','show more','too short','short teeth','bigger','big','larger','fuller','more tooth')){set('maxLen',Math.max(D.maxLen,3));set('wl',.75);notes.push('Wants longer or bigger teeth: lengthening limit 3 mm, central W/L 75%.');}
+  if(has('shorter','too long','long teeth','too big','smaller','less bulky','bulky','less tooth','horse','rabbit','buck')){set('mode','reductive');set('wl',.82);set('thick',0);notes.push('Wants smaller or shorter teeth: reduction allowed, W/L 82%, no labial build.');}
+  if(has('square','masculine','strong','bold')){set('style','square');notes.push('Square, stronger tooth form.');}
+  if(has('soft','softer','feminine','round','rounded','oval','gentle')){set('style','oval');notes.push('Softer, rounded tooth form.');}
+  if(has('natural','subtle','not fake','not too perfect')){set('style','natural');notes.push('Natural form, kept subtle.');}
+  if(has('pointy','pointed','sharp','vampire','fangs','canine','canines')){set('canineSoft',.5);notes.push('Canine tips softened: canines set 0.5 mm shorter than the arc.');}
+  if(has('gap','gaps','space','spaces','diastema','black triangle','triangles')){notes.push('Spaces closed: tooth widths are set to fill the arch edge to edge.');}
+  if(has('crooked','straight','straighter','aligned','rotated','twisted','uneven')){notes.push('Alignment is corrected by the design itself; check the prep map for how much rotation costs in reduction.');}
+  if(has('gummy','gum','gums','gingiva')){notes.push('Gummy smile is not solved by veneers alone. Consider crown lengthening or lip repositioning, and lengthen the design apically on the model.');}
+  if(has('whiter','white','brighter','bright','bleach','hollywood','stained','yellow','discolour','discolor')){D.shadeLift=1;notes.push('Wants a brighter shade: preview shows one to two shades lighter than the current teeth. Choose BL shades at the shade stage.');}
+  else D.shadeLift=0;
+  if(has('not too white','natural colour','natural color','not hollywood')){D.shadeLift=0;notes.push('Keeps a natural shade.');}
+  if(has('chipped','chip','worn','wear','broken','edge','edges')){set('maxLen',Math.max(D.maxLen,2));notes.push('Chipped or worn edges rebuilt to the smile arc.');}
+  const m=t.match(/ (4|6|8|10|12) (veneers|teeth|units)/);if(m){set('count',+m[1]);notes.push(`${m[1]} units.`);}
+  if(has('upper only','just the top','top teeth'))notes.push('Upper arch only.');
+  if(!notes.length)notes.push('Nothing specific recognised in the brief. It is saved with the design.');
+  D.briefNotes=notes;
+  // reflect in the controls
+  $('#fWL').value=Math.round(D.wl*100);$('#oWL').textContent=Math.round(D.wl*100)+'%';
+  $('#fMax').value=D.maxLen;$('#oMax').textContent=r1(D.maxLen);$('#fThick').value=D.thick;$('#oThick').textContent=r2(D.thick);
+  $('#fStyle').value=D.style;refreshMode();
+}
+function refreshMode(){
+  $$('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===S.D.mode));
+  const red=S.D.mode==='reductive';$('#tA').min=red?-1.5:0;$('#fThick').min=red?-0.5:0;
+}
+
+/* ---------------- proposal ---------------- */
+// Photo <-> scan registration: similarity from the canine tips, plus a camera pitch solved from the 11/21 incisal contact.
+// Photo <-> scan registration: least-squares similarity over every correspondence (canine tips, 11/21 contact,
+// extra pairs), with the camera pitch solved by search when there are three or more points.
+function photoMap(ph){
+  const c13=lm('c13'),c23=lm('c23'),mid=lm('mid');if(!c13||!c23)return null;
+  const P=ph.kind==='portrait'?ph.pts.pcan:ph.pts.scan2;if(!P||P.length<2)return null;
+  const corr=[[c13,P[0]],[c23,P[P.length-1]]];if(P.length>=3&&mid)corr.push([mid,P[1]]);
+  for(const pr of (ph.pts.pairs||[]))corr.push([new THREE.Vector3(...pr.q),pr.p]);
+  const mul=(u,v)=>[u[0]*v[0]-u[1]*v[1],u[0]*v[1]+u[1]*v[0]];
+  const build=th=>{
+    const c=Math.cos(th),sn=Math.sin(th),proj=(x,y,z)=>[x,-(z*c+y*sn)];
+    const A=corr.map(([q])=>proj(q.x,q.y,q.z)),B=corr.map(([,p])=>p),n=A.length;
+    const a1=[A.reduce((s,v)=>s+v[0],0)/n,A.reduce((s,v)=>s+v[1],0)/n],p1=[B.reduce((s,v)=>s+v[0],0)/n,B.reduce((s,v)=>s+v[1],0)/n];
+    let num=[0,0],den=0;for(let i=0;i<n;i++){const u=[A[i][0]-a1[0],A[i][1]-a1[1]],w=[B[i][0]-p1[0],B[i][1]-p1[1]];num[0]+=u[0]*w[0]+u[1]*w[1];num[1]+=u[0]*w[1]-u[1]*w[0];den+=u[0]*u[0]+u[1]*u[1];}
+    const m=[num[0]/den,num[1]/den];
+    const to3=(x,y,z)=>{const q=proj(x,y,z),r=mul([q[0]-a1[0],q[1]-a1[1]],m);return [r[0]+p1[0],r[1]+p1[1]]};
+    let res=0;for(let i=0;i<n;i++){const q=corr[i][0],t=to3(q.x,q.y,q.z);res+=(t[0]-B[i][0])**2+(t[1]-B[i][1])**2;}
+    const yr=mid?mid.y:c13.y;
+    const to=(x,z)=>to3(x,yr,z);
+    const from=(px,py)=>{const d=[px-p1[0],py-p1[1]],mm=m[0]**2+m[1]**2;const r=[(d[0]*m[0]+d[1]*m[1])/mm,(d[1]*m[0]-d[0]*m[1])/mm];
+      const u=r[0]+a1[0],v=-(r[1]+a1[1]);return {x:u,z:(v-yr*sn)/c}};
+    return {m,a1,p1,to,to3,from,th,scale:Math.hypot(...m),rms:Math.sqrt(res/n)/Math.hypot(...m),n};
+  };
+  let th=0;
+  if(corr.length>=3){let best=1e18;for(let t=-.6;t<=.6;t+=.004){const r=build(t).rms;if(r<best){best=r;th=t;}}}
+  return build(th);
+}
+function lipCurve(ph,map){
+  const L=ph.pts.lip;if(!L||L.length<6)return null;
+  let il=0,ir=0;L.forEach((p,i)=>{if(p[0]<L[il][0])il=i;if(p[0]>L[ir][0])ir=i;});
+  const chainA=[],chainB=[];const n=L.length;
+  for(let i=il;;i=(i+1)%n){chainA.push(L[i]);if(i===ir)break;}
+  for(let i=ir;;i=(i+1)%n){chainB.push(L[i]);if(i===il)break;}
+  const avg=c=>c.reduce((s,p)=>s+p[1],0)/c.length;
+  const lower=avg(chainA)>avg(chainB)?chainA:chainB, upper=lower===chainA?chainB:chainA;
+  const pts=lower.map(p=>map.from(p[0],p[1]));
+  // least squares z = a x^2 + b x + c
+  let S0=0,S1=0,S2=0,S3=0,S4=0,T0=0,T1=0,T2=0;
+  for(const q of pts){const x=q.x,z=q.z;S0++;S1+=x;S2+=x*x;S3+=x**3;S4+=x**4;T0+=z;T1+=x*z;T2+=x*x*z;}
+  const Mx=[[S4,S3,S2],[S3,S2,S1],[S2,S1,S0]],V=[T2,T1,T0];
+  const det=m=>m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1])-m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0])+m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
+  const d=det(Mx);if(Math.abs(d)<1e-9)return null;
+  const sol=[0,1,2].map(k=>det(Mx.map((r,i)=>r.map((v,j)=>j===k?V[i]:v)))/d);
+  return {a:sol[0],b:sol[1],c:sol[2],z:x=>sol[0]*x*x+sol[1]*x+sol[2],lower,upper,xl:Math.min(...pts.map(p=>p.x)),xr:Math.max(...pts.map(p=>p.x))};
+}
+function propose(silent){
+  if(!S.arch)return;
+  const D=S.D,ar=S.arch,notes=[];
+  const codes=codesFor(D.count);
+  const s0=sMid();
+  const c13=lm('c13'),c23=lm('c23');
+  let span=19.5;
+  if(c13&&c23){span=(Math.abs(ar.A.proj(c13.x,c13.y)-s0)+Math.abs(ar.A.proj(c23.x,c23.y)-s0))/2;}
+  const W11=clamp(span/(1+.78+.45),7.6,9.8),k=W11/8.6;
+  const Wt={1:W11,2:W11*.78,3:W11*.9,4:7.0*k,5:6.6*k,6:10.2*k};
+  const kL=.5+.5*k,Ltyp={1:10.6*kL,2:9.0*kL,3:10.4*kL,4:8.0*kL,5:7.3*kL,6:6.6*kL};
+  const Lt=Ltyp;
+  // portrait: roll + facial midline
+  let roll=0,midShift=0;
+  const por=S.photos.find(p=>p.kind==='portrait'&&p.pts.pupils?.length===2&&photoMap(p));
+  if(por){
+    const mp=photoMap(por),a=mp.from(...por.pts.pupils[0]),b=mp.from(...por.pts.pupils[1]);
+    const L0=a.x<b.x?a:b,R0=a.x<b.x?b:a;roll=Math.atan2(R0.z-L0.z,R0.x-L0.x);
+    notes.push(`Incisal plane set parallel to the pupils (${r1(Math.abs(roll/DEG))}° ${roll>0?'up to the left':'up to the right'} relative to the scan).`);
+    if(por.pts.face?.length===2){
+      const f1=mp.from(...por.pts.face[0]),f2=mp.from(...por.pts.face[1]);
+      const tt=(ar.zInc-f1.z)/((f2.z-f1.z)||1e-6),xf=f1.x+(f2.x-f1.x)*tt;
+      const raw=xf-lm('mid').x;midShift=clamp(raw,-1.5,1.5);
+      notes.push(Math.abs(raw)<.3?`Dental midline already sits on the facial midline.`:`Dental midline moved ${r1(Math.abs(midShift))} mm to the patient's ${midShift>0?'left':'right'} to meet the facial midline${Math.abs(raw)>1.5?' (limited to 1.5 mm)':''}.`);
+    }
+  }else notes.push(`<span class="warn">No portrait landmarks yet: incisal plane follows the scan and the midline stays where it is.</span>`);
+  D.roll=roll;D.midShift=midShift;
+  // build teeth with provisional edges
+  const old=D.teeth;D.teeth={};
+  for(const c of codes){const p=+c[1];D.teeth[c]={W:Wt[p],L:Lt[p],edge:ar.zInc,add:p<=3?D.thick:Math.min(D.thick,.35),shift:0,tip:0,rot:0,exist:null};}
+  const xmid=lm('mid').x+midShift;
+  // smile: lip curve
+  const sm=S.photos.find(p=>p.kind==='smile'&&p.pts.lip?.length>=6&&photoMap(p));
+  let curv=0.0025,zLipMid=null;
+  if(sm){const lc=lipCurve(sm,photoMap(sm));if(lc){curv=clamp(lc.a*.35,.0015,.0035);zLipMid=lc.z(xmid);}}
+  const exist={};
+  for(const c of codes){exist[c]=existingEdge(c,place(c));}
+  const exC=((exist['11']??ar.zInc)+(exist['21']??ar.zInc))/2;
+  // gingival zeniths: symmetric line for 13/11/21/23 at the most apical of the four, laterals 0.7 mm more incisal
+  const Z=S.lm3d.zen||{},zenT={},ging=[],checks=[];
+  const haveZen=['11','21','13','23'].every(c=>Z[c]);
+  if(haveZen){
+    const line=Math.max(...['11','21','13','23'].map(c=>Z[c].z));
+    for(const c of codes){if(+c[1]>3)continue;const x=(Z[c]||lm('mid')).x;const t=line+Math.tan(roll)*(x-xmid)-(+c[1]===2?.7:0);zenT[c]=t;
+      if(Z[c]){const d=t-Z[c].z;if(d>.3)ging.push(`${c} ${r1(d)} mm`);else if(d<-.5)ging.push(`${c} already ${r1(-d)} mm apical of the line (would need grafting to match)`);}}
+    if(ging.length)checks.push(`<b>Gingival:</b> to level the zeniths, crown lengthening on ${ging.join(', ')}.`);else checks.push(`<b>Gingival:</b> zeniths already level within 0.3 mm.`);
+  }else checks.push(`<span class="warn">Gingival zeniths not marked, so tooth lengths are textbook and the gum line is not assessed.</span>`);
+  const zenC=haveZen?(zenT['11']+zenT['21'])/2:exC+Ltyp[1];
+  const eWL=zenC-W11/D.wl, eMax=exC-D.maxLen, eLip=zLipMid!==null?zLipMid+D.gap:-1e9;
+  const reductive=D.mode==='reductive';
+  let zC=reductive?Math.max(eWL,eMax,eLip):Math.min(exC,Math.max(eWL,eMax,eLip));
+  const why=zC===exC?'already at the target':zC===eLip?`${r1(D.gap)} mm above the lower lip`:zC===eWL?`a ${Math.round(D.wl*100)}% width to length ratio`:`the ${r1(D.maxLen)} mm lengthening limit`;
+  notes.push(`<b>Centrals ${r1(W11)} mm wide</b>, sized to fill the arch to the existing canines.`);
+  notes.push(`Central edges ${zC<=exC?'lengthened':'shortened'} ${r1(Math.abs(exC-zC))} mm, set by ${why}${zLipMid!==null?` (lip line is ${r1(exC-eLip)} mm below the current edge)`:''}. Edges follow a smile arc parallel to the lower lip.`);
+  if(zLipMid===null)notes.push(`<span class="warn">No smile photo traced, so a standard smile arc is used.</span>`);
+  const step={1:0,2:.6,3:0+D.canineSoft,4:.3,5:.5,6:.8};
+  const held=[],reduce=[];
+  for(const c of codes){
+    const pl=place(c),p=+c[1],dx=pl.O.x-xmid;
+    let e=zC+step[p]+curv*dx*dx+Math.tan(roll)*dx;
+    if(exist[c]!==null&&e>exist[c]+.05){if(reductive)reduce.push(`${c} ${r1(e-exist[c])} mm`);else{held.push(`${c} (${r1(e-exist[c])} mm)`);e=exist[c];}}
+    D.teeth[c].edge=e;D.teeth[c].exist=exist[c];
+    D.teeth[c].L=(zenT[c]!==undefined?zenT[c]:(exist[c]??ar.zInc)+Ltyp[p])-e;
+  }
+  // contacts: open or close spacing until neighbours just touch, then rescale widths so the canines stay put
+  D.midGap=0;for(const c of codes){D.teeth[c].gapD=0;}
+  for(let it=0;it<4;it++){
+    const smp={};for(const c of codes)smp[c]=toothSample(c);let worst=0;
+    const adj=(c,delta)=>{if(c==='mid')D.midGap+=delta;else D.teeth[c].gapD+=delta;};
+    const pairs=[['mid','11','21']];for(const sd of ['1','2'])for(let k=1;k<D.count/2;k++)pairs.push([sd+k,sd+k,sd+(k+1)]);
+    for(const [key,a,b] of pairs){const s=contact(smp[a],smp[b]);const delta=s-.05;if(Math.abs(delta)>.05){adj(key,delta);worst=Math.max(worst,Math.abs(delta));}}
+    for(const sd of ['1','2']){let G=D.midGap/2,Wsum=0;for(let k=1;k<=3;k++){const c=sd+k;if(!D.teeth[c])continue;if(k<3)G+=D.teeth[c].gapD;Wsum+=k<3?D.teeth[c].W:D.teeth[c].W/2;}
+      const kk=clamp((span-G)/Wsum,.9,1.1);for(const c of codes)if(c[0]===sd)D.teeth[c].W*=kk;}
+    if(worst<.06)break;
+  }
+  // occlusion: shorten any tooth whose new material runs into the lower arch
+  const limited={};
+  if(S.lowerGrid){
+    for(let it=0;it<5;it++){let changed=false;
+      for(const c of codes){const tp=D.teeth[c],pen=penetration(toothSample(c));if(pen<.05)continue;
+        let e=tp.edge+pen+D.clear;const ex=exist[c]??ar.zInc;if(!reductive&&e>ex){e=ex;}
+        const raise=e-tp.edge;if(raise>.02){tp.L-=raise;tp.edge=e;changed=true;limited[c]=(limited[c]||0)+raise;}else if(!reductive)limited[c]=limited[c]||0;}
+      if(!changed)break;}
+    // still colliding at the shortest allowed length: take the labial build off those teeth
+    const stripped=[];
+    for(const c of codes){const tp=D.teeth[c];let pen=penetration(toothSample(c));if(pen<.05)continue;const floor=reductive?-.5:0;
+      while(tp.add>floor+.001&&pen>=.05){tp.add=Math.max(floor,tp.add-.1);pen=penetration(toothSample(c));}
+      if(tp.add<(+c[1]<=3?D.thick:Math.min(D.thick,.35))-.001)stripped.push(`${c}${pen>=.05?' (still touching)':''}`);}
+    if(stripped.length)checks.push(`<b>Occlusion:</b> labial build reduced on ${stripped.join(', ')} because the lower teeth sit against them in the bite. Those teeth need reduction, not addition.`);
+    const lim=Object.keys(limited);
+    if(lim.length)checks.push(`<b>Occlusion:</b> lengthening limited by the lower teeth on ${lim.map(c=>`${c} (edge raised ${r1(Math.max(0,limited[c]))} mm)`).join(', ')}, with ${r2(D.clear)} mm clearance. Consider lower incisor reduction or opening the bite if more length is wanted.`);
+    else checks.push(`<b>Occlusion:</b> no contact with the lower arch in the bite scan.`);
+  }else checks.push(`<span class="warn">No lower scan: occlusion not checked.</span>`);
+  D.checks=checks;
+  const len=codes.filter(c=>+c[1]<=3).map(c=>(D.teeth[c].exist??0)-D.teeth[c].edge);
+  const maxL=Math.max(...len),minL=Math.min(...len);
+  notes.push(`Anterior edges lengthened ${r1(Math.max(0,minL))} to ${r1(maxL)} mm. Central W/L now ${Math.round(W11/D.teeth['11'].L*100)}%.`);
+  if(held.length)notes.push(`<span class="warn">Kept at current length (the ideal arc sits higher, so these would need reduction): ${held.join(', ')}. Switch to "Allow reduction" to follow the arc.</span>`);
+  if(reduce.length)notes.push(`<span class="warn">Incisal reduction: ${reduce.join(', ')}.</span>`);
+  notes.unshift(...D.briefNotes.map(n=>`<span class="okc">Brief:</span> ${n}`));
+  if(old&&D.proposed){for(const c of codes){if(old[c]&&old[c].keep)Object.assign(D.teeth[c],old[c]);}}
+  D.notes=notes;D.proposed=true;
+  const sm2=S.photos.find(p=>p.kind==='smile'&&p.pts.lip?.length>=6&&photoMap(p));
+  if(sm2&&haveZen){const mp=photoMap(sm2),lc=lipCurve(sm2,mp);if(lc){const up=lc.upper.map(p=>mp.from(p[0],p[1]));let near=up[0];for(const q of up)if(Math.abs(q.x-xmid)<Math.abs(near.x-xmid))near=q;
+    const show=near.z-Z['11'].z;D.checks.push(show>.5?`<b>Lip line:</b> upper lip sits ${r1(show)} mm above the central zeniths at full smile (gum display).`:show<-1.5?`<b>Lip line:</b> upper lip covers ${r1(-show)} mm of the centrals; a low lip line.`:`<b>Lip line:</b> upper lip at the gingival margin, an average lip line.`);}}
+  for(const p of S.photos){const mp=photoMap(p);if(mp&&mp.n>=3)D.checks.push(`Registration of ${esc(p.name)}: ${mp.n} points, fit error ${r2(mp.rms)} mm.`);}
+  if(!codes.includes(S.sel))S.sel='11';
+  rebuildTeeth();refreshAll();
+  if(!silent)toast('#toast3d','Proposal updated');
+}
+
+/* ---------------- collision colouring ---------------- */
+let occTimer=null;function scheduleOcc(){clearTimeout(occTimer);occTimer=setTimeout(colourCollisions,150);}
+function colourCollisions(){
+  const notes=[];const red=new THREE.Color(0xd93a2b);
+  for(const code in toothMeshes){
+    const m=toothMeshes[code],g=m.geometry,col=g.attributes.color,T=g.attributes.tpar.array;
+    if(!g.userData.base)g.userData.base=col.array.slice();const base=g.userData.base,a=col.array;a.set(base);
+    let worst=0;
+    if(S.lowerGrid&&S.show.occ){
+      const P=g.attributes.position.array,Nl=g.attributes.normal.array,v=new THREE.Vector3();
+      for(let i=0;i<P.length;i+=3){if(T[i/3]>.97||Nl[i+1]<=-.15)continue;v.set(P[i],P[i+1],P[i+2]).applyMatrix4(m.matrix);
+        const su=S.upperGrid.signed(v.x,v.y,v.z,3.5);if(su&&su.d<-.05)continue;
+        const sl=S.lowerGrid.signed(v.x,v.y,v.z,2.5);if(sl&&sl.d<-.05){const k=i;a[k]=red.r;a[k+1]=red.g;a[k+2]=red.b;if(-sl.d>worst)worst=-sl.d;}}
+    }
+    col.needsUpdate=true;if(worst>.05)notes.push(`${code} ${r1(worst)} mm`);
+  }
+  S.occNotes=notes;refreshChecks();req();
+}
+function refreshChecks(){
+  const L=[...(S.D.checks||[])];
+  if(S.occNotes?.length)L.push(`<span class="bad">Current design runs into the lower arch: ${S.occNotes.join(', ')} (shown red on the model).</span>`);
+  else if(S.lowerGrid&&S.D.proposed)L.push(`<span class="okc">Current design clears the lower arch.</span>`);
+  $('#checkNotes').innerHTML=L.map(x=>`<li>${x}</li>`).join('');
+}
+
+/* ---------------- prep map ---------------- */
+// For every scan vertex under a designed tooth: how far the design surface sits outside the tooth (gap).
+// Prep needed = max(0, minT - gap): a design inside the tooth, or too close to it, needs the tooth cut back.
+function radialMap(g){
+  const P=g.attributes.position.array,NT=80,NZ=48,TH=1.35;let zmax=0,ymin=1e9,ymax=-1e9;
+  for(let i=0;i<P.length;i+=3){zmax=Math.max(zmax,P[i+2]);ymin=Math.min(ymin,P[i+1]);ymax=Math.max(ymax,P[i+1]);}
+  const y0=(ymin+ymax)/2,map=new Float32Array(NT*NZ).fill(-1);
+  for(let i=0;i<P.length;i+=3){const x=P[i],y=P[i+1]-y0,z=P[i+2];const th=Math.atan2(x,y);if(Math.abs(th)>TH)continue;
+    const tb=Math.min(NT-1,Math.floor((th+TH)/(2*TH)*NT)),zb=Math.min(NZ-1,Math.max(0,Math.floor(z/zmax*NZ))),r=Math.hypot(x,y),k=tb*NZ+zb;if(r>map[k])map[k]=r;}
+  for(let pass=0;pass<2;pass++)for(let k=0;k<map.length;k++)if(map[k]<0){let a=0,c=0;for(const d of [-NZ,NZ,-1,1]){const j=k+d;if(j>=0&&j<map.length&&map[j]>0){a+=map[j];c++;}}if(c)map[k]=a/c;}
+  return {map,NT,NZ,TH,zmax,y0};
+}
+let prepTimer=null;
+function schedulePrep(){clearTimeout(prepTimer);prepTimer=setTimeout(computePrep,120);}
+function computePrep(){
+  if(!S.upper||!S.subIdx||!Object.keys(toothMeshes).length){S.prep=null;applyPrepColors();return;}
+  const g=S.upper.mesh.geometry,pos=g.attributes.position.array,nrm=g.attributes.normal.array,n=pos.length/3;
+  const depth=new Float32Array(n).fill(-1),minT=S.D.minT,inv=new THREE.Matrix4(),rot=new THREE.Matrix3(),v=new THREE.Vector3(),nv=new THREE.Vector3(),box=new THREE.Box3(),per={};
+  const sub=S.subIdx,m2=sub.length,bestFace=new Float32Array(m2),bestNeed=new Float32Array(m2),bestGap=new Float32Array(m2),owner=new Int8Array(m2).fill(-1);
+  const codes=Object.keys(toothMeshes),STEP=.1,MAXT=3.5;
+  codes.forEach((code,ci)=>{
+    const m=toothMeshes[code],rm=radialMap(m.geometry),Lg=placed[code].Lg;inv.copy(m.matrix).invert();rot.setFromMatrix4(inv);box.setFromObject(m).expandByScalar(1.5);
+    const look=(x,y,z)=>{const th=Math.atan2(x,y);if(Math.abs(th)>rm.TH-.05||z<-.5||z>rm.zmax)return null;
+      const tb=Math.min(rm.NT-1,Math.floor((th+rm.TH)/(2*rm.TH)*rm.NT)),zb=Math.min(rm.NZ-1,Math.max(0,Math.floor(z/rm.zmax*rm.NZ)));const rd=rm.map[tb*rm.NZ+zb];return rd<0?null:Math.hypot(x,y)-rd;};
+    for(let j=0;j<m2;j++){const k=sub[j];
+      const x=pos[k*3],y=pos[k*3+1],z=pos[k*3+2];
+      if(x<box.min.x||x>box.max.x||y<box.min.y||y>box.max.y||z<box.min.z||z>box.max.z)continue;
+      v.set(x,y,z).applyMatrix4(inv);const yy=v.y-rm.y0;
+      if(v.z<-.3||v.z>Lg*.9||yy<=0)continue;
+      nv.set(nrm[k*3],nrm[k*3+1],nrm[k*3+2]).applyMatrix3(rot).normalize();
+      const face=nv.y;if(face<.3||face<=bestFace[j])continue; // keep the tooth this point faces most directly
+      const d0=look(v.x,yy,v.z);if(d0===null)continue;
+      let gap=null;
+      if(d0<0){for(let t=STEP;t<=MAXT;t+=STEP){const d=look(v.x+nv.x*t,yy+nv.y*t,v.z+nv.z*t);if(d===null){gap=t;break;}if(d>=0){gap=t;break;}}if(gap===null)gap=MAXT;}
+      else{gap=0;for(let t=STEP;t<=MAXT;t+=STEP){const d=look(v.x-nv.x*t,yy-nv.y*t,v.z-nv.z*t);if(d===null||d<0){gap=-t;break;}}}
+      bestFace[j]=face;bestGap[j]=gap;bestNeed[j]=Math.max(0,minT-gap);owner[j]=ci;
+    }
+  });
+  codes.forEach(code=>{per[code]={maxPrep:0,maxRed:0,n:0,np:0,inc:Math.max(0,S.D.teeth[code].edge-(S.D.teeth[code].exist??S.D.teeth[code].edge))};});
+  for(let j=0;j<m2;j++){const o=owner[j];if(o<0)continue;const st=per[codes[o]],need=bestNeed[j],gap=bestGap[j];
+    st.n++;if(need>0.02){st.np++;if(need>st.maxPrep)st.maxPrep=need;}if(gap<0&&-gap>st.maxRed)st.maxRed=-gap;depth[sub[j]]=need;}
+  S.prep={depth,per,minT};
+  applyPrepColors();refreshPrepNotes();refreshTooth();
+}
+const stoneCol=new THREE.Color(0xcfc6b8),rampA=new THREE.Color(0x3fbf6f),rampB=new THREE.Color(0xf0c040),rampC=new THREE.Color(0xd93a2b),tmpC=new THREE.Color();
+function applyPrepColors(){
+  if(!S.upper)return;const g=S.upper.mesh.geometry,n=g.attributes.position.count;
+  if(!S.show.prep||!S.prep){S.upper.mesh.material=stoneMat;g.deleteAttribute('color');req();return;}
+  let col=g.attributes.color;if(!col||col.count!==n){col=new THREE.BufferAttribute(new Float32Array(n*3),3);g.setAttribute('color',col);}
+  const a=col.array,d=S.prep.depth,scale=S.prep.minT+1.0;
+  for(let i=0;i<n;i++){const need=d[i];
+    if(need<=0.02){a[i*3]=stoneCol.r;a[i*3+1]=stoneCol.g;a[i*3+2]=stoneCol.b;continue;}
+    const t=clamp(need/scale,0,1);if(t<.5)tmpC.copy(rampA).lerp(rampB,t*2);else tmpC.copy(rampB).lerp(rampC,(t-.5)*2);
+    a[i*3]=tmpC.r;a[i*3+1]=tmpC.g;a[i*3+2]=tmpC.b;}
+  col.needsUpdate=true;S.upper.mesh.material=stoneMatVC;$('#prepLegendMax').textContent=`0 to ${r1(scale)} mm`;req();
+}
+function refreshPrepNotes(){
+  const el=$('#prepNotes');if(!S.prep){el.innerHTML='';return;}
+  const per=S.prep.per,codes=Object.keys(per),lab=codes.filter(c=>per[c].maxPrep>0.05),inc=codes.filter(c=>per[c].inc>0.05),none=codes.filter(c=>per[c].maxPrep<=0.05&&per[c].inc<=0.05);
+  const L=[];
+  if(lab.length){const worst=lab.reduce((a,b)=>per[a].maxPrep>per[b].maxPrep?a:b);L.push(`<b>Labial prep on ${lab.length} of ${codes.length}</b>, deepest ${r1(per[worst].maxPrep)} mm on ${worst}: ${lab.map(c=>`${c} ${r1(per[c].maxPrep)} (${Math.round(per[c].np/per[c].n*100)}% of face)`).join(', ')}.`);}
+  if(inc.length)L.push(`<b>Incisal reduction:</b> ${inc.map(c=>`${c} ${r1(per[c].inc)}`).join(', ')} mm.`);
+  if(none.length)L.push(`No prep: ${none.join(', ')}.`);
+  const redSet=codes.filter(c=>per[c].maxRed>0.05);if(redSet.length)L.push(`Design sits inside the current tooth surface on ${redSet.join(', ')} (reductive design).`);
+  L.push(`Minimum thickness ${r2(S.prep.minT)} mm. The map shows depth to cut, including the thickness allowance.`);
+  el.innerHTML=L.map(x=>`<li>${x}</li>`).join('');
+}
+
+/* ---------------- teeth build ---------------- */
+const placed={};
+function rebuildTeeth(){
+  for(const k in toothMeshes){designGroup.remove(toothMeshes[k]);toothMeshes[k].geometry.dispose();ovMeshes[k].geometry.dispose();ovGroup.remove(ovMeshes[k]);delete toothMeshes[k];delete ovMeshes[k];}
+  for(const c of Object.keys(S.D.teeth)){
+    const tp=S.D.teeth[c],pl=place(c);placed[c]=pl;
+    const g=buildTooth(+c[1],tp.W,pl.Lg,pl.dsign),g2=g.clone();blendCervical(g,pl.M);
+    const m=new THREE.Mesh(g,S.show.prep?ghostMat:(c===S.sel?selMat:toothMat));m.matrixAutoUpdate=false;m.matrix.copy(pl.M);m.userData.code=c;
+    designGroup.add(m);toothMeshes[c]=m;
+    const o=new THREE.Mesh(g2,ovMat);o.matrixAutoUpdate=false;o.matrix.copy(pl.M);ovGroup.add(o);ovMeshes[c]=o;
+  }
+  designGroup.visible=S.show.design;
+  req();drawPhoto();schedulePrep();scheduleOcc();
+}
+function updateTooth(c){
+  const tp=S.D.teeth[c];if(!tp)return;
+  // widths change neighbours' arc positions, so rebuild all on the same side
+  rebuildTeeth();
+}
+
+/* ---------------- 3D picking ---------------- */
+const ray=new THREE.Raycaster();let downAt=null;
+c3d.addEventListener('pointerdown',e=>{downAt=[e.clientX,e.clientY]});
+c3d.addEventListener('pointerup',e=>{
+  if(!downAt||Math.hypot(e.clientX-downAt[0],e.clientY-downAt[1])>4)return;
+  const r=c3d.getBoundingClientRect();
+  ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),cam);
+  if(['mid','c13','c23','zen','pair'].includes(S.tool)&&S.upper){
+    const h=ray.intersectObject(S.upper.mesh)[0];if(!h)return;
+    if(S.tool==='zen'){const order=['13','12','11','21','22','23'],c=order[S.zenNext];S.lm3d.zen[c]=h.point.clone();S.zenNext++;
+      if(S.zenNext>=6){setTool(null);toast('#toast3d','Zeniths set');if(S.D.proposed)propose(true);}else toast('#toast3d',`Zenith ${c} set. Now click the zenith of ${order[S.zenNext]}.`,'cyan');refreshAll();return;}
+    if(S.tool==='pair'){S.pairPending=[h.point.x,h.point.y,h.point.z];toast('#toast3d','Point taken. Now click the same spot on the photo.','cyan');toast('#toastPh','Click the same spot here.','cyan');drawMarks();return;}
+    S.lm3d[S.tool]=h.point.clone();const t=S.tool;setTool(null);toast('#toast3d',`${t==='mid'?'Midline':t==='c13'?'Canine 13':'Canine 23'} set`);refreshAll();
+    return;
+  }
+  const h=ray.intersectObjects(designGroup.children)[0];
+  if(h){S.sel=h.object.userData.code;refreshTooth();rebuildTeeth();}
+});
+function drawMarks(){
+  req();markGroup.clear();if(!S.arch)return;
+  const ball=(p,colr,r=.45)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(r,14,10),new THREE.MeshBasicMaterial({color:colr,depthTest:false}));m.position.copy(p);m.renderOrder=5;markGroup.add(m);};
+  for(const c in S.lm3d.zen)ball(S.lm3d.zen[c],0xe3b35c,.4);
+  const ph=curPh();for(const pr of (ph?.pts.pairs||[]))ball(new THREE.Vector3(...pr.q),0xd65db1,.4);
+  if(S.pairPending)ball(new THREE.Vector3(...S.pairPending),0xd65db1,.6);
+  for(const k of ['mid','c13','c23']){const p=lm(k);if(!p)continue;
+    const m=new THREE.Mesh(new THREE.SphereGeometry(.55,16,12),new THREE.MeshBasicMaterial({color:S.lm3d[k]?0x58c4da:0xe3a14a,depthTest:false}));
+    m.position.copy(p);m.renderOrder=5;markGroup.add(m);}
+}
+
+/* ---------------- photo view ---------------- */
+const cph=$('#cph'),pctx=cph.getContext('2d');
+const V={s:1,x:0,y:0};
+const OR=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
+const ovScene=new THREE.Scene(),ovGroup=new THREE.Group();ovScene.add(ovGroup);
+const ovScan=new THREE.Group();ovScene.add(ovScan);
+ovScene.add(new THREE.HemisphereLight(0xffffff,0x6a5f55,1.0));
+const ovKey=new THREE.DirectionalLight(0xffffff,1.5);ovKey.position.set(10,-100,40);ovScene.add(ovKey);
+const ovFill=new THREE.DirectionalLight(0xfff4e6,.6);ovFill.position.set(-40,-60,-20);ovScene.add(ovFill);
+const ovMat=new THREE.MeshPhysicalMaterial({color:0xf4f0ea,vertexColors:true,roughness:.38,clearcoat:.5,clearcoatRoughness:.35,sheen:.4,sheenColor:new THREE.Color(0xffffff)});
+const ovMeshes={};
+const ovCam=new THREE.OrthographicCamera(-1,1,1,-1,1,1000);ovCam.up.set(0,0,1);ovCam.position.set(0,-300,0);ovCam.lookAt(0,0,0);
+const ovScanMat=new THREE.MeshStandardMaterial({color:0x8fd3e6,roughness:.7,transparent:true,opacity:.5});
+
+const curPh=()=>S.photos[S.cur];
+function fitPhoto(){
+  const ph=curPh();if(!ph)return;const r=cph.getBoundingClientRect();
+  V.s=Math.min(r.width/ph.img.naturalWidth,r.height/ph.img.naturalHeight);
+  V.x=(r.width-ph.img.naturalWidth*V.s)/2;V.y=(r.height-ph.img.naturalHeight*V.s)/2;drawPhoto();
+}
+$('#fitPh').onclick=fitPhoto;
+// Match the mock-up to the patient's own enamel: brightest third of pixels inside the lip outline, lifted slightly.
+function sampleShade(ph){
+  if(ph._shade!==undefined)return ph._shade;ph._shade=null;
+  const L=ph.pts.lip;if(!L||L.length<6)return null;
+  const W=ph.img.naturalWidth,H=ph.img.naturalHeight,k=Math.min(1,600/W),cv=document.createElement('canvas');cv.width=Math.round(W*k);cv.height=Math.round(H*k);
+  const g=cv.getContext('2d',{willReadFrequently:true});g.beginPath();L.forEach((p,i)=>i?g.lineTo(p[0]*k,p[1]*k):g.moveTo(p[0]*k,p[1]*k));g.closePath();g.clip();g.drawImage(ph.img,0,0,cv.width,cv.height);
+  const d=g.getImageData(0,0,cv.width,cv.height).data,px=[];
+  for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;const r=d[i],gg=d[i+1],b=d[i+2],mx=Math.max(r,gg,b),mn=Math.min(r,gg,b);if(mx<90||(mx-mn)/mx>.35)continue;px.push([r+gg+b,r,gg,b]);}
+  if(px.length<200)return null;px.sort((a,b)=>b[0]-a[0]);const top=px.slice(0,Math.max(50,Math.floor(px.length/3)));
+  const avg=[1,2,3].map(j=>top.reduce((s,p)=>s+p[j],0)/top.length/255);
+  ph._shade=avg.map(v=>Math.min(1,v*.75+.25));return ph._shade;
+}
+function renderOverlay(withScan,th=0){
+  const ids=Object.keys(ovMeshes);if(!ids.length&&!withScan)return null;
+  const box=new THREE.Box3();
+  ovGroup.updateMatrixWorld(true);
+  if(ids.length)box.setFromObject(ovGroup);else box.setFromObject(S.upper.mesh);
+  if(withScan&&S.upper){ovScan.clear();const m=new THREE.Mesh(S.upper.mesh.geometry,ovScanMat);ovScan.add(m);box.union(new THREE.Box3().setFromObject(m));}
+  else ovScan.clear();
+  const c=Math.cos(th),sn=Math.sin(th);let xmin=1e9,xmax=-1e9,zmin=1e9,zmax=-1e9;
+  for(const X of [box.min.x,box.max.x])for(const Y of [box.min.y,box.max.y])for(const Z of [box.min.z,box.max.z]){const v=Z*c+Y*sn;xmin=Math.min(xmin,X);xmax=Math.max(xmax,X);zmin=Math.min(zmin,v);zmax=Math.max(zmax,v);}
+  xmin-=1;xmax+=1;zmin-=1;zmax+=1;const k=14;
+  const w=Math.min(2048,Math.ceil((xmax-xmin)*k)),h=Math.min(2048,Math.ceil((zmax-zmin)*k));
+  ovCam.up.set(0,sn,c);ovCam.position.set(0,-300*c,300*sn);ovCam.lookAt(0,0,0);
+  ovCam.left=xmin;ovCam.right=xmax;ovCam.top=zmax;ovCam.bottom=zmin;ovCam.updateProjectionMatrix();
+  OR.setPixelRatio(1);OR.setSize(w,h,false);OR.setClearColor(0x000000,0);
+  ovGroup.visible=S.show.overlay;
+  const sm=curPh()?.kind==='smile'?curPh():S.photos.find(p=>p.kind==='smile');let sh=sm&&sampleShade(sm);if(sh)sh=sh.slice();
+  if(sh&&S.D.shadeLift)for(let i=0;i<3;i++)sh[i]=Math.min(1,sh[i]*1.08+.02);
+  if(sh)ovMat.color.setRGB(Math.pow(sh[0],2.2)/Math.pow(.95,2.2),Math.pow(sh[1],2.2)/Math.pow(.925,2.2),Math.pow(sh[2],2.2)/Math.pow(.87,2.2)).multiplyScalar(.98);
+  OR.render(ovScene,ovCam);
+  return {canvas:OR.domElement,xmin,zmax,k:w/(xmax-xmin),kz:h/(zmax-zmin)};
+}
+function drawPhoto(){
+  const r=cph.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio);
+  if(cph.width!==Math.round(r.width*dpr)||cph.height!==Math.round(r.height*dpr)){cph.width=Math.round(r.width*dpr);cph.height=Math.round(r.height*dpr);}
+  const g=pctx;g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cph.width,cph.height);
+  const ph=curPh();$('#emptyPh').hidden=!!ph;if(!ph)return;
+  const T=(px,py)=>[(px*V.s+V.x)*dpr,(py*V.s+V.y)*dpr];
+  g.setTransform(V.s*dpr,0,0,V.s*dpr,V.x*dpr,V.y*dpr);
+  g.drawImage(ph.img,0,0);
+  const map=photoMap(ph);
+  if(map&&S.upper&&(S.show.overlay||S.show.scanOv)){
+    const ov=renderOverlay(S.show.scanOv,map.th);
+    if(ov){
+      g.save();
+      if(ph.kind==='smile'&&ph.pts.lip?.length>=6&&!S.show.scanOv){g.beginPath();ph.pts.lip.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.closePath();g.clip();}
+      if(S.wipe<1){const x0=0,x1=ph.img.naturalWidth;g.beginPath();g.rect(x0+(x1-x0)*(1-S.wipe),0,x1,ph.img.naturalHeight);g.clip();}
+      const [mr,mi]=map.m;const a1=map.a1,p1=map.p1;
+      const ax=ov.xmin,az=-ov.zmax;
+      const e=mr*(ax-a1[0])-mi*(az-a1[1])+p1[0],f=mi*(ax-a1[0])+mr*(az-a1[1])+p1[1];
+      g.transform(mr/ov.k,mi/ov.k,-mi/ov.kz,mr/ov.kz,e,f);
+      g.drawImage(ov.canvas,0,0);
+      g.restore();
+    }
+  }
+  if(S.show.guides)drawGuides(g,ph,map);
+  drawPhotoMarks(g,ph);
+}
+function line(g,a,b,col,w,dash){g.save();g.strokeStyle=col;g.lineWidth=w/V.s;g.setLineDash(dash?dash.map(d=>d/V.s):[]);g.beginPath();g.moveTo(...a);g.lineTo(...b);g.stroke();g.restore();}
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function drawGuides(g,ph,map){
+  const gold=css('--gold'),cyan=css('--cyan');
+  const W=ph.img.naturalWidth,H=ph.img.naturalHeight;
+  const ext=(a,b)=>{const d=[b[0]-a[0],b[1]-a[1]],l=Math.hypot(...d)||1,u=[d[0]/l,d[1]/l],L=Math.max(W,H)*2;return [[a[0]-u[0]*L,a[1]-u[1]*L],[a[0]+u[0]*L,a[1]+u[1]*L]]};
+  if(ph.pts.pupils?.length===2){const [a,b]=ext(...ph.pts.pupils);line(g,a,b,gold,1.5,[8,6]);}
+  if(ph.pts.face?.length===2){const [a,b]=ext(...ph.pts.face);line(g,a,b,gold,1.5,[8,6]);}
+  if(map&&S.D.proposed){
+    const xm=lm('mid').x+S.D.midShift,ze=S.arch.zInc;
+    line(g,map.to(xm,ze-6),map.to(xm,ze+14),cyan,1.5,[3,4]);
+    // incisal edge curve through the designed teeth
+    const pts=Object.keys(S.D.teeth).map(c=>[placed[c]?.O.x??0,S.D.teeth[c].edge]).sort((a,b)=>a[0]-b[0]);
+    if(pts.length>1){g.save();g.strokeStyle=cyan;g.lineWidth=1.2/V.s;g.setLineDash([2/V.s,4/V.s]);g.beginPath();pts.forEach((p,i)=>{const q=map.to(p[0],p[1]);i?g.lineTo(...q):g.moveTo(...q)});g.stroke();g.restore();}
+  }
+  if(ph.kind==='smile'&&ph.pts.lip?.length>=3){
+    g.save();g.strokeStyle=gold;g.lineWidth=1.2/V.s;g.beginPath();ph.pts.lip.forEach((p,i)=>i?g.lineTo(...p):g.moveTo(...p));if(S.tool!=='lip')g.closePath();g.stroke();g.restore();
+  }
+}
+function drawPhotoMarks(g,ph){
+  const cyan=css('--cyan'),gold=css('--gold');
+  const dot=(p,c,label)=>{g.save();g.fillStyle=c;g.strokeStyle='rgba(0,0,0,.6)';g.lineWidth=1/V.s;g.beginPath();g.arc(p[0],p[1],4/V.s,0,7);g.fill();g.stroke();
+    if(label){g.font=`${11/V.s}px "IBM Plex Mono",monospace`;g.fillStyle=c;g.fillText(label,p[0]+6/V.s,p[1]-6/V.s);}g.restore();};
+  (ph.pts.pupils||[]).forEach(p=>dot(p,gold));(ph.pts.face||[]).forEach(p=>dot(p,gold));
+  (ph.pts.pairs||[]).forEach((pr,i)=>dot(pr.p,'#d65db1',String(i+1)));
+  const lab=(a,i)=>a.length===3?['13','mid','23'][i]:(i?'23':'13');(ph.pts.pcan||[]).forEach((p,i,a)=>dot(p,cyan,lab(a,i)));(ph.pts.scan2||[]).forEach((p,i,a)=>dot(p,cyan,lab(a,i)));
+  if(S.tool==='lip')(ph.pts.lip||[]).forEach(p=>dot(p,gold));
+}
+// pan / zoom / clicks
+let drag=null;
+cph.addEventListener('pointerdown',e=>{cph.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,vx:V.x,vy:V.y,moved:false}});
+cph.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.hypot(dx,dy)>3)drag.moved=true;if(drag.moved){V.x=drag.vx+dx;V.y=drag.vy+dy;drawPhoto();}});
+cph.addEventListener('pointerup',e=>{const d=drag;drag=null;if(!d||d.moved)return;const r=cph.getBoundingClientRect();photoClick((e.clientX-r.left-V.x)/V.s,(e.clientY-r.top-V.y)/V.s);});
+cph.addEventListener('wheel',e=>{e.preventDefault();const r=cph.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,f=Math.exp(-e.deltaY*.0015);V.x=mx-(mx-V.x)*f;V.y=my-(my-V.y)*f;V.s*=f;drawPhoto();},{passive:false});
+cph.addEventListener('dblclick',()=>{if(S.tool==='lip')finishLip();});
+const NEED={pupils:2,face:2,pcan:3,scan2:3};
+function photoClick(x,y){
+  const ph=curPh();if(!ph||!S.tool||['mid','c13','c23','zen'].includes(S.tool))return;
+  const t=S.tool;
+  if(t==='pair'){if(!S.pairPending){toast('#toastPh','Click the point on the scan first.');return;}(ph.pts.pairs??=[]).push({q:S.pairPending,p:[x,y]});S.pairPending=null;toast('#toastPh',`Pair ${ph.pts.pairs.length} added. Click the next point on the scan, or Esc to finish.`,'cyan');refreshLm();drawPhoto();if(S.D.proposed)propose(true);return;}
+  if(t==='lip'){delete ph._shade;(ph.pts.lip??=[]).push([x,y]);drawPhoto();refreshLm();return;}
+  const arr=(ph.pts[t]&&ph.pts[t]._fresh)?ph.pts[t]:(ph.pts[t]=Object.assign([],{_fresh:true}));
+  arr.push([x,y]);
+  if(t==='pupils'||t==='pcan'||t==='scan2'){/* left of image first = patient's right */}
+  if(arr.length>=NEED[t]){arr.sort((a,b)=>a[0]-b[0]);if(t==='face')arr.sort((a,b)=>a[1]-b[1]);delete arr._fresh;setTool(null);toast('#toastPh','Saved');}
+  refreshLm();drawPhoto();
+}
+function finishLip(){const ph=curPh();if(ph?.pts.lip?.length>=6){setTool(null);toast('#toastPh','Lip outline saved');}else toast('#toastPh','Add at least 6 points around the inner lip');refreshLm();drawPhoto();}
+window.addEventListener('keydown',e=>{if(e.key==='Enter'&&S.tool==='lip')finishLip();if(e.key==='Escape')setTool(null);});
+
+/* ---------------- tools & UI ---------------- */
+const HINTS={mid:'Click the incisal contact between 11 and 21 on the 3D scan.',c13:'Click the cusp tip of the patient\'s right canine (13) on the 3D scan.',c23:'Click the cusp tip of the patient\'s left canine (23) on the 3D scan.',
+  pupils:'Click the centre of each pupil.',face:'Click two points on the facial midline: glabella, then philtrum or chin.',pcan:'Click the cusp tip of 13, the incisal contact of 11/21, then the cusp tip of 23.',
+  scan2:'Click the cusp tip of 13, the incisal contact of 11/21, then the cusp tip of 23.',lip:'Click around the inner border of the lips, all the way round. Press Enter or double-click to finish.',
+  zen:'Click the gingival zenith (highest point of the gum margin) of 13, then 12, 11, 21, 22, 23 on the 3D scan.',
+  pair:'Click a recognisable spot on the scan (a cusp tip, an incisal corner), then the same spot on the photo. Repeat as needed, Esc to finish.'};
+function setTool(t){
+  if(t==='lip'){const ph=curPh();if(ph)ph.pts.lip=[];}
+  if(t==='zen'){S.lm3d.zen={};S.zenNext=0;}
+  if(t!=='pair')S.pairPending=null;
+  S.tool=t;$$('[data-tool]').forEach(b=>b.classList.toggle('armed',b.dataset.tool===t));
+  $('#toolHint').textContent=t?HINTS[t]:'';
+  if(['mid','c13','c23','zen','pair'].includes(t))toast('#toast3d',HINTS[t],'cyan');
+  else if(t)toast('#toastPh',HINTS[t],'cyan');
+  drawPhoto();
+}
+$$('[data-tool]').forEach(b=>b.onclick=()=>{
+  const t=b.dataset.tool;
+  if(['mid','c13','c23','zen','pair'].includes(t)&&!S.upper)return toast('#toastPh','Load the upper scan first');
+  if(!['mid','c13','c23','zen'].includes(t)&&!curPh())return toast('#toastPh','Load a photo first');
+  setTool(S.tool===t?null:t);
+});
+let toastT={};
+function toast(sel,msg,cls){const el=$(sel);el.textContent=msg;el.className='toast'+(cls?' '+cls:'');el.hidden=false;clearTimeout(toastT[sel]);toastT[sel]=setTimeout(()=>el.hidden=true,cls?6000:2400);}
+function busy(on){$('#busy').hidden=!on;}
+
+function refreshLm(){
+  const st=(id,v,cls)=>{const el=$('#st-'+id);el.textContent=v;el.className='st '+(cls||'');};
+  for(const k of ['mid','c13','c23'])st(k,S.lm3d[k]?'set':S.lmAuto[k]?'auto':'–',S.lm3d[k]?'set':S.lmAuto[k]?'auto':'');
+  const nz=Object.keys(S.lm3d.zen||{}).length;st('zen',nz?`${nz}/6`:'–',nz>=6?'set':'');
+  const np=curPh()?.pts.pairs?.length||0;st('pair',np?`${np}`:'–',np?'set':'');
+  const ph=curPh();
+  $$('#kindSeg button').forEach(b=>b.classList.toggle('on',ph?.kind===b.dataset.k));
+  $('#lmPortrait').hidden=ph?.kind!=='portrait';$('#lmSmile').hidden=ph?.kind!=='smile';
+  if(ph){
+    const n=k=>(ph.pts[k]?.length||0);
+    st('pupils',n('pupils')===2?'set':'–',n('pupils')===2?'set':'');st('face',n('face')===2?'set':'–',n('face')===2?'set':'');
+    st('pcan',n('pcan')>=2?'set':'–',n('pcan')>=2?'set':'');st('scan2',n('scan2')>=2?'set':'–',n('scan2')>=2?'set':'');
+    st('lip',n('lip')>=6?`${n('lip')} pts`:'–',n('lip')>=6?'set':'');
+  }
+  drawMarks();
+}
+$$('#kindSeg button').forEach(b=>b.onclick=()=>{const ph=curPh();if(!ph)return;ph.kind=b.dataset.k;refreshAll();});
+$('#clearPairs').onclick=()=>{const ph=curPh();if(ph){ph.pts.pairs=[];refreshLm();drawPhoto();if(S.D.proposed)propose(true);}};
+$('#tgOcc').onclick=e=>{S.show.occ=!S.show.occ;e.target.textContent='Collisions '+(S.show.occ?'on':'off');colourCollisions();};
+$('#fClear').oninput=e=>{S.D.clear=+e.target.value;$('#oClear').textContent=r2(S.D.clear);};$('#fClear').onchange=()=>S.upper&&propose();
+$('#photoSel').onchange=e=>{S.cur=+e.target.value;setTool(null);refreshLm();fitPhoto();};
+
+function refreshFiles(){
+  const L=[];
+  if(S.upper)L.push(['Upper scan',(S.upper.mesh.geometry.attributes.position.count/3/1000).toFixed(0)+'k tris']);
+  if(S.lower)L.push(['Lower scan',(S.lower.mesh.geometry.attributes.position.count/3/1000).toFixed(0)+'k tris']);
+  S.photos.forEach(p=>L.push([p.name,p.kind]));
+  if(S.orientNote)L.push([S.orientNote,'auto']);
+  $('#fileList').innerHTML=L.map(([a,b])=>`<div class="li"><span>${esc(a)}</span><span>${esc(b)}</span></div>`).join('');
+  $('#orientRow').hidden=!S.upper;
+
+  $('#caseName').textContent=S.caseName||(S.upper?S.upper.name:'No case loaded');
+  $('#photoSel').innerHTML=S.photos.map((p,i)=>`<option value="${i}" ${i===S.cur?'selected':''}>${p.kind==='other'?'':p.kind[0].toUpperCase()+p.kind.slice(1)+': '}${esc(p.name)}</option>`).join('');
+  $('#empty3d').hidden=!!S.upper;
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function refreshSteps(){
+  const por=S.photos.some(p=>p.kind==='portrait'&&p.pts.pupils?.length===2&&p.pts.pcan?.length>=2);
+  const sm=S.photos.some(p=>p.kind==='smile'&&p.pts.lip?.length>=6&&p.pts.scan2?.length>=2);
+  const st={load:!!S.upper&&S.photos.length>0,mark:por&&sm,prop:S.D.proposed&&por&&sm,refine:false,export:false};
+  let now=Object.keys(st).find(k=>!st[k]);
+  $$('.step').forEach(el=>{el.classList.toggle('done',!!st[el.dataset.s]);el.classList.toggle('now',el.dataset.s===now);});
+  $('#proposeBtn').disabled=!S.upper;$('#exportBtn').disabled=!S.D.proposed;$('#saveJson').disabled=!S.D.proposed;
+}
+function refreshProposal(){
+  $('#notes').innerHTML=S.D.notes.map(n=>`<li>${n}</li>`).join('');
+  $$('#countSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.n===S.D.count));
+  $('#fStyle').value=S.D.style;$('#fLib').value=S.D.lib||'param';refreshMode();
+  if(document.activeElement!==$('#brief'))$('#brief').value=S.D.brief||'';
+  $('#briefNotes').innerHTML=(S.D.briefNotes||[]).map(n=>`<li>${n}</li>`).join('');
+  $('#fMinT').value=S.D.minT;$('#oMinT').textContent=r2(S.D.minT);$('#fClear').value=S.D.clear;$('#oClear').textContent=r2(S.D.clear);refreshChecks();
+}
+const SL={W:['tW','oW',v=>r1(v)],L:['tL','oL',v=>r1(v)],E:['tE','oE',v=>(v>=0?'+':'')+r1(v)],add:['tA','oA',v=>r2(v)],shift:['tS','oS',v=>r1(v)],tip:['tT','oT',v=>r1(v)+'°'],rot:['tR','oR',v=>r1(v)+'°']};
+function refreshTooth(){
+  const D=S.D,codes=Object.keys(D.teeth);
+  $('#toothChips').innerHTML=codesFor(12).map(c=>`<button class="chip ${c===S.sel?'on':''} ${codes.includes(c)?'':'off'}" data-c="${c}" ${codes.includes(c)?'':'disabled'}>${c}</button>`).join('');
+  $$('#toothChips .chip').forEach(b=>b.onclick=()=>{S.sel=b.dataset.c;refreshTooth();rebuildTeeth();});
+  $('#selName').textContent=S.sel;
+  const tp=D.teeth[S.sel];
+  for(const k in SL){const [i,o,f]=SL[k];const el=$('#'+i);el.disabled=!tp;if(!tp)continue;
+    const v=k==='E'?((tp.exist??S.arch.zInc)-tp.edge):tp[k];el.value=v;$('#'+o).textContent=f(v);}
+  // table
+  if(!codes.length){$('#tbl').innerHTML='';return;}
+  const app={};codes.forEach(c=>{const pl=placed[c];if(pl)app[c]=Math.abs(pl.X.x)*D.teeth[c].W;});
+  const rows=codes.map(c=>{const t=D.teeth[c],p=+c[1];const ln=(t.exist??S.arch.zInc)-t.edge;
+    const ref=p>1?app[c[0]+(p-1)]:null;const red=ref?app[c]/ref:null;
+    const pp=S.prep?.per?.[c];const pv=pp?Math.max(pp.maxPrep,pp.inc):null;
+    return `<tr class="${c===S.sel?'sel':''}"><td>${c}</td><td>${r1(t.W)}</td><td>${r1(t.L)}</td><td>${Math.round(t.W/t.L*100)}%</td><td>${r1(app[c]??0)}</td><td>${red?Math.round(red*100)+'%':'–'}</td><td class="${ln<-.3?'warn':''}">${(ln>=0?'+':'')+r1(ln)}</td><td class="${pv>0.05?(pv>0.8?'bad':'warn'):'okc'}">${pv===null?'–':r1(pv)}</td></tr>`;}).join('');
+  $('#tbl').innerHTML=`<tr><th>Tooth</th><th>W</th><th>L</th><th>W/L</th><th>Seen</th><th>RED</th><th>Edge</th><th>Prep</th></tr>${rows}`;
+}
+for(const k in SL){const [i,o,f]=SL[k];$('#'+i).addEventListener('input',e=>{
+  const v=+e.target.value;$('#'+o).textContent=f(v);
+  const set=c=>{const tp=S.D.teeth[c];if(!tp)return;if(k==='E')tp.edge=(tp.exist??S.arch.zInc)-v;else tp[k]=v;tp.keep=true;};
+  set(S.sel);if($('#sym').checked)set((S.sel[0]==='1'?'2':'1')+S.sel[1]);
+  rebuildTeeth();refreshTooth();
+});}
+$('#fStyle').onchange=e=>{S.D.style=e.target.value;rebuildTeeth();};
+$('#fLib').onchange=e=>{S.D.lib=e.target.value;rebuildTeeth();};
+$$('#modeSeg button').forEach(b=>b.onclick=()=>{S.D.mode=b.dataset.m;refreshMode();if(S.upper)propose();});
+$('#fMinT').oninput=e=>{S.D.minT=+e.target.value;$('#oMinT').textContent=r2(S.D.minT);};
+$('#fMinT').onchange=()=>schedulePrep();
+const togglePrep=()=>{S.show.prep=!S.show.prep;for(const c in toothMeshes)toothMeshes[c].material=S.show.prep?ghostMat:(c===S.sel?selMat:toothMat);$('#tgPrep').textContent='Prep map '+(S.show.prep?'on':'off');$('#tgPrep2').textContent=S.show.prep?'Hide prep map':'Show prep map';$('#prepLegend').hidden=!S.show.prep;if(S.show.prep&&!S.prep)computePrep();else applyPrepColors();};
+$('#tgPrep').onclick=togglePrep;$('#tgPrep2').onclick=togglePrep;
+$('#briefBtn').onclick=()=>{applyBrief($('#brief').value);if(S.upper){for(const c in S.D.teeth)delete S.D.teeth[c].keep;propose();}else refreshAll();};
+$('#brief').addEventListener('change',()=>{S.D.brief=$('#brief').value;});
+$$('#countSeg button').forEach(b=>b.onclick=()=>{S.D.count=+b.dataset.n;propose();});
+const bindG=(id,out,key,fmt,scale=1)=>$(id).addEventListener('input',e=>{S.D[key]=+e.target.value*scale;$(out).textContent=fmt(+e.target.value);});
+bindG('#fWL','#oWL','wl',v=>v+'%',.01);bindG('#fGap','#oGap','gap',v=>r1(v));bindG('#fThick','#oThick','thick',v=>r2(v));bindG('#fMax','#oMax','maxLen',v=>r1(v));
+['#fWL','#fGap','#fThick','#fMax'].forEach(id=>$(id).addEventListener('change',()=>S.upper&&propose()));
+$('#fBase').oninput=e=>{S.baseH=+e.target.value;$('#oBase').textContent=r1(S.baseH);};
+$('#proposeBtn').onclick=()=>{for(const c in S.D.teeth)delete S.D.teeth[c].keep;propose();};
+$('#tgDesign').onclick=e=>{S.show.design=!S.show.design;designGroup.visible=S.show.design;req();e.target.textContent='Design '+(S.show.design?'on':'off');};
+$('#tgLower').onclick=e=>{S.show.lower=!S.show.lower;if(S.lower)S.lower.mesh.visible=S.show.lower;req();e.target.textContent='Lower '+(S.show.lower?'on':'off');};
+$('#tgOverlay').onclick=e=>{S.show.overlay=!S.show.overlay;e.target.textContent='Mock-up '+(S.show.overlay?'on':'off');drawPhoto();};
+$('#tgGuides').onclick=e=>{S.show.guides=!S.show.guides;e.target.textContent='Guides '+(S.show.guides?'on':'off');drawPhoto();};
+$('#tgScanOv').onclick=e=>{S.show.scanOv=!S.show.scanOv;e.target.textContent='Scan '+(S.show.scanOv?'on':'off');drawPhoto();};
+$('#wipe').oninput=e=>{S.wipe=+e.target.value;drawPhoto();};
+const setLay=c=>{$('#stage').className=c;setTimeout(()=>{resize3d();fitPhoto();},30);};
+$('#lay3d').onclick=()=>setLay('only3d');$('#laySplit').onclick=()=>setLay('');$('#layPh').onclick=()=>setLay('onlyph');
+function refreshAll(){refreshFiles();refreshLm();refreshProposal();refreshTooth();refreshSteps();drawPhoto();}
+
+/* ---------------- export ---------------- */
+function closedScanTriangles(geom,baseH){
+  const p=geom.attributes.position.array,nv=p.length/3;
+  const map=new Map(),V=[],id=new Uint32Array(nv);
+  for(let i=0;i<nv;i++){const k=Math.round(p[i*3]*1e4)+'_'+Math.round(p[i*3+1]*1e4)+'_'+Math.round(p[i*3+2]*1e4);
+    let j=map.get(k);if(j===undefined){j=V.length/3;map.set(k,j);V.push(p[i*3],p[i*3+1],p[i*3+2]);}id[i]=j;}
+  const NV=V.length/3,ek=(a,b)=>a<b?a*NV+b:b*NV+a,cnt=new Map();
+  const tris=[];
+  for(let t=0;t<nv;t+=3){const a=id[t],b=id[t+1],c=id[t+2];if(a===b||b===c||a===c)continue;tris.push(a,b,c);
+    for(const [u,v] of [[a,b],[b,c],[c,a]]){const k=ek(u,v),e=cnt.get(k);if(e)e.n++;else cnt.set(k,{n:1,u,v});}}
+  const next=new Map();for(const e of cnt.values())if(e.n===1)next.set(e.u,e.v);
+  const loops=[],seen=new Set();
+  for(const s of next.keys()){if(seen.has(s))continue;const L=[];let v=s;while(v!==undefined&&!seen.has(v)){seen.add(v);L.push(v);v=next.get(v);}if(v===s&&L.length>=3)loops.push(L);}
+  loops.sort((a,b)=>b.length-a.length);
+  let zmax=-1e9;for(let i=2;i<V.length;i+=3)zmax=Math.max(zmax,V[i]);
+  const baseZ=zmax+baseH,out=[];
+  const P=i=>[V[i*3],V[i*3+1],V[i*3+2]];
+  for(let t=0;t<tris.length;t+=3)out.push(P(tris[t]),P(tris[t+1]),P(tris[t+2]));
+  loops.forEach((L,li)=>{
+    if(li===0){
+      const W=L.map(i=>[V[i*3],V[i*3+1],baseZ]);
+      for(let k=0;k<L.length;k++){const a=P(L[k]),b=P(L[(k+1)%L.length]),wa=W[k],wb=W[(k+1)%L.length];out.push(b,a,wa,b,wa,wb);}
+      const rev=W.slice().reverse(),cont=rev.map(w=>new THREE.Vector2(w[0],w[1]));
+      const area=THREE.ShapeUtils.area(cont);
+      for(const f of THREE.ShapeUtils.triangulateShape(cont,[])){
+        const [x,y,z]=f.map(i=>rev[i]);const ar=(y[0]-x[0])*(z[1]-x[1])-(y[1]-x[1])*(z[0]-x[0]);
+        if(Math.sign(ar)===Math.sign(area))out.push(x,y,z);else out.push(x,z,y);
+      }
+    }else{
+      let cx=0,cy=0,cz=0;L.forEach(i=>{cx+=V[i*3];cy+=V[i*3+1];cz+=V[i*3+2]});const c=[cx/L.length,cy/L.length,cz/L.length];
+      for(let k=0;k<L.length;k++)out.push(P(L[(k+1)%L.length]),P(L[k]),c);
+    }
+  });
+  return out;
+}
+function teethTriangles(){
+  const out=[];
+  for(const c in toothMeshes){const m=toothMeshes[c],g=m.geometry.clone().applyMatrix4(m.matrix).toNonIndexed(),a=g.attributes.position.array;
+    for(let i=0;i<a.length;i+=9)out.push([a[i],a[i+1],a[i+2]],[a[i+3],a[i+4],a[i+5]],[a[i+6],a[i+7],a[i+8]]);}
+  return out;
+}
+function stl(tris,name){
+  const n=tris.length/3,buf=new ArrayBuffer(84+n*50),dv=new DataView(buf);
+  const hdr=('Halo Smile Design '+name).slice(0,79);for(let i=0;i<hdr.length;i++)dv.setUint8(i,hdr.charCodeAt(i));
+  dv.setUint32(80,n,true);let o=84;
+  for(let t=0;t<tris.length;t+=3){const [a,b,c]=[tris[t],tris[t+1],tris[t+2]];
+    const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];let nx=u[1]*v[2]-u[2]*v[1],ny=u[2]*v[0]-u[0]*v[2],nz=u[0]*v[1]-u[1]*v[0];const l=Math.hypot(nx,ny,nz)||1;
+    dv.setFloat32(o,nx/l,true);dv.setFloat32(o+4,ny/l,true);dv.setFloat32(o+8,nz/l,true);o+=12;
+    for(const q of [a,b,c]){dv.setFloat32(o,q[0],true);dv.setFloat32(o+4,q[1],true);dv.setFloat32(o+8,q[2],true);o+=12;}o+=2;}
+  return buf;
+}
+function designJSON(){
+  const ph=S.photos.map(p=>({name:p.name,kind:p.kind,pts:p.pts}));
+  const v=x=>x?[x.x,x.y,x.z]:null;
+  return JSON.stringify({app:'Halo Smile Design',version:1,case:S.caseName,lm3d:{mid:v(S.lm3d.mid),c13:v(S.lm3d.c13),c23:v(S.lm3d.c23),zen:Object.fromEntries(Object.entries(S.lm3d.zen||{}).map(([k,q])=>[k,v(q)]))},photos:ph,design:S.D},null,1);
+}
+async function offerFile(filename,data){
+  try{
+    const dl=window.claude?.use?await window.claude.use('downloads'):null;
+    if(dl){await dl.save({filename,data});toast('#toast3d','Saved '+filename);return;}
+  }catch(err){if(err?.code==='declined')return;console.warn(err);}
+  const url=URL.createObjectURL(data instanceof Blob?data:new Blob([data]));const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+const slug=()=>(S.caseName||'case').replace(/[^\w-]+/g,'_');
+async function buildZip(){
+  const z=new JSZip(),base=slug();
+  const scan=closedScanTriangles(S.upper.mesh.geometry,S.baseH),teeth=teethTriangles();
+  z.file(`${base}_DSD_print_model.stl`,stl(scan.concat(teeth),'model'));
+  z.file(`${base}_DSD_teeth_only.stl`,stl(teeth,'teeth'));
+  z.file(`${base}_design.json`,designJSON());
+  const sm=S.photos.find(p=>p.kind==='smile'&&photoMap(p));
+  if(sm){const keep=S.cur,w=S.wipe;S.cur=S.photos.indexOf(sm);S.wipe=1;const cv=renderPreview(sm);S.cur=keep;S.wipe=w;drawPhoto();
+    const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.92));z.file(`${base}_smile_preview.jpg`,blob);}
+  return z.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:5}});
+}
+function renderPreview(ph){
+  const W=ph.img.naturalWidth,H=ph.img.naturalHeight,cv=document.createElement('canvas');cv.width=W*2;cv.height=H;const g=cv.getContext('2d');
+  g.drawImage(ph.img,0,0);g.drawImage(ph.img,W,0);
+  const map=photoMap(ph),ov=map&&renderOverlay(false,map.th);
+  if(map&&ov){g.save();g.translate(W,0);if(ph.pts.lip?.length>=6){g.beginPath();ph.pts.lip.forEach((p,i)=>i?g.lineTo(...p):g.moveTo(...p));g.closePath();g.clip();}
+    const [mr,mi]=map.m,a1=map.a1,p1=map.p1,ax=ov.xmin,az=-ov.zmax;
+    g.transform(mr/ov.k,mi/ov.k,-mi/ov.kz,mr/ov.kz,mr*(ax-a1[0])-mi*(az-a1[1])+p1[0],mi*(ax-a1[0])+mr*(az-a1[1])+p1[1]);g.drawImage(ov.canvas,0,0);g.restore();}
+  return cv;
+}
+$('#exportBtn').onclick=async()=>{busy(true);try{const blob=await buildZip();await offerFile(`${slug()}_Halo_DSD.zip`,blob);}catch(e){console.error(e);toast('#toast3d','Export failed: '+e.message);}busy(false);};
+$('#saveJson').onclick=()=>offerFile(`${slug()}_design.json`,designJSON());
+$('#loadJson').onclick=()=>$('#jsonIn').click();
+$('#jsonIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());
+  const v=a=>a?new THREE.Vector3(...a):null;S.lm3d={mid:v(j.lm3d?.mid),c13:v(j.lm3d?.c13),c23:v(j.lm3d?.c23),zen:Object.fromEntries(Object.entries(j.lm3d?.zen||{}).map(([k,a])=>[k,v(a)]))};
+  for(const p of j.photos||[]){const m=S.photos.find(q=>q.name===p.name);if(m){m.kind=p.kind;m.pts=p.pts;}}
+  Object.assign(S.D,j.design||{});if(S.upper)rebuildTeeth();refreshAll();toast('#toast3d','Design opened');}catch(err){toast('#toast3d','That design file could not be read');}};
+
+window.__hsd={V,S,THREE,place,toothSample,penetration,contact,handleFiles,propose,buildZip,closedScanTriangles,teethTriangles,stl,photoMap,setView,drawPhoto,fitPhoto,renderPreview};
+resize3d();refreshAll();
+</script>
+
+</body>
+</html>
