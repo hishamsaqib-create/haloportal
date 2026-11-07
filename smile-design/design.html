@@ -202,6 +202,8 @@ main.onlyph{grid-template-columns:0 1fr}
       <div class="field"><label for="fClear">Occlusal clearance</label><input type="range" id="fClear" min="0" max="1" step="0.05" value="0.2"><output id="oClear">0.20</output></div>
       <div class="field"><label for="fGap">Edge above lip</label><input type="range" id="fGap" min="-1" max="3" step="0.1" value="0.8"><output id="oGap">0.8</output></div>
       <div class="field"><label for="fMax">Max lengthen</label><input type="range" id="fMax" min="0" max="4" step="0.1" value="2"><output id="oMax">2.0</output></div>
+      <div class="field"><label>Labial profile</label>
+        <div class="seg" id="hugSeg" style="grid-column:2/4"><button data-h="1">Follow the tooth</button><button data-h="0">Library shape</button></div></div>
       <div class="field"><label for="fThick">Mock-up add</label><input type="range" id="fThick" min="0" max="1.5" step="0.05" value="0.5"><output id="oThick">0.50</output></div>
       <button class="btn primary" id="proposeBtn" disabled>Propose smile</button>
       <p class="hint" id="proposeHint"></p>
@@ -513,13 +515,10 @@ async function handleFiles(files){
       const url=URL.createObjectURL(im.blob);const img=new Image();img.src=url;await img.decode();
       const short=im.name.split('/').pop();
       if(/^gallery_|_m\.jpg$/i.test(short))continue; // iTero model renders, not clinical photos
-      const kind=img.naturalHeight>img.naturalWidth?'portrait':'other';
+      const kind='other';
       S.photos.push({name:short,img,kind,pts:{}});
     }
-    if(S.photos.length&&!S.photos.some(p=>p.kind==='smile')){
-      const land=S.photos.filter(p=>p.kind==='other');
-      if(land.length)land[0].kind='smile';
-    }
+    if(S.photos.some(p=>p.kind==='other'))toast('#toastPh','For each photo, choose Portrait (retracted, full face) or Smile under Landmarks.','cyan');
     if(S.cur<0&&S.photos.length)S.cur=Math.max(0,S.photos.findIndex(p=>p.kind==='smile'));
     if(stls.length&&S.upper){autoOrient();prepareArch();setView('front');}
     refreshAll();fitPhoto();
@@ -675,9 +674,44 @@ function buildGrids(){
   S.lowerGrid=null;
   if(S.lower){const lg=S.lower.mesh.geometry,p=lg.attributes.position.array,sel=[];const zl=S.arch.zInc+14;for(let i=0;i<p.length/3;i++)if(p[i*3+2]<zl)sel.push(i);S.lowerGrid=new PointGrid(p,lg.attributes.normal.array,sel,.6);}
 }
+// Veneer profile: the labial face follows the patient's own tooth at the chosen thickness instead of the library's
+// textbook convexity. Where the scan exists behind a labial-facing vertex, the design sits `add` outside it (never
+// deeper than add+0.25 mm over the tooth); where there is no tooth behind it (lengthened edge, line angles), the
+// library shape stays. In additive mode a vertex inside the tooth is pushed out to `add`.
+const HUG_TOL=.25;
+function hugSurface(g,M,add){
+  if(!S.upperGrid)return;
+  const pos=g.attributes.position,nrm=g.attributes.normal,tp=g.attributes.tpar,inv=new THREE.Matrix4().copy(M).invert(),rot=new THREE.Matrix3().setFromMatrix4(M);
+  const v=new THREE.Vector3(),nv=new THREE.Vector3(),up=S.upperGrid,P=up.pos,N=up.nrm,additive=S.D.mode!=='reductive',n=pos.count;
+  const shift=new Float32Array(n).fill(NaN),lab=new Uint8Array(n);
+  for(let i=0;i<n;i++){
+    if(tp.getX(i)>.93||nrm.getY(i)<.15)continue;lab[i]=1;
+    v.fromBufferAttribute(pos,i).applyMatrix4(M);nv.fromBufferAttribute(nrm,i).applyMatrix3(rot).normalize();
+    const q=up.nearest(v.x,v.y,v.z,1.6);if(!q)continue;const k=q.i;
+    const dot=nv.x*N[k*3]+nv.y*N[k*3+1]+nv.z*N[k*3+2];if(dot<.6)continue;
+    const d=(v.x-P[k*3])*N[k*3]+(v.y-P[k*3+1])*N[k*3+1]+(v.z-P[k*3+2])*N[k*3+2];
+    shift[i]=d>add+HUG_TOL?add+HUG_TOL-d:(additive&&d<add-.05?add-d:0);
+  }
+  // neighbour lists
+  const idx=g.index.array,nb=Array.from({length:n},()=>[]);
+  for(let i=0;i<idx.length;i+=3){const a=idx[i],b=idx[i+1],c=idx[i+2];nb[a].push(b,c);nb[b].push(a,c);nb[c].push(a,b);}
+  // fill gaps from neighbours, then smooth the correction field so the hugged face stays continuous
+  for(let pass=0;pass<4;pass++){const nx=shift.slice();for(let i=0;i<n;i++){if(!lab[i]||!Number.isNaN(shift[i]))continue;let a=0,c=0;for(const j of nb[i])if(!Number.isNaN(shift[j])){a+=shift[j];c++;}if(c)nx[i]=a/c;}shift.set(nx);}
+  for(let i=0;i<n;i++)if(Number.isNaN(shift[i]))shift[i]=0;
+  for(let pass=0;pass<6;pass++){const nx=shift.slice();for(let i=0;i<n;i++){if(!lab[i])continue;let a=0,c=0;for(const j of nb[i]){a+=shift[j];c++;}if(c)nx[i]=.4*shift[i]+.6*a/c;}shift.set(nx);}
+  for(let i=0;i<n;i++){const sh=clamp(shift[i],-1.5,1.5);if(Math.abs(sh)<1e-4)continue;
+    v.fromBufferAttribute(pos,i).applyMatrix4(M);nv.fromBufferAttribute(nrm,i).applyMatrix3(rot).normalize();
+    v.addScaledVector(nv,sh).applyMatrix4(inv);pos.setXYZ(i,v.x,v.y,v.z);}
+  pos.needsUpdate=true;g.computeVertexNormals();
+}
+function buildPlaced(code){
+  const tp=S.D.teeth[code],pl=place(code),g=buildTooth(+code[1],tp.W,pl.Lg,pl.dsign);
+  if(S.D.hug!==false)hugSurface(g,pl.M,tp.add);
+  return {g,pl,tp};
+}
 // Build one design tooth and return its vertices and normals in scan space.
 function toothSample(code){
-  const tp=S.D.teeth[code],pl=place(code),g=buildTooth(+code[1],tp.W,pl.Lg,pl.dsign);
+  const {g,pl,tp}=buildPlaced(code);
   const Lc=g.attributes.position.array,P=Lc.slice(),N=g.attributes.normal.array.slice(),T=g.attributes.tpar.array,v=new THREE.Vector3(),nm=new THREE.Matrix3().setFromMatrix4(pl.M);
   let ymin=1e9,ymax=-1e9;for(let i=1;i<Lc.length;i+=3){if(Lc[i]<ymin)ymin=Lc[i];if(Lc[i]>ymax)ymax=Lc[i];}
   const Ln=g.attributes.normal.array,V=new Uint8Array(Lc.length/3);for(let i=0;i<Lc.length;i+=3)V[i/3]=Ln[i+1]>-.15?1:0; // veneer surface: anything not facing palatally
@@ -688,7 +722,7 @@ function toothSample(code){
 function penetration(sample){
   if(!S.lowerGrid)return 0;const {P,T,V}=sample;let worst=0;
   for(let i=0;i<P.length;i+=3){if(T[i/3]>.97||!V[i/3])continue;const x=P[i],y=P[i+1],z=P[i+2];
-    const su=S.upperGrid.signed(x,y,z,3.5);if(su&&su.d<-.05)continue;
+    const su=S.upperGrid.signed(x,y,z,2.0);if(su&&su.d<-.05)continue;
     const sl=S.lowerGrid.signed(x,y,z,2.5);if(sl&&sl.d<-worst)worst=-sl.d;}
   return worst;
 }
@@ -830,7 +864,8 @@ function propose(silent){
   let span=19.5;
   if(c13&&c23){span=(Math.abs(ar.A.proj(c13.x,c13.y)-s0)+Math.abs(ar.A.proj(c23.x,c23.y)-s0))/2;}
   const W11=clamp(span/(1+.78+.45),7.6,9.8),k=W11/8.6;
-  const Wt={1:W11,2:W11*.78,3:W11*.9,4:7.0*k,5:6.6*k,6:10.2*k};
+  // central dominance: laterals about 72% of the central, canines read narrow from the front through arch curvature
+  const Wt={1:W11,2:W11*.72,3:W11*.9,4:7.0*k,5:6.6*k,6:10.2*k};
   const kL=.5+.5*k,Ltyp={1:10.6*kL,2:9.0*kL,3:10.4*kL,4:8.0*kL,5:7.3*kL,6:6.6*kL};
   const Lt=Ltyp;
   // portrait: roll + facial midline
@@ -876,12 +911,20 @@ function propose(silent){
   notes.push(`<b>Centrals ${r1(W11)} mm wide</b>, sized to fill the arch to the existing canines.`);
   notes.push(`Central edges ${zC<=exC?'lengthened':'shortened'} ${r1(Math.abs(exC-zC))} mm, set by ${why}${zLipMid!==null?` (lip line is ${r1(exC-eLip)} mm below the current edge)`:''}. Edges follow a smile arc parallel to the lower lip.`);
   if(zLipMid===null)notes.push(`<span class="warn">No smile photo traced, so a standard smile arc is used.</span>`);
-  const step={1:0,2:.6,3:0+D.canineSoft,4:.3,5:.5,6:.8};
+  // incisal steps from the central edge: laterals about 1 mm shorter, canines just short of the centrals
+  const youthful=D.lib==='youthful'||D.style==='oval';
+  const step={1:0,2:youthful?1.0:.8,3:.3+D.canineSoft,4:.6,5:.8,6:1.0};
+  const TIP={1:1,2:2.5,3:4,4:3,5:3,6:0};
   const held=[],reduce=[];
   for(const c of codes){
     const pl=place(c),p=+c[1],dx=pl.O.x-xmid;
-    let e=zC+step[p]+curv*dx*dx+Math.tan(roll)*dx;
-    if(exist[c]!==null&&e>exist[c]+.05){if(reductive)reduce.push(`${c} ${r1(e-exist[c])} mm`);else{held.push(`${c} (${r1(e-exist[c])} mm)`);e=exist[c];}}
+    const dxc=Math.min(Math.abs(dx),span)*Math.sign(dx); // the smile arc is an anterior rule: flat beyond the canines
+    let e=zC+step[p]+curv*dxc*dxc+Math.tan(roll)*dx;
+    const ex=exist[c];
+    if(p>=4&&ex!==null){ // posteriors: cusps keep their height, at most 1 mm added and 0.3 mm taken for continuity
+      e=clamp(e,ex-1.0,ex+.3);if(p===6)e=ex;}
+    if(ex!==null&&e>ex+.05){if(reductive)reduce.push(`${c} ${r1(e-ex)} mm`);else{held.push(`${c} (${r1(e-ex)} mm)`);e=ex;}}
+    if(!D.teeth[c].tip)D.teeth[c].tip=TIP[p];
     D.teeth[c].edge=e;D.teeth[c].exist=exist[c];
     D.teeth[c].L=(zenT[c]!==undefined?zenT[c]:(exist[c]??ar.zInc)+Ltyp[p])-e;
   }
@@ -943,7 +986,7 @@ function colourCollisions(){
     if(S.lowerGrid&&S.show.occ){
       const P=g.attributes.position.array,Nl=g.attributes.normal.array,v=new THREE.Vector3();
       for(let i=0;i<P.length;i+=3){if(T[i/3]>.97||Nl[i+1]<=-.15)continue;v.set(P[i],P[i+1],P[i+2]).applyMatrix4(m.matrix);
-        const su=S.upperGrid.signed(v.x,v.y,v.z,3.5);if(su&&su.d<-.05)continue;
+        const su=S.upperGrid.signed(v.x,v.y,v.z,2.0);if(su&&su.d<-.05)continue;
         const sl=S.lowerGrid.signed(v.x,v.y,v.z,2.5);if(sl&&sl.d<-.05){const k=i;a[k]=red.r;a[k+1]=red.g;a[k+2]=red.b;if(-sl.d>worst)worst=-sl.d;}}
     }
     col.needsUpdate=true;if(worst>.05)notes.push(`${code} ${r1(worst)} mm`);
@@ -1031,7 +1074,7 @@ function rebuildTeeth(){
   for(const k in toothMeshes){designGroup.remove(toothMeshes[k]);toothMeshes[k].geometry.dispose();ovMeshes[k].geometry.dispose();ovGroup.remove(ovMeshes[k]);delete toothMeshes[k];delete ovMeshes[k];}
   for(const c of Object.keys(S.D.teeth)){
     const tp=S.D.teeth[c],pl=place(c);placed[c]=pl;
-    const g=buildTooth(+c[1],tp.W,pl.Lg,pl.dsign),g2=g.clone();blendCervical(g,pl.M);
+    const g=buildPlaced(c).g,g2=g.clone();blendCervical(g,pl.M);
     const m=new THREE.Mesh(g,S.show.prep?ghostMat:(c===S.sel?selMat:toothMat));m.matrixAutoUpdate=false;m.matrix.copy(pl.M);m.userData.code=c;
     designGroup.add(m);toothMeshes[c]=m;
     const o=new THREE.Mesh(g2,ovMat);o.matrixAutoUpdate=false;o.matrix.copy(pl.M);ovGroup.add(o);ovMeshes[c]=o;
@@ -1246,7 +1289,9 @@ function refreshLm(){
   }
   drawMarks();
 }
-$$('#kindSeg button').forEach(b=>b.onclick=()=>{const ph=curPh();if(!ph)return;ph.kind=b.dataset.k;refreshAll();});
+$$('#kindSeg button').forEach(b=>b.onclick=()=>{const ph=curPh();if(!ph)return;const k=b.dataset.k;
+  if(k!=='other')for(const q of S.photos)if(q!==ph&&q.kind===k)q.kind='other'; // one portrait and one smile
+  ph.kind=k;refreshAll();});
 $('#acceptAuto').onclick=()=>{for(const k of ['mid','c13','c23'])if(!S.lm3d[k]&&S.lmAuto[k])S.lm3d[k]=S.lmAuto[k].clone();refreshAll();toast('#toast3d','Scan landmarks confirmed');};
 $('#clearPairs').onclick=()=>{const ph=curPh();if(ph){ph.pts.pairs=[];refreshLm();drawPhoto();if(S.D.proposed&&readyToPropose().ok)propose(true);}};
 $('#tgOcc').onclick=e=>{S.show.occ=!S.show.occ;e.target.textContent='Collisions '+(S.show.occ?'on':'off');colourCollisions();};
@@ -1274,9 +1319,9 @@ function readyToPropose(){
   const miss=[];
   if(!(S.lm3d.mid&&S.lm3d.c13&&S.lm3d.c23))miss.push('confirm the midline and both canine tips on the scan');
   const por=S.photos.find(p=>p.kind==='portrait');
-  if(!por)miss.push('add a retracted portrait');else if(!(por.pts.pupils?.length===2&&por.pts.pcan?.length>=2))miss.push('mark the pupils and tooth points on the portrait');
+  if(!por)miss.push('set the retracted full-face photo to Portrait (Landmarks, "Current photo is a")');else if(!(por.pts.pupils?.length===2&&por.pts.pcan?.length>=2))miss.push('mark the pupils and tooth points on the portrait');
   const sm=S.photos.find(p=>p.kind==='smile');
-  if(!sm)miss.push('add a frontal smile photo');else if(!(sm.pts.lip?.length>=6&&sm.pts.scan2?.length>=2))miss.push('trace the lip and mark the tooth points on the smile');
+  if(!sm)miss.push('set the natural smile photo to Smile');else if(!(sm.pts.lip?.length>=6&&sm.pts.scan2?.length>=2))miss.push('trace the lip and mark the tooth points on the smile');
   return miss.length?{ok:false,why:'Before proposing: '+miss.join('; ')+'.'}:{ok:true,why:''};
 }
 function refreshSteps(){
@@ -1292,6 +1337,7 @@ function refreshProposal(){
   $('#notes').innerHTML=S.D.notes.map(n=>`<li>${n}</li>`).join('');
   $$('#countSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.n===S.D.count));
   $('#fStyle').value=S.D.style;$('#fLib').value=S.D.lib||'param';refreshMode();
+  $$('#hugSeg button').forEach(b=>b.classList.toggle('on',(b.dataset.h==='1')===(S.D.hug!==false)));
   if(document.activeElement!==$('#brief'))$('#brief').value=S.D.brief||'';
   $('#briefNotes').innerHTML=(S.D.briefNotes||[]).map(n=>`<li>${n}</li>`).join('');
   $('#fMinT').value=S.D.minT;$('#oMinT').textContent=r2(S.D.minT);$('#fClear').value=S.D.clear;$('#oClear').textContent=r2(S.D.clear);refreshChecks();
@@ -1322,6 +1368,7 @@ for(const k in SL){const [i,o,f]=SL[k];$('#'+i).addEventListener('input',e=>{
 });}
 $('#fStyle').onchange=e=>{S.D.style=e.target.value;rebuildTeeth();};
 $('#fLib').onchange=e=>{S.D.lib=e.target.value;rebuildTeeth();};
+$$('#hugSeg button').forEach(b=>b.onclick=()=>{S.D.hug=b.dataset.h==='1';refreshProposal();if(S.D.proposed)propose();});
 $$('#modeSeg button').forEach(b=>b.onclick=()=>{S.D.mode=b.dataset.m;refreshMode();if(S.D.proposed)propose();});
 $('#fMinT').oninput=e=>{S.D.minT=+e.target.value;$('#oMinT').textContent=r2(S.D.minT);};
 $('#fMinT').onchange=()=>schedulePrep();
