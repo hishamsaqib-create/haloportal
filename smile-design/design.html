@@ -198,7 +198,7 @@ main.onlyph{grid-template-columns:0 1fr}
         <div class="seg" id="modeSeg" style="grid-column:2/4"><button data-m="additive">Additive only</button><button data-m="reductive">Allow reduction</button></div></div>
       <div class="field"><label for="fLib">Tooth library</label>
         <select id="fLib" style="grid-column:2/4;background:var(--raised);border:1px solid var(--line);border-radius:4px;padding:5px">
-          <option value="textbook">Anatomic: textbook</option><option value="youthful">Anatomic: youthful</option><option value="mature">Anatomic: mature</option><option value="worn">Anatomic: worn</option><option value="param">Simple (fast)</option>
+          <option value="own">Patient's own teeth, refined</option><option value="textbook">Anatomic: textbook</option><option value="youthful">Anatomic: youthful</option><option value="mature">Anatomic: mature</option><option value="worn">Anatomic: worn</option><option value="param">Simple (fast)</option>
         </select></div>
       <div class="field"><label for="fStyle">Tooth form</label>
         <select id="fStyle" style="grid-column:2/4;background:var(--raised);border:1px solid var(--line);border-radius:4px;padding:5px">
@@ -208,11 +208,14 @@ main.onlyph{grid-template-columns:0 1fr}
         <div class="seg" id="countSeg" style="grid-column:2/4"><button data-n="6">3–3</button><button data-n="8">4–4</button><button data-n="10">5–5</button><button data-n="12">6–6</button></div></div>
       <div class="field"><label for="fWL">Central W/L</label><input type="range" id="fWL" min="70" max="86" step="1" value="78"><output id="oWL">78%</output></div>
       <div class="field"><label for="fClear">Occlusal clearance</label><input type="range" id="fClear" min="0" max="1" step="0.05" value="0.2"><output id="oClear">0.20</output></div>
-      <div class="field"><label for="fGap">Edge above lip</label><input type="range" id="fGap" min="-1" max="3" step="0.1" value="0.8"><output id="oGap">0.8</output></div>
+      <div class="field"><label for="fGap">Edge above lip</label><input type="range" id="fGap" min="-1" max="3" step="0.1" value="0.5"><output id="oGap">0.5</output></div>
       <div class="field"><label for="fMax">Max lengthen</label><input type="range" id="fMax" min="0" max="4" step="0.1" value="2"><output id="oMax">2.0</output></div>
-      <div class="field"><label>Labial profile</label>
+      <div class="field" id="hugRow"><label>Labial profile</label>
         <div class="seg" id="hugSeg" style="grid-column:2/4"><button data-h="1">Follow the tooth</button><button data-h="0">Library shape</button></div></div>
       <div class="field"><label for="fThick">Mock-up add</label><input type="range" id="fThick" min="0" max="1.5" step="0.05" value="0.5"><output id="oThick">0.50</output></div>
+      <div class="field"><label for="fKeep">Own character</label><input type="range" id="fKeep" min="0" max="100" step="5" value="50"><output id="oKeep">50%</output></div>
+      <div class="field"><label for="fRed">Max reduction</label><input type="range" id="fRed" min="0" max="1.5" step="0.05" value="0.5"><output id="oRed">0.50</output></div>
+      <p class="hint">Own character: how much of the patient's tooth shape the design keeps (0% is the pure template). Max reduction only applies when reduction is allowed.</p>
       <button class="btn primary" id="proposeBtn" disabled>Propose smile</button>
       <p class="hint" id="proposeHint"></p>
       <ul class="notes" id="notes"></ul>
@@ -249,7 +252,7 @@ main.onlyph{grid-template-columns:0 1fr}
       <h2>Export</h2>
       <div class="field"><label for="fBase">Model base</label><input type="range" id="fBase" min="1" max="8" step="0.5" value="3"><output id="oBase">3.0</output></div>
       <button class="btn primary" id="exportBtn" disabled>Download print files (.zip)</button>
-      <p class="hint">The ZIP holds the printable model (scan with closed base plus the new teeth), the teeth on their own, the smile preview and the design file. Your slicer merges the overlapping parts when it slices.</p>
+      <p class="hint">The ZIP holds the printable model (the scan with a closed base, the teeth cut back to the design where it reduces them, plus the new teeth), the teeth on their own, the smile preview and the design file. Your slicer merges the overlapping parts when it slices.</p>
       <div class="row"><button class="btn" id="saveJson" disabled>Save design</button><button class="btn" id="loadJson">Open design</button><input type="file" id="jsonIn" accept=".json" hidden></div>
     </section>
   </aside>
@@ -264,6 +267,7 @@ main.onlyph{grid-template-columns:0 1fr}
         <button class="btn" data-view="right">Right</button>
         <button class="btn" data-view="left">Left</button>
         <button class="btn" id="tgDesign">Design on</button>
+        <button class="btn" id="tgFinal">Final result</button>
         <button class="btn" id="tgLower">Lower on</button>
         <button class="btn" id="tgPrep">Prep map off</button>
         <button class="btn" id="tgOcc">Collisions on</button>
@@ -302,6 +306,7 @@ main.onlyph{grid-template-columns:0 1fr}
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), lerp=(a,b,t)=>a+(b-a)*t;
@@ -433,8 +438,8 @@ const S={
   upper:null, lower:null, caseName:'', arch:null, sub:null,
   photos:[], cur:-1,
   lm3d:{mid:null,c13:null,c23:null,zen:{}}, lmAuto:{}, pairPending:null, zenNext:0, checks:[],
-  D:{lib:'textbook',style:'natural',mode:'additive',minT:.5,clear:.2,midGap:0,brief:'',briefNotes:[],canineSoft:0,count:10,wl:.78,gap:.8,maxLen:2,thick:.5,midShift:0,roll:0,teeth:{},proposed:false,notes:[]},
-  sel:'11', tool:null, show:{design:true,lower:true,overlay:true,guides:true,scanOv:false,prep:false,occ:true}, wipe:1, baseH:3
+  D:{lib:'own',style:'natural',mode:'additive',minT:.5,clear:.2,midGap:0,brief:'',briefNotes:[],canineSoft:0,count:10,wl:.78,gap:.5,maxLen:2,thick:.5,keep:.5,maxRed:.5,midShift:0,roll:0,teeth:{},proposed:false,notes:[]},
+  sel:'11', tool:null, show:{design:true,lower:true,overlay:true,guides:true,scanOv:false,prep:false,occ:true,final:true}, wipe:1, baseH:3
 };
 const codesFor=n=>{const k=n/2,out=[];for(let p=k;p>=1;p--)out.push('1'+p);for(let p=1;p<=k;p++)out.push('2'+p);return out};
 
@@ -453,7 +458,8 @@ const head=new THREE.DirectionalLight(0xffffff,.8);cam.add(head);scene.add(cam);
 const stoneMat=new THREE.MeshStandardMaterial({color:0xcfc6b8,roughness:.75,metalness:0});
 const stoneMatVC=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.75,metalness:0});
 const lowerMat=new THREE.MeshStandardMaterial({color:0xa9b0b8,roughness:.8,transparent:true,opacity:.55});
-const toothMat=new THREE.MeshPhysicalMaterial({color:0xffffff,vertexColors:true,roughness:.32,clearcoat:.4,clearcoatRoughness:.4,sheen:.3});
+const toothMat=new THREE.MeshPhysicalMaterial({color:0xffffff,vertexColors:true,roughness:.3,clearcoat:.5,clearcoatRoughness:.35,sheen:.2,envMapIntensity:.4});
+try{const pm=new THREE.PMREMGenerator(R);scene.environment=pm.fromScene(new RoomEnvironment(),.04).texture;pm.dispose();}catch(e){console.warn('env',e);}
 const selMat=toothMat.clone();selMat.color.set(0xf6d48e);
 const ghostMat=new THREE.MeshStandardMaterial({color:0xdfe8ee,transparent:true,opacity:.22,depthWrite:false,roughness:.5});
 const designGroup=new THREE.Group();scene.add(designGroup);
@@ -562,6 +568,7 @@ function boundaryMeanZ(geom){
 }
 function applyOrient(m){for(const j of ['upper','lower'])if(S[j]){S[j].mesh.geometry.applyMatrix4(m);S[j].mesh.geometry.computeVertexNormals();S[j].mesh.geometry.computeBoundingBox();}}
 function orient(m){
+  restoreScan();
   for(const j of ['upper','lower'])if(S[j]){S[j].mesh.geometry.applyMatrix4(m);S[j].mesh.geometry.computeVertexNormals();S[j].mesh.geometry.computeBoundingBox();}
   S.lm3d={mid:null,c13:null,c23:null,zen:{}};prepareArch();if(S.D.proposed&&readyToPropose().ok)propose(true);setView('front');refreshAll();
 }
@@ -588,8 +595,8 @@ function makeCurve(chain){
   const cum=[0];for(let i=1;i<sx.length;i++)cum.push(cum[i-1]+Math.hypot(sx[i]-sx[i-1],sy[i]-sy[i-1]));
   const C={xs:sx,ys:sy,cum,len:cum.at(-1)};
   C.at=s=>{ // absolute arc length
-    if(s<=0){const t=C.tan(0);return [sx[0]+t[0]*s,sy[0]+t[1]*s];}
-    if(s>=C.len){const t=C.tan(C.len);return [sx.at(-1)+t[0]*(s-C.len),sy.at(-1)+t[1]*(s-C.len)];}
+    if(s<0){const t=C.tan(0);return [sx[0]+t[0]*s,sy[0]+t[1]*s];}
+    if(s>C.len){const t=C.tan(C.len);return [sx.at(-1)+t[0]*(s-C.len),sy.at(-1)+t[1]*(s-C.len)];}
     let lo=0,hi=cum.length-1;while(hi-lo>1){const m=(lo+hi)>>1;cum[m]<=s?lo=m:hi=m;}
     const f=(s-cum[lo])/((cum[hi]-cum[lo])||1);return [lerp(sx[lo],sx[hi],f),lerp(sy[lo],sy[hi],f)];
   };
@@ -599,7 +606,8 @@ function makeCurve(chain){
   return C;
 }
 function prepareArch(){
-  const p=S.upper.mesh.geometry.attributes.position.array,n=p.length/3;
+  snapshotScan();
+  const p=S.upper.orig,n=p.length/3;
   let ymin=1e9,xAtYmin=0;
   for(let i=0;i<n;i++)if(p[i*3+1]<ymin){ymin=p[i*3+1];}
   const zs=[];let sx=0,c=0;
@@ -614,7 +622,7 @@ function prepareArch(){
   S.sub=new Float32Array(sub);S.subIdx=new Uint32Array(subIdx);S.prep=null;
   S.arch={zInc,zA:zInc+2.5,zC:zInc+7.5,A,C,sMidAuto:A.cum[iy]};
   buildDepthMap();buildGrids();
-  autoLandmarks();
+  autoLandmarks();analyseArch();
 }
 // Outer surface of the scan in cylindrical coordinates around the arch centre, for blending the mock-up into the gum.
 function buildDepthMap(){
@@ -677,7 +685,7 @@ class PointGrid{
     return {d:(x-p[i*3])*n[i*3]+(y-p[i*3+1])*n[i*3+1]+(z-p[i*3+2])*n[i*3+2],dist:q.dist};}
 }
 function buildGrids(){
-  const ug=S.upper.mesh.geometry;S.upperGrid=new PointGrid(ug.attributes.position.array,ug.attributes.normal.array,S.subIdx,.6);
+  S.upperGrid=new PointGrid(S.upper.orig,S.upper.nrm,S.subIdx,.6);
   S.lowerGrid=null;
   if(S.lower){const lg=S.lower.mesh.geometry,p=lg.attributes.position.array,sel=[];const zl=S.arch.zInc+14;for(let i=0;i<p.length/3;i++)if(p[i*3+2]<zl)sel.push(i);S.lowerGrid=new PointGrid(p,lg.attributes.normal.array,sel,.6);}
 }
@@ -712,6 +720,7 @@ function hugSurface(g,M,add){
   pos.needsUpdate=true;g.computeVertexNormals();
 }
 function buildPlaced(code){
+  if(S.D.lib==='own'&&S.seg)return ownPlaced(code);
   const tp=S.D.teeth[code],pl=place(code),g=buildTooth(+code[1],tp.W,pl.Lg,pl.dsign);
   if(S.D.hug!==false)hugSurface(g,pl.M,tp.add);
   return {g,pl,tp};
@@ -727,16 +736,18 @@ function toothSample(code){
 }
 // Deepest penetration of a design tooth into the lower arch, ignoring vertices buried in the existing upper tooth.
 function penetration(sample){
-  if(!S.lowerGrid)return 0;const {P,T,V}=sample;let worst=0;
-  for(let i=0;i<P.length;i+=3){if(T[i/3]>.97||!V[i/3])continue;const x=P[i],y=P[i+1],z=P[i+2];
+  if(!S.lowerGrid)return 0;const {P,T,V}=sample;let worst=0;const step=P.length>9000?9:3;
+  for(let i=0;i<P.length;i+=step){if(T[i/3]>.97||!V[i/3])continue;const x=P[i],y=P[i+1],z=P[i+2];
+    const sl=S.lowerGrid.signed(x,y,z,2.5);if(!sl||sl.d>=-worst)continue;
     const su=S.upperGrid.signed(x,y,z,2.0);if(su&&su.d<-.05)continue;
-    const sl=S.lowerGrid.signed(x,y,z,2.5);if(sl&&sl.d<-worst)worst=-sl.d;}
+    worst=-sl.d;}
   return worst;
 }
 // Overlap (+) or gap (-) between two design teeth.
 function contact(a,b){
-  const gb=new PointGrid(b.P,b.N,null,.5);let overlap=0,gap=1e9;
-  for(let i=0;i<a.P.length;i+=3){if(a.T[i/3]>.95)continue;const q=gb.signed(a.P[i],a.P[i+1],a.P[i+2],2.5);if(!q)continue;
+  const sel=[];for(let i=0;i<b.V.length;i++)if(b.V[i]&&b.T[i]<=.6)sel.push(i);
+  const gb=new PointGrid(b.P,b.N,sel,.5);let overlap=0,gap=1e9;
+  for(let i=0;i<a.P.length;i+=3){if(a.T[i/3]>.6||!a.V[i/3])continue;const q=gb.signed(a.P[i],a.P[i+1],a.P[i+2],2.5);if(!q)continue;
     if(q.d<0){if(-q.d>overlap)overlap=-q.d;}else if(q.dist<gap)gap=q.dist;}
   return overlap>0?overlap:(gap<1e9?-gap:-2.5);
 }
@@ -776,12 +787,278 @@ function place(code){
 }
 function existingEdge(code,pl){
   const p=S.sub,W=S.D.teeth[code].W;let mz=null;
+  if(S.seg){const r=ownRange(code);if(r){const fac=S.seg.fac,idx=segSlice(r.c-r.w*.3,r.c+r.w*.3);for(let ii=0;ii<idx.length;ii++){const i=idx[ii];if(!fac[i])continue;const z=p[i*3+2];if(mz===null||z<mz)mz=z;}if(mz!==null)return mz;}}
   for(let i=0;i<p.length;i+=3){
     const dx=p[i]-pl.q[0],dy=p[i+1]-pl.q[1];
     const u=dx*pl.t[0]+dy*pl.t[1],v=dx*pl.n[0]+dy*pl.n[1];
     if(Math.abs(u)<W*.3&&v>-5&&v<2.5&&(mz===null||p[i+2]<mz))mz=p[i+2];
   }
   return mz;
+}
+
+/* ---------------- patient-derived teeth ----------------
+   The design tooth is the patient's own tooth, refined. A smooth anatomic template (outline, line angles, embrasures,
+   incisal edge) is fitted to the scanned facial surface with a low-order field, so position, inclination and convexity
+   come from the patient while wear, chips, lumps and rotations are ironed out. Left and right pairs are averaged so the
+   smile is symmetric. Only the labial shell is built (a veneer), closed at the back inside the tooth and sunk under the
+   gingival margin, so the printed union with the model is watertight. */
+const OWN={NT:56,NZ:44,TH:1.30,EXT:1.6,MZ:36};
+
+function snapshotScan(){const g=S.upper.mesh.geometry;g.computeVertexNormals();S.upper.orig=g.attributes.position.array.slice();S.upper.nrm=g.attributes.normal.array.slice();S.upper.cut=false;}
+function restoreScan(){if(!S.upper?.orig||!S.upper.cut)return;const g=S.upper.mesh.geometry;g.attributes.position.array.set(S.upper.orig);g.attributes.position.needsUpdate=true;g.attributes.normal.array.set(S.upper.nrm);g.attributes.normal.needsUpdate=true;S.upper.cut=false;req();}
+
+// Arc-length position, outward distance and facial flag for every scan vertex near the teeth, then a "crease" score
+// along the arch: the facial envelope folds inward between teeth (open contacts, closed contacts and the step where one
+// tooth overlaps its neighbour all fold), and the incisal edge line notches at the embrasures. Peaks of the score are
+// the tooth boundaries; segContacts() matches them to the positions the midline and canine tips predict.
+function analyseArch(){
+  const A=S.arch.A,p=S.sub,n=p.length/3,N=S.upper.nrm,sub=S.subIdx,zInc=S.arch.zInc;
+  const sv=new Float32Array(n),vv=new Float32Array(n),fac=new Uint8Array(n);
+  for(let i=0;i<n;i++){const x=p[i*3],y=p[i*3+1],s=A.proj(x,y),q=A.at(s),t=A.tan(s),nx=t[1],ny=-t[0];sv[i]=s;vv[i]=(x-q[0])*nx+(y-q[1])*ny;const k=sub[i];fac[i]=(N[k*3]*nx+N[k*3+1]*ny)>.35?1:0;}
+  const ds=.25,dz=.25,NS=Math.ceil(A.len/ds)+2,z0=zInc-2,NZ=56,E=new Float32Array(NS*NZ).fill(NaN);
+  for(let i=0;i<n;i++){if(!fac[i])continue;const zi=Math.floor((p[i*3+2]-z0)/dz);if(zi<0||zi>=NZ)continue;const si=Math.round(sv[i]/ds);if(si<0||si>=NS)continue;const k=si*NZ+zi;if(!(E[k]>=vv[i]))E[k]=vv[i];}
+  // incisal edge line: lowest facial row per column
+  const zE=new Float32Array(NS).fill(NaN);for(let si=0;si<NS;si++)for(let zi=0;zi<NZ;zi++){if(E[si*NZ+zi]===E[si*NZ+zi]){zE[si]=z0+zi*dz;break;}}
+  const fill=a=>{let last=NaN;for(let i=0;i<a.length;i++){if(a[i]!==a[i])a[i]=last;else last=a[i];}last=NaN;for(let i=a.length-1;i>=0;i--){if(a[i]!==a[i])a[i]=last;else last=a[i];}for(let i=0;i<a.length;i++)if(a[i]!==a[i])a[i]=0;};
+  fill(zE);
+  const s1=new Float32Array(NS),row=new Float32Array(NS);const r0=Math.floor((zInc+1-z0)/dz),r1=Math.floor((zInc+7-z0)/dz);
+  for(let zi=r0;zi<r1;zi++){for(let si=0;si<NS;si++)row[si]=E[si*NZ+zi];fill(row);for(let si=2;si<NS-2;si++){const d=row[si-2]-2*row[si]+row[si+2];if(d>0)s1[si]+=d;}}
+  for(let si=0;si<NS;si++)s1[si]/=(r1-r0);
+  const s2=new Float32Array(NS);for(let si=0;si<NS;si++){let m=1e9;for(let k=-10;k<=10;k++){const j=si+k;if(j>=0&&j<NS&&zE[j]<m)m=zE[j];}s2[si]=Math.max(0,zE[si]-m);}
+  const sm=a=>{for(let pass=0;pass<2;pass++){const b=a.slice();for(let i=1;i<a.length-1;i++)a[i]=.25*b[i-1]+.5*b[i]+.25*b[i+1];}};
+  sm(s1);sm(s2);
+  const p95=a=>{const b=Array.from(a).filter(v=>v>0).sort((x,y)=>x-y);return b.length?b[Math.floor(b.length*.95)]||1e-6:1;};
+  const n1=p95(s1),n2=p95(s2),score=new Float32Array(NS);for(let si=0;si<NS;si++)score[si]=s1[si]/n1+s2[si]/n2;
+  const peaks=[];for(let si=1;si<NS-1;si++){if(score[si]>=.45&&score[si]>=score[si-1]&&score[si]>score[si+1]){if(peaks.length&&si-peaks.at(-1).i<8){if(score[si]>peaks.at(-1).v)peaks[peaks.length-1]={i:si,v:score[si]};}else peaks.push({i:si,v:score[si]});}}
+  const order=new Uint32Array(n);for(let i=0;i<n;i++)order[i]=i;order.sort((a,b)=>sv[a]-sv[b]);const sorted=new Float32Array(n);for(let i=0;i<n;i++)sorted[i]=sv[order[i]];
+  S.seg={sv,vv,fac,score,peaks:peaks.map(q=>({s:q.i*ds,v:q.v})),ds,NS,zE,z0,order,sorted};
+  // the auto midline snaps to the strongest crease near the front of the arch
+  if(!S.lm3d.mid&&S.lmAuto.mid){const s0=A.proj(S.lmAuto.mid.x,S.lmAuto.mid.y);let best=null;for(const q of S.seg.peaks){const d=Math.abs(q.s-s0);if(d<3.5&&q.v>=.6&&(!best||q.v*Math.exp(-d*d/8)>best.v*Math.exp(-((best.s-s0)**2)/8)))best=q;}
+    if(best){const m=A.at(best.s);S.lmAuto.mid=minZNear(m[0],m[1]+1.2,1.6)||new THREE.Vector3(m[0],m[1],zInc);}}
+  segContacts();
+  for(const c in S.D.teeth){delete S.D.teeth[c].fit;delete S.D.teeth[c].fitSym;}
+}
+function segContacts(){
+  const sg=S.seg;if(!sg)return;const A=S.arch.A;
+  const s0=sMid(),t13=lm('c13'),t23=lm('c23');
+  const span=(t13&&t23)?(Math.abs(A.proj(t13.x,t13.y)-s0)+Math.abs(A.proj(t23.x,t23.y)-s0))/2:19.5;
+  const W1=span/2.14,Wp=[0,W1,.78*W1,.9*W1,.81*W1,.77*W1,1.19*W1];
+  const pick=(exp,win)=>{let best=null,bv=0;for(const q of sg.peaks){const d=Math.abs(q.s-exp);if(d>win)continue;const v=q.v*Math.exp(-d*d/(2*1.6*1.6));if(v>bv){bv=v;best=q;}}return best&&best.v>=.45?best.s:null;};
+  const m0=pick(s0,1.5),contacts={};
+  for(const [side,sg2] of [['1',-1],['2',1]]){
+    const c=[m0??s0],found=[m0!==null];
+    for(let k=1;k<=6;k++){const exp=c[k-1]+sg2*Wp[k],d=pick(exp,clamp(.3*Wp[k],1.6,2.8));c.push(d??exp);found.push(d!==null);}
+    contacts[side]={s:c,found};
+  }
+  Object.assign(sg,{contacts,s0,span});
+}
+// vertex indices (into S.sub) whose arch position lies in [a,b]
+function segSlice(a,b){const sg=S.seg,so=sg.sorted;let lo=0,hi=so.length;while(lo<hi){const m=(lo+hi)>>1;so[m]<a?lo=m+1:hi=m;}const i0=lo;lo=i0;hi=so.length;while(lo<hi){const m=(lo+hi)>>1;so[m]<=b?lo=m+1:hi=m;}return sg.order.subarray(i0,lo);}
+function ownRange(code){const sg=S.seg;if(!sg)return null;const side=code[0],k=+code[1],cs=sg.contacts[side];if(!cs||k>=cs.s.length)return null;const a=Math.min(cs.s[k-1],cs.s[k]),b=Math.max(cs.s[k-1],cs.s[k]);return {a,b,c:(a+b)/2,w:b-a,found:cs.found[k]&&cs.found[k-1]};}
+const mirrorCode=c=>(c[0]==='1'?'2':'1')+c[1];
+
+// Polar maps of the scan around the design tooth's axis: rOwn = the patient's own tooth (facial, this tooth's arch
+// segment), rAll = everything (gum, neighbours) for sinking the shell under the gingiva.
+function ownMaps(code,pl){
+  const {NT,NZ,TH,EXT}=OWN,tp=S.D.teeth[code],pos=+code[1],B=BASE[pos],L=Math.max(5,tp.L),Lsh=L+EXT,yAx=-B.D*.5;
+  const e=new THREE.Matrix4().copy(pl.M).invert().elements,rg=ownRange(code),sv=S.seg.sv,fac=S.seg.fac,p=S.sub;
+  const rOwn=new Float32Array(NT*NZ).fill(-1),rAll=new Float32Array(NT*NZ).fill(-1),dz=Lsh/NZ,dth=2*TH/NT;
+  const sA=rg?rg.a-tp.W*.7:-1e9,sB=rg?rg.b+tp.W*.7:1e9,idx=segSlice(sA,sB);
+  for(let ii=0;ii<idx.length;ii++){const i=idx[ii],s=sv[i];
+    const X=p[i*3],Y=p[i*3+1],Z=p[i*3+2];
+    const x=e[0]*X+e[4]*Y+e[8]*Z+e[12],y=e[1]*X+e[5]*Y+e[9]*Z+e[13],z=e[2]*X+e[6]*Y+e[10]*Z+e[14];
+    if(z<0||z>=Lsh)continue;const yy=y-yAx;if(yy<=0)continue;const th=Math.atan2(x,yy);if(th<-TH||th>=TH)continue;
+    const r=Math.hypot(x,yy),k=Math.floor((th+TH)/dth)*NZ+Math.floor(z/dz);
+    if(r>rAll[k])rAll[k]=r;
+    if(rg&&s>=rg.a&&s<=rg.b&&fac[i]&&r>rOwn[k])rOwn[k]=r;
+  }
+  // fill small holes so the gum line, the sink and the floor are continuous; a smoothed copy of the tooth surface
+  const fillHoles=(m,passes)=>{for(let pass=0;pass<passes;pass++){const nx=m.slice();for(let ti=0;ti<NT;ti++)for(let zi=0;zi<NZ;zi++){const k=ti*NZ+zi;if(m[k]>0)continue;let a=0,c=0;for(const [di,dj] of [[1,0],[-1,0],[0,1],[0,-1]]){const i2=ti+di,j2=zi+dj;if(i2<0||i2>=NT||j2<0||j2>=NZ)continue;const v=m[i2*NZ+j2];if(v>0){a+=v;c++;}}if(c>=2)nx[k]=a/c;}m.set(nx);}};
+  fillHoles(rAll,4);
+  const papDrop=Math.min(pos<=3?4.5:3.5,.42*L),zGp=th=>L-papDrop*Math.pow(Math.abs(th)/TH,1.6);
+  // gingival margin per column: the radius dips to a minimum at the margin and rises again over the gum
+  const gum=new Float32Array(NT).fill(NaN),zLo=Math.floor(.5*L/dz),zHi=Math.min(NZ-2,Math.floor((Lsh-.3)/dz));
+  const col=new Float32Array(NZ);
+  for(let ti=0;ti<NT;ti++){let bi=-1,bv=0;
+    for(let zi=0;zi<NZ;zi++){let a=0,c=0;for(let k=-1;k<=1;k++){const j=zi+k;if(j<0||j>=NZ)continue;const v=rAll[ti*NZ+j];if(v>0){a+=v;c++;}}col[zi]=c?a/c:-1;}
+    for(let zi=zLo;zi<=zHi;zi++){const r=col[zi];if(r<0)continue;let loc=true;for(let k=-2;k<=2;k++){const j=zi+k;if(j<0||j>=NZ||k===0)continue;if(col[j]>0&&col[j]<r){loc=false;break;}}if(!loc)continue;
+      let up=-1e9,dn=-1e9;for(let k=1;k<=7&&zi+k<NZ;k++){const q=col[zi+k];if(q>up)up=q;}for(let k=1;k<=7&&zi-k>=0;k++){const q=col[zi-k];if(q>dn)dn=q;}
+      if(up-r<.12||dn-r<.06)continue;const prom=Math.min(up-r,.6)+Math.min(dn-r,.6);if(prom>bv){bv=prom;bi=zi;}}
+    if(bi>=0){const z=(bi+.5)*dz,th=-TH+(ti+.5)*dth;if(Math.abs(z-zGp(th))<3)gum[ti]=z;}}
+  // median, fill, smooth
+  const g2=gum.slice();for(let ti=0;ti<NT;ti++){const w=[];for(let k=-2;k<=2;k++){const j=ti+k;if(j>=0&&j<NT&&gum[j]===gum[j])w.push(gum[j]);}if(w.length>=3){w.sort((a,b)=>a-b);g2[ti]=w[w.length>>1];}else g2[ti]=NaN;}
+  const have=g2.some(v=>v===v);
+  if(have){let last=NaN;for(let i=0;i<NT;i++){if(g2[i]!==g2[i])g2[i]=last;else last=g2[i];}last=NaN;for(let i=NT-1;i>=0;i--){if(g2[i]!==g2[i])g2[i]=last;else last=g2[i];}
+    for(let pass=0;pass<2;pass++){const b=g2.slice();for(let i=1;i<NT-1;i++)g2[i]=.25*b[i-1]+.5*b[i]+.25*b[i+1];}}
+  const zG=th=>{if(!have)return zGp(th);const u=clamp((th+TH)/dth-.5,0,NT-1),i0=Math.floor(u),i1=Math.min(NT-1,i0+1);return lerp(g2[i0],g2[i1],u-i0);};
+  for(let ti=0;ti<NT;ti++){const g=zG(-TH+(ti+.5)*dth);for(let zi=0;zi<NZ;zi++)if((zi+.5)*dz>g+.1)rOwn[ti*NZ+zi]=-1;}
+  const rOwnS=rOwn.slice();fillHoles(rOwnS,5);
+  {const b=rOwnS.slice();for(let ti=0;ti<NT;ti++)for(let zi=0;zi<NZ;zi++){const k=ti*NZ+zi;if(b[k]<0)continue;let a=0,c=0;for(let di=-1;di<=1;di++)for(let dj=-1;dj<=1;dj++){const i2=ti+di,j2=zi+dj;if(i2<0||i2>=NT||j2<0||j2>=NZ)continue;const v=b[i2*NZ+j2];if(v>0){a+=v;c++;}}rOwnS[k]=a/c;}}
+  if(have){const zl=zG(0),m=pl.M.elements,yl=yAx+3;S.gumZ=S.gumZ||{};S.gumZ[code]=m[1*0+2]*0+m[6]*yl+m[10]*zl+m[14];}
+  return {rOwn,rOwnS,rAll,L,Lsh,yAx,dz,dth,rg,zG,gumFound:have};
+}
+// Smooth anatomic template in polar form: superellipse cross-sections (soft line angles, a flat-ish facial plane),
+// a tapering outline, a convex labial profile with the height of contour in the cervical third, rounded incisal corners
+// with the distal corner rounder than the mesial, and a cusp for canines and premolars.
+function ownTemplate(code,pl,mp){
+  const D=S.D,tp=D.teeth[code],pos=+code[1],B=BASE[pos],st=STYLE[D.style]||STYLE.natural,L=mp.L,yAx=mp.yAx,a0=tp.W/2,dsign=pl.dsign;
+  const cerv=Math.min(.95,B.cerv*st.cervK),nL=st.nL+1.0,cvx=pos<=2?.5:pos===3?.65:.8;
+  const taper=t=>pos<=3?(t<.25?lerp(st.incW,1,smooth(t/.25)):lerp(1,cerv,Math.pow(smooth((t-.4)/.6),1.3))):(t<.3?lerp(.95,1,smooth(t/.3)):lerp(1,cerv,smooth((t-.3)/.7)));
+  const prof=t=>cvx*Math.sin(Math.PI*Math.pow(clamp(t,0,1),.85))-.1*Math.pow(1-clamp(t/.3,0,1),2);
+  const nx=5.0;
+  const r=(th,z)=>{const t=clamp(z/L,0,1.15),a=a0*taper(Math.min(t,1.05)),b=prof(t)-yAx,sn=Math.abs(Math.sin(th)),cs=Math.abs(Math.cos(th));
+    let lo=0,hi=Math.min(sn>1e-6?a/sn:1e9,cs>1e-6?b/cs:1e9);for(let it=0;it<20;it++){const m=(lo+hi)/2,f=Math.pow(m*sn/a,nx)+Math.pow(m*cs/b,nL)-1;if(f>0)hi=m;else lo=m;}let rr=(lo+hi)/2;
+    if(pos<=2){const xn=Math.sin(th)*rr/a0,g=Math.exp(-(((xn-.36)/.14)**2))+Math.exp(-(((xn+.36)/.14)**2));rr-=.07*g*(1-smooth((t-.15)/.7))*Math.max(0,Math.cos(th));}
+    return rr;};
+  const rM=Math.min(B.rM*st.rK,a0*.85),rD=Math.min(B.rD*st.rK,a0*.85);
+  const edge=th=>{const xn=clamp(Math.sin(th)*r(th,0)/a0,-1,1),distal=xn*dsign>0,rr=distal?rD:rM,ax=Math.abs(xn)*a0;let e=0;
+    if(ax>a0-rr){const u=Math.min(1,(ax-(a0-rr))/rr);e=rr*(1-Math.sqrt(Math.max(0,1-u*u)));}
+    if(B.cusp)e+=B.cusp*Math.pow(Math.abs(xn+.06*dsign),1.3);
+    if(B.molar)e+=.75*(1+Math.cos(2*Math.PI*xn))/2;
+    return Math.min(e,L*.6);};
+  return {r,edge,a0,aAt:z=>a0*taper(clamp(z/L,0,1.15))};
+}
+// Weighted least squares of the patient's surface against the template: constant, tilt and curvature in both
+// directions (6 terms), robust to chips and scan artefacts. Angles are measured distally so the two sides compare.
+function ownFit(code,pl,mp,T){
+  const {NT,NZ,TH}=OWN,dsign=pl.dsign,L=mp.L,rows=[],rhs=[],wt=[];
+  let tmin=9,tmax=-9,hmin=9,hmax=-9;
+  for(let ti=0;ti<NT;ti++){const th=-TH+(ti+.5)*mp.dth;for(let zi=0;zi<NZ;zi++){const z=(zi+.5)*mp.dz,r=mp.rOwn[ti*NZ+zi];if(r<0||z<.25||z>mp.zG(th)-.4)continue;
+    const hd=th*dsign,t=z/L;rows.push([1,hd,t,hd*hd,hd*t,t*t]);rhs.push(r-T.r(th,z));wt.push(Math.abs(th)<.87?1:.12);
+    tmin=Math.min(tmin,t);tmax=Math.max(tmax,t);hmin=Math.min(hmin,hd);hmax=Math.max(hmax,hd);}}
+  if(rows.length<40)return null;
+  const solve=()=>{const M=Array.from({length:6},()=>new Float64Array(7));
+    for(let i=0;i<rows.length;i++){const w=wt[i];if(w<=0)continue;const a=rows[i];for(let r=0;r<6;r++){const ar=a[r]*w;for(let c=0;c<6;c++)M[r][c]+=ar*a[c];M[r][6]+=ar*rhs[i];}}
+    for(let r=0;r<6;r++)M[r][r]+=1e-6;
+    for(let c=0;c<6;c++){let pv=c;for(let r=c+1;r<6;r++)if(Math.abs(M[r][c])>Math.abs(M[pv][c]))pv=r;const tmp=M[c];M[c]=M[pv];M[pv]=tmp;
+      for(let r=0;r<6;r++){if(r===c)continue;const f=M[r][c]/M[c][c];if(!f)continue;for(let k=c;k<7;k++)M[r][k]-=f*M[c][k];}}
+    return M.map((row,i)=>row[6]/row[i]);};
+  let c=solve();
+  const res=rows.map((a,i)=>rhs[i]-a.reduce((s,v,k)=>s+v*c[k],0)),abs=res.map(Math.abs).sort((x,y)=>x-y),mad=abs[abs.length>>1]*1.4826+1e-3;
+  for(let i=0;i<rows.length;i++)if(Math.abs(res[i])>Math.max(2.5*mad,.35))wt[i]*=.05;
+  c=solve();
+  return {c,tmin,tmax,hmin,hmax};
+}
+const fitEval=(f,hd,t,w)=>{if(!f)return 0;hd=clamp(hd,f.hmin,f.hmax);t=clamp(t,f.tmin,f.tmax);const c=f.c,b=[1,hd,t,hd*hd,hd*t,t*t];let v=0;for(let i=0;i<6;i++)v+=c[i]*b[i]*(w?w[i]:1);return clamp(v,-2.5,2.5);};
+function blurGrid(a,NT,NZ,rt,rz,passes=2){
+  const tmp=new Float32Array(a.length);
+  for(let p=0;p<passes;p++){
+    for(let ti=0;ti<NT;ti++)for(let zi=0;zi<NZ;zi++){let s=0,c=0;for(let k=-rt;k<=rt;k++){const j=ti+k;if(j<0||j>=NT)continue;s+=a[j*NZ+zi];c++;}tmp[ti*NZ+zi]=s/c;}
+    for(let ti=0;ti<NT;ti++)for(let zi=0;zi<NZ;zi++){let s=0,c=0;for(let k=-rz;k<=rz;k++){const j=zi+k;if(j<0||j>=NZ)continue;s+=tmp[ti*NZ+j];c++;}a[ti*NZ+zi]=s/c;}
+  }
+}
+// The design map: template plus the patient's low-order deviation, kept outside the tooth (or within the allowed
+// reduction) by smooth lifts, then sunk under the gingiva.
+function ownDesign(code,pl,mp,T,fit){
+  const {NT,NZ,TH}=OWN,D=S.D,tp=D.teeth[code],L=mp.L,dsign=pl.dsign,lam=clamp(D.keep??.5,0,1);
+  const additive=D.mode!=='reductive',maxRed=additive?0:(D.maxRed??.5);
+  const rD=new Float32Array(NT*NZ),floor=new Float32Array(NT*NZ).fill(NaN);
+  const lw=[0,lam*.6,lam,lam*.5,lam*.5,lam]; // rotation, labial profile, curvature; the position is set below
+  const sideW=th=>1-smooth((Math.abs(th)-.85)/.25); // 1 on the face, 0 beyond the line angles
+  const diffs=[];
+  for(let ti=0;ti<NT;ti++){const th=-TH+(ti+.5)*mp.dth,g=mp.zG(th),sw=sideW(th);for(let zi=0;zi<NZ;zi++){const z=(zi+.5)*mp.dz,k=ti*NZ+zi;
+    const r=T.r(th,z)+fitEval(fit,th*dsign,z/L,lw)*sw;rD[k]=r;
+    const ro=mp.rOwnS[k];if(ro>0&&z>.3&&z<g-.5&&Math.abs(th)<.85)diffs.push(r-ro);}}
+  let off=0;if(diffs.length>20){diffs.sort((a,b)=>a-b);const p3=diffs[Math.floor(diffs.length*.03)];off=(additive?tp.add:-maxRed)-p3;}
+  off=clamp(off,-2.5,2.5); // a labial shift of the whole shell (the width does not change)
+  const margin=(z,g)=>additive?lerp(.1,tp.add,smooth((g-z)/2.5)):-lerp(.05,maxRed,smooth((g-z)/3.0));
+  tp.labial=off; // how far the design shell sits from the template at the tooth's most prominent point
+  // the real tooth's half width per row and side: the outline may be narrower than the tooth in the incisal two
+  // thirds (proximal slicing) but never at the gingiva, where there is no reduction
+  const realA=[new Float32Array(NZ),new Float32Array(NZ)];
+  for(let ti=0;ti<NT;ti++){const th=-TH+(ti+.5)*mp.dth;if(Math.abs(th)<.6)continue;const sd=th<0?0:1,as=Math.abs(Math.sin(th));for(let zi=0;zi<NZ;zi++){const v=mp.rOwnS[ti*NZ+zi];if(v>0){const x=v*as;if(x>realA[sd][zi])realA[sd][zi]=x;}}}
+  for(const a of realA){for(let zi=1;zi<NZ;zi++)if(a[zi]<=0)a[zi]=a[zi-1];}
+  for(let ti=0;ti<NT;ti++){const th=-TH+(ti+.5)*mp.dth,g=mp.zG(th),sw=sideW(th),as=Math.abs(Math.sin(th)),sd=th<0?0:1;for(let zi=0;zi<NZ;zi++){const z=(zi+.5)*mp.dz,k=ti*NZ+zi;
+    const wc=smooth((z-.4*L)/(.45*L)); // cervical weight
+    let r=rD[k]+off*Math.cos(th);
+    if(sw<1){const lim=Math.max(T.aAt(z)+.15,wc*(realA[sd][zi]+.05))/Math.max(as,.3);if(r>lim)r=lerp(r,lim,1-sw);} // the shell stays inside its share of the arch
+    const ros=mp.rOwnS[k];if(ros>0&&wc>0&&sw>0)r=lerp(r,ros+(additive?lerp(.1,tp.add,smooth((g-z)/3)):-.05),wc*sw); // the cervical third of the face sits on the tooth
+    rD[k]=r;
+    const ro=mp.rOwnS[k];if(ro>0&&z<g+.2&&sw>0){const f=ro+margin(z,g);floor[k]=lerp(r,f,sw);}}}
+  const cellT=mp.dth*4,cellZ=mp.dz;
+  for(const sig of [1.2,.8,.5]){const def=new Float32Array(NT*NZ);let any=false;
+    for(let k=0;k<rD.length;k++){const f=floor[k];if(f===f){const v=f-rD[k];if(v>0){def[k]=v;any=true;}}}
+    if(!any)break;blurGrid(def,NT,NZ,Math.max(1,Math.round(sig/cellT)),Math.max(1,Math.round(sig/cellZ)));
+    for(let k=0;k<rD.length;k++)rD[k]+=def[k]*1.25;}
+  blurGrid(rD,NT,NZ,1,1,1);
+  for(let k=0;k<rD.length;k++){const f=floor[k];if(f===f&&rD[k]<f-.08)rD[k]=f-.08;}
+  if(!additive){const ex=new Float32Array(NT*NZ);for(let ti=0;ti<NT;ti++){const th=-TH+(ti+.5)*mp.dth,g=mp.zG(th);for(let zi=0;zi<NZ;zi++){const z=(zi+.5)*mp.dz,k=ti*NZ+zi,ro=mp.rOwnS[k];if(ro<0||z<g-2.5||z>g+.2)continue;const w=smooth((z-(g-2.5))/2.0),cap=ro+.08;if(rD[k]>cap)ex[k]=(rD[k]-cap)*w;}}
+    blurGrid(ex,NT,NZ,2,1,1);for(let k=0;k<rD.length;k++)rD[k]-=ex[k];}
+  const rS=mp.rAll.slice();blurGrid(rS,NT,NZ,2,1,1);
+  for(let ti=0;ti<NT;ti++){const th=-TH+(ti+.5)*mp.dth,g=mp.zG(th);const k0=ti*NZ+clamp(Math.floor((g-.3)/mp.dz),0,NZ-1),rAtG=rD[k0];
+    for(let zi=0;zi<NZ;zi++){const z=(zi+.5)*mp.dz,k=ti*NZ+zi;if(z<=g-.3)continue;
+      const w=smooth((z-(g-.3))/1.0),ra=mp.rAll[k]>0?rS[k]:-1,tgt=ra>0?Math.min(ra,mp.rAll[k])-.5:rAtG-.8;if(tgt<rD[k])rD[k]=lerp(rD[k],tgt,w);}}
+  return rD;
+}
+function ownSample(mp,rD,th,z){const {NT,NZ,TH}=OWN,u=(th+TH)/mp.dth-.5,v=z/mp.dz-.5,i0=clamp(Math.floor(u),0,NT-1),j0=clamp(Math.floor(v),0,NZ-1),i1=Math.min(NT-1,i0+1),j1=Math.min(NZ-1,j0+1),fu=clamp(u-i0,0,1),fv=clamp(v-j0,0,1);
+  return lerp(lerp(rD[i0*NZ+j0],rD[i1*NZ+j0],fu),lerp(rD[i0*NZ+j1],rD[i1*NZ+j1],fu),fv);}
+function ownOwnAt(mp,th,z){const {NT,NZ,TH}=OWN,ti=clamp(Math.floor((th+TH)/mp.dth),0,NT-1),zi=clamp(Math.floor(z/mp.dz),0,NZ-1);return mp.rOwn[ti*NZ+zi];}
+// Closed veneer shell from the design map: facial grid, back grid inside the tooth, rounded incisal rim, hidden rims.
+function ownMesh(code,pl,mp,T,rD){
+  const {NT,TH,MZ}=OWN,L=mp.L,Lsh=mp.Lsh,yAx=mp.yAx,pos=+code[1],MT=NT,a0=T.a0;
+  const P=[],COL=[],TP=[],idx=[];
+  const cBody=[.95,.93,.88],cCerv=[.92,.86,.74],cInc=[.80,.84,.87];
+  const push=(x,y,z,col)=>{P.push(x,y,z);COL.push(...col);TP.push(z/L);return P.length/3-1;};
+  const colAt=(th,z,r)=>{const t=clamp(z/L,0,1.2),xn=clamp(Math.sin(th)*r/a0,-1,1),tc=smooth((t-.45)/.55),ti=pos<=3?(1-smooth(t/.3))*(1-.5*smooth((Math.abs(xn)-.75)/.25)):0,ed=1-.08*smooth((Math.abs(xn)-.8)/.2);
+    return [0,1,2].map(k=>lerp(lerp(cBody[k],cCerv[k],tc),cInc[k],ti*.8)*ed);};
+  const shellT=z=>lerp(1.1,.9,smooth(z/L));
+  const F=[],Bk=[],R1=[],R2=[];
+  for(let i=0;i<=MT;i++){const th=-TH+2*TH*i/MT,e=T.edge(th),col=[],bcol=[];F.push(col);Bk.push(bcol);
+    const zEnd=Math.min(Lsh,mp.zG(th)+.9);
+    for(let j=0;j<=MZ;j++){const z=e+(zEnd-e)*Math.pow(j/MZ,1.1),r=ownSample(mp,rD,th,Math.max(0,z));
+      col.push(push(r*Math.sin(th),yAx+r*Math.cos(th),z,colAt(th,z,r)));
+      let rb=r-shellT(z);const ro=ownOwnAt(mp,th,Math.max(0,z));if(ro>0)rb=Math.min(rb,ro-.35);rb=Math.max(rb,.6);
+      bcol.push(push(rb*Math.sin(th),yAx+rb*Math.cos(th),j===0?z+.35:z,cBody));}
+    const r0=ownSample(mp,rD,th,0),rb0=Math.hypot(P[Bk[i][0]*3],P[Bk[i][0]*3+1]-yAx);
+    for(const [arr,q] of [[R1,1],[R2,2]]){const f=q/3,rr=lerp(r0,rb0,f),zz=e+.35*Math.pow(f,2.2);arr.push(push(rr*Math.sin(th),yAx+rr*Math.cos(th),zz,colAt(th,0,r0)));}
+  }
+  for(let i=0;i<MT;i++)for(let j=0;j<MZ;j++){const a=F[i][j],b=F[i+1][j],c=F[i+1][j+1],d=F[i][j+1];idx.push(a,d,c,a,c,b);
+    const a2=Bk[i][j],b2=Bk[i+1][j],c2=Bk[i+1][j+1],d2=Bk[i][j+1];idx.push(a2,b2,c2,a2,c2,d2);}
+  const strip=(U,V)=>{for(let i=0;i<MT;i++){idx.push(U[i],U[i+1],V[i+1],U[i],V[i+1],V[i]);}};
+  strip(F.map(c=>c[0]),R1);strip(R1,R2);strip(R2,Bk.map(c=>c[0]));
+  for(let i=0;i<MT;i++){const u0=F[i][MZ],u1=F[i+1][MZ],v0=Bk[i][MZ],v1=Bk[i+1][MZ];idx.push(u0,v0,v1,u0,v1,u1);}
+  for(let j=0;j<MZ;j++){idx.push(F[0][j],Bk[0][j],Bk[0][j+1],F[0][j],Bk[0][j+1],F[0][j+1]);idx.push(F[MT][j],F[MT][j+1],Bk[MT][j+1],F[MT][j],Bk[MT][j+1],Bk[MT][j]);}
+  idx.push(F[0][0],R1[0],R2[0],F[0][0],R2[0],Bk[0][0]);idx.push(F[MT][0],R2[MT],R1[MT],F[MT][0],Bk[MT][0],R2[MT]);
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('color',new THREE.Float32BufferAttribute(COL,3));g.setAttribute('tpar',new THREE.Float32BufferAttribute(TP,1));
+  g.setIndex(idx);g.computeVertexNormals();return g;
+}
+function ownPlaced(code){
+  const tp=S.D.teeth[code],pl=place(code),mp=ownMaps(code,pl),T=ownTemplate(code,pl,mp);
+  const fit=tp.fitSym||ownFit(code,pl,mp,T);
+  const rD=ownDesign(code,pl,mp,T,fit),g=ownMesh(code,pl,mp,T,rD);
+  g.userData.own={mp,rD};return {g,pl,tp,own:true,fit};
+}
+// After the contacts are fitted: average each tooth's fit with its mirror so the pairs match.
+function symmetriseFits(codes){
+  const raw={};for(const c of codes){const tp=S.D.teeth[c];delete tp.fitSym;const pl=place(c),mp=ownMaps(c,pl);raw[c]=ownFit(c,pl,mp,ownTemplate(c,pl,mp));tp.fit=raw[c];}
+  for(const c of codes){const a=raw[c],b=raw[mirrorCode(c)];if(!a){S.D.teeth[c].fitSym=null;continue;}
+    if(!b){S.D.teeth[c].fitSym=a;continue;}
+    const cc=a.c.map((v,i)=>.5*v+.5*b.c[i]);cc[0]=a.c[0];
+    S.D.teeth[c].fitSym={c:cc,tmin:Math.min(a.tmin,b.tmin),tmax:Math.max(a.tmax,b.tmax),hmin:Math.min(a.hmin,b.hmin),hmax:Math.max(a.hmax,b.hmax)};}
+}
+// Final-result view: the original tooth is cut back to the design wherever it would stick out of it (and the incisal
+// part beyond a shortened edge is taken off), so the model shows the finished smile and the printed model carries the
+// prepared shape under the design. All measurements keep using the untouched scan.
+function applyCutBack(force){
+  if(!S.upper?.orig)return;const g=S.upper.mesh.geometry,pa=g.attributes.position.array;
+  pa.set(S.upper.orig);S.upper.cut=false;
+  const want=force||(S.show.final!==false&&S.show.design&&!S.show.prep);
+  if(!(want&&S.D.proposed&&S.D.lib==='own'&&S.seg)){g.attributes.position.needsUpdate=true;g.attributes.normal.array.set(S.upper.nrm);g.attributes.normal.needsUpdate=true;req();return;}
+  const sub=S.subIdx,sv=S.seg.sv,{TH}=OWN,O=S.upper.orig;
+  for(const code in toothMeshes){const own=toothMeshes[code].geometry.userData.own;if(!own)continue;const rg=ownRange(code);if(!rg)continue;
+    const pl=placed[code],e=new THREE.Matrix4().copy(pl.M).invert().elements,M=pl.M.elements,{mp,rD}=own,yAx=mp.yAx;
+    const W=S.D.teeth[code].W,sA=rg.a-.6*W,sB=rg.b+.6*W,idx=segSlice(sA,sB);
+    for(let ii=0;ii<idx.length;ii++){const i=idx[ii],s=sv[i];const mine=s>=rg.a&&s<=rg.b;const k=sub[i],X=pa[k*3],Y=pa[k*3+1],Z=pa[k*3+2];
+      const x=e[0]*X+e[4]*Y+e[8]*Z+e[12],y=e[1]*X+e[5]*Y+e[9]*Z+e[13],z=e[2]*X+e[6]*Y+e[10]*Z+e[14];
+      if(z>mp.Lsh||z<-6)continue;const yy=y-yAx;let zz=z,r=Math.hypot(x,yy),changed=false;const th=Math.atan2(x,yy);
+      if(mine&&z<-.05){zz=.02;changed=true;}
+      if(yy>0&&Math.abs(th)<=TH&&zz<mp.zG(th)){const rd=ownSample(mp,rD,th,Math.max(0,zz))-.6;if(r>rd){r=rd;changed=true;}}
+      if(!changed)continue;
+      const nx=yy>0?r*Math.sin(th):x,ny=yy>0?yAx+r*Math.cos(th):y;
+      pa[k*3]=M[0]*nx+M[4]*ny+M[8]*zz+M[12];pa[k*3+1]=M[1]*nx+M[5]*ny+M[9]*zz+M[13];pa[k*3+2]=M[2]*nx+M[6]*ny+M[10]*zz+M[14];}
+  }
+  g.attributes.position.needsUpdate=true;g.computeVertexNormals();S.upper.cut=true;req();
 }
 
 /* ---------------- patient brief ---------------- */
@@ -866,15 +1143,18 @@ function propose(silent){
   if(!S.arch)return;const rd=readyToPropose();if(!rd.ok){toast('#toast3d',rd.why);refreshSteps();return;}
   const D=S.D,ar=S.arch,notes=[];
   const codes=codesFor(D.count);
-  const s0=sMid();
+  const s0=sMid();if(S.seg)segContacts();
   const c13=lm('c13'),c23=lm('c23');
   let span=19.5;
   if(c13&&c23){span=(Math.abs(ar.A.proj(c13.x,c13.y)-s0)+Math.abs(ar.A.proj(c23.x,c23.y)-s0))/2;}
-  const W11=clamp(span/(1+.78+.45),7.6,9.8),k=W11/8.6;D.W11=W11;D.span=span;
-  // central dominance: laterals about 72% of the central, canines read narrow from the front through arch curvature
-  const Wt={1:W11,2:W11*.72,3:W11*.9,4:7.0*k,5:6.6*k,6:10.2*k};
+  const W11=clamp(span/(1+.75+.45),7.6,9.8),k=W11/8.6;D.W11=W11;D.span=span;
+  // central dominance: laterals about 75% of the central (Apa 72 to 78%), canines read narrow from the front through arch curvature.
+  // When the scan shows where the patient's own contacts are, the design widths start from the real teeth and move half way to the ideal ratio.
+  const Wt={1:W11,2:W11*.75,3:W11*.9,4:7.0*k,5:6.6*k,6:10.2*k};
+  const own=D.lib==='own'&&!!S.seg,meas={};
+  if(own)for(const c of codes){const r=ownRange(c),p=+c[1];if(r&&r.found&&r.w>.8*Wt[p]&&r.w<1.25*Wt[p])meas[c]=r.w;}
+  const Wd=c=>{const p=+c[1],w=meas[c],wm=meas[mirrorCode(c)];const wa=w&&wm?(w+wm)/2:(w||wm);return wa?.5*wa+.5*Wt[p]:Wt[p];};
   const kL=.5+.5*k,Ltyp={1:10.6*kL,2:9.0*kL,3:10.4*kL,4:8.0*kL,5:7.3*kL,6:6.6*kL};
-  const Lt=Ltyp;
   // portrait: roll + facial midline
   let roll=0,midShift=0;
   const por=S.photos.find(p=>p.kind==='portrait'&&p.pts.pupils?.length===2&&photoMap(p));
@@ -892,7 +1172,7 @@ function propose(silent){
   D.roll=roll;D.midShift=midShift;
   // build teeth with provisional edges
   const old=D.teeth;D.teeth={};
-  for(const c of codes){const p=+c[1];D.teeth[c]={W:Wt[p],L:Lt[p],edge:ar.zInc,add:p<=3?D.thick:Math.min(D.thick,.35),shift:0,tip:0,rot:0,exist:null};}
+  for(const c of codes){const p=+c[1];D.teeth[c]={W:Wd(c),L:Ltyp[p],edge:ar.zInc,add:p<=3?D.thick:Math.min(D.thick,.35),shift:0,tip:0,rot:0,exist:null,fit:old?.[c]?.fit,fitSym:old?.[c]?.fitSym};}
   const xmid=lm('mid').x+midShift;
   // smile: lip curve
   const sm=S.photos.find(p=>p.kind==='smile'&&p.pts.lip?.length>=6&&photoMap(p));
@@ -901,22 +1181,37 @@ function propose(silent){
   const exist={};
   for(const c of codes){exist[c]=existingEdge(c,place(c));}
   const exC=((exist['11']??ar.zInc)+(exist['21']??ar.zInc))/2;
-  // gingival zeniths: symmetric line for 13/11/21/23 at the most apical of the four, laterals 0.7 mm more incisal
-  const Z=S.lm3d.zen||{},zenT={},ging=[],checks=[];
+  // gingival zeniths: the design keeps each tooth's real gingival margin (veneers do not move gum). The levelled line is
+  // reported as the crown lengthening that would make the zeniths match.
+  const Z=S.lm3d.zen||{},ging=[],checks=[];
   const haveZen=['11','21','13','23'].every(c=>Z[c]);
   if(haveZen){
-    const line=Math.max(...['11','21','13','23'].map(c=>Z[c].z));
-    for(const c of codes){if(+c[1]>3)continue;const x=(Z[c]||lm('mid')).x;const t=line+Math.tan(roll)*(x-xmid)-(+c[1]===2?.7:0);zenT[c]=t;
-      if(Z[c]){const d=t-Z[c].z;if(d>.3)ging.push(`${c} ${r1(d)} mm`);else if(d<-.5)ging.push(`${c} already ${r1(-d)} mm apical of the line (would need grafting to match)`);}}
-    if(ging.length)checks.push(`<b>Gingival:</b> to level the zeniths, crown lengthening on ${ging.join(', ')}.`);else checks.push(`<b>Gingival:</b> zeniths already level within 0.3 mm.`);
-  }else checks.push(`<span class="warn">Gingival zeniths not marked, so tooth lengths are textbook and the gum line is not assessed.</span>`);
-  const zenC=haveZen?(zenT['11']+zenT['21'])/2:exC+Ltyp[1];
-  const eWL=zenC-W11/D.wl, eMax=exC-D.maxLen, eLip=zLipMid!==null?zLipMid+D.gap:-1e9;D.exC=exC;D.lipBelowEdge=zLipMid!==null?exC-eLip:null;D.existLen=haveZen?zenC-exC:null;
+    const zs=['11','21','13','23'].map(c=>Z[c].z).sort((a,b)=>a-b),line=(zs[1]+zs[2])/2;
+    for(const c of ['13','12','11','21','22','23']){if(!Z[c])continue;const x=Z[c].x,t=line+Math.tan(roll)*(x-xmid)-(+c[1]===2?.7:0),d=t-Z[c].z;
+      if(d>.4)ging.push(`${c} ${r1(d)} mm`);else if(d<-.6)ging.push(`${c} sits ${r1(-d)} mm apical of the line (recession: grafting or accept)`);}
+    if(ging.length)checks.push(`<b>Gingival:</b> zeniths are not level; crown lengthening would be needed on ${ging.join(', ')}. The design follows the gum as it is.`);else checks.push(`<b>Gingival:</b> zeniths level within 0.4 mm.`);
+  }else checks.push(`<span class="warn">Gingival zeniths not marked, so tooth lengths are estimated and the gum line is not assessed.</span>`);
+  const zenC=haveZen?(Z['11'].z+Z['21'].z)/2:null;D.exC=exC;D.existLen=zenC!==null?zenC-exC:null;D.lipGap=null;
   const reductive=D.mode==='reductive';
-  let zC=reductive?Math.max(eWL,eMax,eLip):Math.min(exC,Math.max(eWL,eMax,eLip));
-  const why=zC===exC?'already at the target':zC===eLip?`${r1(D.gap)} mm above the lower lip`:zC===eWL?`a ${Math.round(D.wl*100)}% width to length ratio`:`the ${r1(D.maxLen)} mm lengthening limit`;
-  notes.push(`<b>Centrals ${r1(W11)} mm wide</b>, sized to fill the arch to the existing canines.`);
-  notes.push(`Central edges ${zC<=exC?'lengthened':'shortened'} ${r1(Math.abs(exC-zC))} mm, set by ${why}${zLipMid!==null?` (lip line is ${r1(exC-eLip)} mm below the current edge)`:''}. Edges follow a smile arc parallel to the lower lip.`);
+  // central edge: keep the edges where they are unless they sit well clear of the lower lip (then lengthen to it,
+  // within the limit) or, with reduction allowed, hide behind it. Width to length is kept within a natural band.
+  let zC=exC,why='kept at the current length';
+  if(zLipMid!==null){
+    const gapNow=exC-zLipMid;D.lipGap=gapNow;
+    if(gapNow>1.2){zC=Math.max(zLipMid+D.gap,exC-D.maxLen);why=zC===exC-D.maxLen?`the ${r1(D.maxLen)} mm lengthening limit (the lip is ${r1(gapNow)} mm below the edge)`:`${r1(D.gap)} mm above the lower lip`;}
+    else if(gapNow<-1.0&&reductive){zC=zLipMid;why='the lower lip (the edges were hidden behind it)';}
+    else why=`the lower lip (edges already sit ${r1(Math.abs(gapNow))} mm ${gapNow>=0?'above':'below'} it)`;
+  }else{
+    const zen=zenC??(exC+Ltyp[1]);const zt=zen-W11/D.wl;
+    if(zt<exC)zC=Math.max(zt,exC-D.maxLen),why=zC===exC-D.maxLen?`the ${r1(D.maxLen)} mm lengthening limit`:`a ${Math.round(D.wl*100)}% width to length ratio`;
+    else if(reductive)zC=zt,why=`a ${Math.round(D.wl*100)}% width to length ratio`;
+  }
+  if(zenC!==null){const wl=W11/(zenC-zC),lo=D.wl-.08,hi=D.wl+.08;
+    if(wl>hi){zC=Math.max(zenC-W11/(hi-.04),exC-D.maxLen);why=`a width to length ratio of ${Math.round((hi-.04)*100)}% (the teeth read short at ${Math.round(wl*100)}%)`;}
+    else if(wl<lo&&reductive){zC=zenC-W11/(lo+.04);why=`a width to length ratio of ${Math.round((lo+.04)*100)}% (the teeth read long at ${Math.round(wl*100)}%)`;}}
+  if(!reductive&&zC>exC)zC=exC;
+  notes.push(`<b>Centrals ${r1(W11)} mm wide</b>${Object.keys(meas).length?', widths blended with the patient’s own teeth':''}, sized to fill the arch to the existing canines.`);
+  notes.push(`Central edges ${Math.abs(zC-exC)<.05?'kept':zC<exC?'lengthened '+r1(exC-zC)+' mm':'shortened '+r1(zC-exC)+' mm'}, set by ${why}. Edges follow a smile arc parallel to the lower lip.`);
   if(zLipMid===null)notes.push(`<span class="warn">No smile photo traced, so a standard smile arc is used.</span>`);
   // incisal steps from the central edge: laterals about 1 mm shorter, canines just short of the centrals
   const youthful=D.lib==='youthful'||D.style==='oval';
@@ -928,25 +1223,30 @@ function propose(silent){
     const dxc=Math.min(Math.abs(dx),span)*Math.sign(dx); // the smile arc is an anterior rule: flat beyond the canines
     let e=zC+step[p]+curv*dxc*dxc+Math.tan(roll)*dx;
     const ex=exist[c];
-    const aiT=D.aiApply&&D.ai?.teeth?.[c];if(aiT&&typeof aiT.lengthChangeMm==='number'&&ex!==null&&p<=3){e=ex-clamp(aiT.lengthChangeMm,-3,4)+Math.tan(roll)*dx*0;}
+    const aiT=D.aiApply&&D.ai?.teeth?.[c];if(aiT&&typeof aiT.lengthChangeMm==='number'&&ex!==null&&p<=3){e=ex-clamp(aiT.lengthChangeMm,-3,4);}
     if(p>=4&&ex!==null){ // posteriors: cusps keep their height, at most 1 mm added and 0.3 mm taken for continuity
       e=clamp(e,ex-1.0,ex+.3);if(p===6)e=ex;}
     if(ex!==null&&e>ex+.05){if(reductive)reduce.push(`${c} ${r1(e-ex)} mm`);else{held.push(`${c} (${r1(e-ex)} mm)`);e=ex;}}
     if(!D.teeth[c].tip)D.teeth[c].tip=TIP[p];
     D.teeth[c].edge=e;D.teeth[c].exist=exist[c];
-    D.teeth[c].L=(zenT[c]!==undefined?zenT[c]:(exist[c]??ar.zInc)+Ltyp[p])-e;
+    const zen=Z[c]?Z[c].z:(own&&S.gumZ?.[c]!==undefined?S.gumZ[c]:(exist[c]??ar.zInc)+Ltyp[p]);
+    D.teeth[c].L=clamp(zen-e,6,14);
   }
   // contacts: open or close spacing until neighbours just touch, then rescale widths so the canines stay put
   D.midGap=0;for(const c of codes){D.teeth[c].gapD=0;}
-  for(let it=0;it<4;it++){
+  const contactPass=()=>{
     const smp={};for(const c of codes)smp[c]=toothSample(c);let worst=0;
     const adj=(c,delta)=>{if(c==='mid')D.midGap+=delta;else D.teeth[c].gapD+=delta;};
     const pairs=[['mid','11','21']];for(const sd of ['1','2'])for(let k=1;k<D.count/2;k++)pairs.push([sd+k,sd+k,sd+(k+1)]);
     for(const [key,a,b] of pairs){const s=contact(smp[a],smp[b]);const delta=s-.05;if(Math.abs(delta)>.05){adj(key,delta);worst=Math.max(worst,Math.abs(delta));}}
+    if(own){D.midGap=clamp(D.midGap,-1,1);for(const c of codes)D.teeth[c].gapD=clamp(D.teeth[c].gapD,-1,1);return worst;}
     for(const sd of ['1','2']){let G=D.midGap/2,Wsum=0;for(let k=1;k<=3;k++){const c=sd+k;if(!D.teeth[c])continue;if(k<3)G+=D.teeth[c].gapD;Wsum+=k<3?D.teeth[c].W:D.teeth[c].W/2;}
       const kk=clamp((span-G)/Wsum,.9,1.1);for(const c of codes)if(c[0]===sd)D.teeth[c].W*=kk;}
-    if(worst<.06)break;
-  }
+    return worst;};
+  for(let it=0;it<4;it++){if(contactPass()<.06)break;}
+  if(own){symmetriseFits(codes);contactPass();
+    const short=[];for(const sd of ['1','2']){let need=D.midGap/2;for(let k=1;k<=3;k++){const c=sd+k;if(!D.teeth[c])continue;need+=(k<3?D.teeth[c].W+D.teeth[c].gapD:D.teeth[c].W/2);}if(need-span>.4)short.push(`${sd==='1'?'right':'left'} ${r1(need-span)} mm`);}
+    if(short.length)checks.push(`<b>Space:</b> the design widths need more arch than there is (${short.join(', ')}): the shells are held to their widths, so proximal reduction (slicing) is implied between the crowded teeth. The prep map shows it.`);}
   // occlusion: shorten any tooth whose new material runs into the lower arch
   const limited={};
   if(S.lowerGrid){
@@ -968,7 +1268,8 @@ function propose(silent){
   D.checks=checks;
   const len=codes.filter(c=>+c[1]<=3).map(c=>(D.teeth[c].exist??0)-D.teeth[c].edge);
   const maxL=Math.max(...len),minL=Math.min(...len);
-  notes.push(`Anterior edges lengthened ${r1(Math.max(0,minL))} to ${r1(maxL)} mm. Central W/L now ${Math.round(W11/D.teeth['11'].L*100)}%.`);
+  notes.push(`Anterior edges ${maxL<.05?'kept':'lengthened '+r1(Math.max(0,minL))+' to '+r1(maxL)+' mm'}. Central W/L now ${Math.round(W11/D.teeth['11'].L*100)}%.`);
+  if(own){const found=codes.filter(c=>meas[c]).length;notes.push(`Teeth built from the patient’s own surfaces (${found} of ${codes.length} contacts found on the scan), pairs averaged for symmetry, ${Math.round((D.keep??.5)*100)}% of each tooth’s own character kept.`);}
   if(held.length)notes.push(`<span class="warn">Kept at current length (the ideal arc sits higher, so these would need reduction): ${held.join(', ')}. Switch to "Allow reduction" to follow the arc.</span>`);
   if(reduce.length)notes.push(`<span class="warn">Incisal reduction: ${reduce.join(', ')}.</span>`);
   notes.unshift(...D.briefNotes.map(n=>`<span class="okc">Brief:</span> ${n}`));
@@ -1024,7 +1325,7 @@ let prepTimer=null;
 function schedulePrep(){clearTimeout(prepTimer);prepTimer=setTimeout(computePrep,120);}
 function computePrep(){
   if(!S.upper||!S.subIdx||!Object.keys(toothMeshes).length){S.prep=null;applyPrepColors();return;}
-  const g=S.upper.mesh.geometry,pos=g.attributes.position.array,nrm=g.attributes.normal.array,n=pos.length/3;
+  const g=S.upper.mesh.geometry,pos=S.upper.orig||g.attributes.position.array,nrm=S.upper.nrm||g.attributes.normal.array,n=pos.length/3;
   const depth=new Float32Array(n).fill(-1),minT=S.D.minT,inv=new THREE.Matrix4(),rot=new THREE.Matrix3(),v=new THREE.Vector3(),nv=new THREE.Vector3(),box=new THREE.Box3(),per={};
   const sub=S.subIdx,m2=sub.length,bestFace=new Float32Array(m2),bestNeed=new Float32Array(m2),bestGap=new Float32Array(m2),owner=new Int8Array(m2).fill(-1);
   const codes=Object.keys(toothMeshes),STEP=.1,MAXT=3.5;
@@ -1082,12 +1383,13 @@ function rebuildTeeth(){
   for(const k in toothMeshes){designGroup.remove(toothMeshes[k]);toothMeshes[k].geometry.dispose();ovMeshes[k].geometry.dispose();ovGroup.remove(ovMeshes[k]);delete toothMeshes[k];delete ovMeshes[k];}
   for(const c of Object.keys(S.D.teeth)){
     const tp=S.D.teeth[c],pl=place(c);placed[c]=pl;
-    const g=buildPlaced(c).g,g2=g.clone();blendCervical(g,pl.M);
+    const bp=buildPlaced(c),g=bp.g,g2=g.clone();if(!bp.own)blendCervical(g,pl.M);
     const m=new THREE.Mesh(g,S.show.prep?ghostMat:(c===S.sel?selMat:toothMat));m.matrixAutoUpdate=false;m.matrix.copy(pl.M);m.userData.code=c;
     designGroup.add(m);toothMeshes[c]=m;
     const o=new THREE.Mesh(g2,ovMat);o.matrixAutoUpdate=false;o.matrix.copy(pl.M);ovGroup.add(o);ovMeshes[c]=o;
   }
   designGroup.visible=S.show.design;
+  applyCutBack();
   req();drawPhoto();schedulePrep();scheduleOcc();
 }
 function updateTooth(c){
@@ -1108,7 +1410,7 @@ c3d.addEventListener('pointerup',e=>{
     if(S.tool==='zen'){const order=['13','12','11','21','22','23'],c=order[S.zenNext];S.lm3d.zen[c]=h.point.clone();S.zenNext++;
       if(S.zenNext>=6){setTool(null);toast('#toast3d','Zeniths set');if(S.D.proposed&&readyToPropose().ok)propose(true);}else toast('#toast3d',`Zenith ${c} set. Now click the zenith of ${order[S.zenNext]}.`,'cyan');refreshAll();return;}
     if(S.tool==='pair'){S.pairPending=[h.point.x,h.point.y,h.point.z];toast('#toast3d','Point taken. Now click the same spot on the photo.','cyan');toast('#toastPh','Click the same spot here.','cyan');drawMarks();return;}
-    S.lm3d[S.tool]=h.point.clone();const t=S.tool;setTool(null);toast('#toast3d',`${t==='mid'?'Midline':t==='c13'?'Canine 13':'Canine 23'} set`);refreshAll();
+    S.lm3d[S.tool]=h.point.clone();segContacts();const t=S.tool;setTool(null);toast('#toast3d',`${t==='mid'?'Midline':t==='c13'?'Canine 13':'Canine 23'} set`);refreshAll();
     return;
   }
   const h=ray.intersectObjects(designGroup.children)[0];
@@ -1134,7 +1436,8 @@ const ovScan=new THREE.Group();ovScene.add(ovScan);
 ovScene.add(new THREE.HemisphereLight(0xffffff,0x6a5f55,1.0));
 const ovKey=new THREE.DirectionalLight(0xffffff,1.5);ovKey.position.set(10,-100,40);ovScene.add(ovKey);
 const ovFill=new THREE.DirectionalLight(0xfff4e6,.6);ovFill.position.set(-40,-60,-20);ovScene.add(ovFill);
-const ovMat=new THREE.MeshPhysicalMaterial({color:0xf4f0ea,vertexColors:true,roughness:.38,clearcoat:.5,clearcoatRoughness:.35,sheen:.4,sheenColor:new THREE.Color(0xffffff)});
+const ovMat=new THREE.MeshPhysicalMaterial({color:0xf4f0ea,vertexColors:true,roughness:.34,clearcoat:.55,clearcoatRoughness:.3,sheen:.35,sheenColor:new THREE.Color(0xffffff),envMapIntensity:.5});
+try{const pm2=new THREE.PMREMGenerator(OR);ovScene.environment=pm2.fromScene(new RoomEnvironment(),.04).texture;pm2.dispose();}catch(e){console.warn('env',e);}
 const ovMeshes={};
 const ovCam=new THREE.OrthographicCamera(-1,1,1,-1,1,1000);ovCam.up.set(0,0,1);ovCam.position.set(0,-300,0);ovCam.lookAt(0,0,0);
 const ovScanMat=new THREE.MeshStandardMaterial({color:0x8fd3e6,roughness:.7,transparent:true,opacity:.5});
@@ -1199,13 +1502,30 @@ function drawPhoto(){
       const [mr,mi]=map.m;const a1=map.a1,p1=map.p1;
       const ax=ov.xmin,az=-ov.zmax;
       const e=mr*(ax-a1[0])-mi*(az-a1[1])+p1[0],f=mi*(ax-a1[0])+mr*(az-a1[1])+p1[1];
-      g.transform(mr/ov.k,mi/ov.k,-mi/ov.kz,mr/ov.kz,e,f);
-      g.drawImage(ov.canvas,0,0);
+      g.save();g.transform(mr/ov.k,mi/ov.k,-mi/ov.kz,mr/ov.kz,e,f);
+      g.drawImage(ov.canvas,0,0);g.restore();
+      if(ph.kind==='smile'&&!S.show.scanOv)shadeOverlay(g,ph);
       g.restore();
     }
   }
   if(S.show.guides)drawGuides(g,ph,map);
   drawPhotoMarks(g,ph);
+}
+// Light in the mouth: the upper lip casts a soft shadow onto the teeth and the corners of the mouth fall into
+// shade, so the mock-up is darkened there to sit in the photograph.
+function shadeOverlay(g,ph){
+  const L=ph.pts.lip;if(!L||L.length<6)return;
+  let xl=1e9,xr=-1e9,yt=1e9,yb=-1e9;for(const p of L){xl=Math.min(xl,p[0]);xr=Math.max(xr,p[0]);yt=Math.min(yt,p[1]);yb=Math.max(yb,p[1]);}
+  const h=yb-yt,w=xr-xl;if(h<10||w<10)return;
+  let il=0,ir=0;L.forEach((p,i)=>{if(p[0]<L[il][0])il=i;if(p[0]>L[ir][0])ir=i;});
+  const chainA=[],chainB=[],n=L.length;for(let i=il;;i=(i+1)%n){chainA.push(L[i]);if(i===ir)break;}for(let i=ir;;i=(i+1)%n){chainB.push(L[i]);if(i===il)break;}
+  const avg=c=>c.reduce((s,p)=>s+p[1],0)/c.length;const upper=avg(chainA)<avg(chainB)?chainA:chainB;
+  g.save();g.globalCompositeOperation='multiply';
+  g.strokeStyle='rgba(60,30,30,.55)';g.lineWidth=h*.14;g.lineCap='round';g.lineJoin='round';g.filter=`blur(${Math.max(2,h*.05)}px)`;
+  g.beginPath();upper.forEach((p,i)=>i?g.lineTo(p[0],p[1]-h*.02):g.moveTo(p[0],p[1]-h*.02));g.stroke();
+  g.filter='none';
+  for(const [x0,x1] of [[xl,xl+w*.16],[xr,xr-w*.16]]){const gr=g.createLinearGradient(x0,0,x1,0);gr.addColorStop(0,'rgba(40,20,20,.7)');gr.addColorStop(1,'rgba(40,20,20,0)');g.fillStyle=gr;g.fillRect(Math.min(x0,x1),yt-5,Math.abs(x1-x0),h+10);}
+  g.restore();
 }
 function line(g,a,b,col,w,dash){g.save();g.strokeStyle=col;g.lineWidth=w/V.s;g.setLineDash(dash?dash.map(d=>d/V.s):[]);g.beginPath();g.moveTo(...a);g.lineTo(...b);g.stroke();g.restore();}
 function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
@@ -1302,7 +1622,7 @@ function refreshLm(){
 $$('#kindSeg button').forEach(b=>b.onclick=()=>{const ph=curPh();if(!ph)return;const k=b.dataset.k;
   if(k!=='other')for(const q of S.photos)if(q!==ph&&q.kind===k)q.kind='other'; // one portrait and one smile
   ph.kind=k;refreshAll();});
-$('#acceptAuto').onclick=()=>{for(const k of ['mid','c13','c23'])if(!S.lm3d[k]&&S.lmAuto[k])S.lm3d[k]=S.lmAuto[k].clone();refreshAll();toast('#toast3d','Scan landmarks confirmed');};
+$('#acceptAuto').onclick=()=>{for(const k of ['mid','c13','c23'])if(!S.lm3d[k]&&S.lmAuto[k])S.lm3d[k]=S.lmAuto[k].clone();segContacts();refreshAll();toast('#toast3d','Scan landmarks confirmed');};
 $('#clearPairs').onclick=()=>{const ph=curPh();if(ph){ph.pts.pairs=[];refreshLm();drawPhoto();if(S.D.proposed&&readyToPropose().ok)propose(true);}};
 $('#tgOcc').onclick=e=>{S.show.occ=!S.show.occ;e.target.textContent='Collisions '+(S.show.occ?'on':'off');colourCollisions();};
 $('#fClear').oninput=e=>{S.D.clear=+e.target.value;$('#oClear').textContent=r2(S.D.clear);};$('#fClear').onchange=()=>S.D.proposed&&propose();
@@ -1347,10 +1667,12 @@ function refreshProposal(){
   $('#notes').innerHTML=S.D.notes.map(n=>`<li>${n}</li>`).join('');
   $$('#countSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.n===S.D.count));
   $('#fStyle').value=S.D.style;$('#fLib').value=S.D.lib||'param';refreshMode();
-  $$('#hugSeg button').forEach(b=>b.classList.toggle('on',(b.dataset.h==='1')===(S.D.hug!==false)));
+  $$('#hugSeg button').forEach(b=>b.classList.toggle('on',(b.dataset.h==='1')===(S.D.hug!==false)));$('#hugRow').hidden=S.D.lib==='own';
   if(document.activeElement!==$('#brief'))$('#brief').value=S.D.brief||'';
   $('#briefNotes').innerHTML=(S.D.briefNotes||[]).map(n=>`<li>${n}</li>`).join('');
-  $('#fMinT').value=S.D.minT;$('#oMinT').textContent=r2(S.D.minT);$('#fClear').value=S.D.clear;$('#oClear').textContent=r2(S.D.clear);refreshChecks();
+  $('#fMinT').value=S.D.minT;$('#oMinT').textContent=r2(S.D.minT);$('#fClear').value=S.D.clear;$('#oClear').textContent=r2(S.D.clear);
+  $('#fKeep').value=Math.round((S.D.keep??.5)*100);$('#oKeep').textContent=Math.round((S.D.keep??.5)*100)+'%';$('#fRed').value=S.D.maxRed??.5;$('#oRed').textContent=r2(S.D.maxRed??.5);$('#fGap').value=S.D.gap;$('#oGap').textContent=r1(S.D.gap);
+  $('#tgFinal').textContent=S.show.final!==false?'Final result':'Original teeth';refreshChecks();
 }
 const SL={W:['tW','oW',v=>r1(v)],L:['tL','oL',v=>r1(v)],E:['tE','oE',v=>(v>=0?'+':'')+r1(v)],add:['tA','oA',v=>r2(v)],shift:['tS','oS',v=>r1(v)],tip:['tT','oT',v=>r1(v)+'°'],rot:['tR','oR',v=>r1(v)+'°']};
 function refreshTooth(){
@@ -1376,23 +1698,24 @@ for(const k in SL){const [i,o,f]=SL[k];$('#'+i).addEventListener('input',e=>{
   set(S.sel);if($('#sym').checked)set((S.sel[0]==='1'?'2':'1')+S.sel[1]);
   rebuildTeeth();refreshTooth();
 });}
-$('#fStyle').onchange=e=>{S.D.style=e.target.value;rebuildTeeth();};
-$('#fLib').onchange=e=>{S.D.lib=e.target.value;rebuildTeeth();};
+$('#fStyle').onchange=e=>{S.D.style=e.target.value;if(S.D.proposed)propose();else rebuildTeeth();};
+$('#fLib').onchange=e=>{S.D.lib=e.target.value;if(S.D.proposed)propose();else rebuildTeeth();};
 $$('#hugSeg button').forEach(b=>b.onclick=()=>{S.D.hug=b.dataset.h==='1';refreshProposal();if(S.D.proposed)propose();});
 $$('#modeSeg button').forEach(b=>b.onclick=()=>{S.D.mode=b.dataset.m;refreshMode();if(S.D.proposed)propose();});
 $('#fMinT').oninput=e=>{S.D.minT=+e.target.value;$('#oMinT').textContent=r2(S.D.minT);};
 $('#fMinT').onchange=()=>schedulePrep();
-const togglePrep=()=>{S.show.prep=!S.show.prep;for(const c in toothMeshes)toothMeshes[c].material=S.show.prep?ghostMat:(c===S.sel?selMat:toothMat);$('#tgPrep').textContent='Prep map '+(S.show.prep?'on':'off');$('#tgPrep2').textContent=S.show.prep?'Hide prep map':'Show prep map';$('#prepLegend').hidden=!S.show.prep;if(S.show.prep&&!S.prep)computePrep();else applyPrepColors();};
+const togglePrep=()=>{S.show.prep=!S.show.prep;for(const c in toothMeshes)toothMeshes[c].material=S.show.prep?ghostMat:(c===S.sel?selMat:toothMat);$('#tgPrep').textContent='Prep map '+(S.show.prep?'on':'off');$('#tgPrep2').textContent=S.show.prep?'Hide prep map':'Show prep map';$('#prepLegend').hidden=!S.show.prep;if(S.show.prep&&!S.prep)computePrep();else applyPrepColors();applyCutBack();};
 $('#tgPrep').onclick=togglePrep;$('#tgPrep2').onclick=togglePrep;
 $('#briefBtn').onclick=()=>{applyBrief($('#brief').value);if(S.D.proposed){for(const c in S.D.teeth)delete S.D.teeth[c].keep;propose();}else refreshAll();};
 $('#brief').addEventListener('change',()=>{S.D.brief=$('#brief').value;});
 $$('#countSeg button').forEach(b=>b.onclick=()=>{S.D.count=+b.dataset.n;if(S.D.proposed)propose();});
 const bindG=(id,out,key,fmt,scale=1)=>$(id).addEventListener('input',e=>{S.D[key]=+e.target.value*scale;$(out).textContent=fmt(+e.target.value);});
-bindG('#fWL','#oWL','wl',v=>v+'%',.01);bindG('#fGap','#oGap','gap',v=>r1(v));bindG('#fThick','#oThick','thick',v=>r2(v));bindG('#fMax','#oMax','maxLen',v=>r1(v));
-['#fWL','#fGap','#fThick','#fMax'].forEach(id=>$(id).addEventListener('change',()=>S.D.proposed&&propose()));
+bindG('#fWL','#oWL','wl',v=>v+'%',.01);bindG('#fGap','#oGap','gap',v=>r1(v));bindG('#fThick','#oThick','thick',v=>r2(v));bindG('#fMax','#oMax','maxLen',v=>r1(v));bindG('#fKeep','#oKeep','keep',v=>v+'%',.01);bindG('#fRed','#oRed','maxRed',v=>r2(v));
+['#fWL','#fGap','#fThick','#fMax','#fKeep','#fRed'].forEach(id=>$(id).addEventListener('change',()=>S.D.proposed&&propose()));
 $('#fBase').oninput=e=>{S.baseH=+e.target.value;$('#oBase').textContent=r1(S.baseH);};
 $('#proposeBtn').onclick=()=>{for(const c in S.D.teeth)delete S.D.teeth[c].keep;propose();};
-$('#tgDesign').onclick=e=>{S.show.design=!S.show.design;designGroup.visible=S.show.design;req();e.target.textContent='Design '+(S.show.design?'on':'off');};
+$('#tgDesign').onclick=e=>{S.show.design=!S.show.design;designGroup.visible=S.show.design;applyCutBack();req();e.target.textContent='Design '+(S.show.design?'on':'off');};
+$('#tgFinal').onclick=e=>{S.show.final=!S.show.final;applyCutBack();e.target.textContent=S.show.final?'Final result':'Original teeth';};
 $('#tgLower').onclick=e=>{S.show.lower=!S.show.lower;if(S.lower)S.lower.mesh.visible=S.show.lower;req();e.target.textContent='Lower '+(S.show.lower?'on':'off');};
 $('#tgOverlay').onclick=e=>{S.show.overlay=!S.show.overlay;e.target.textContent='Mock-up '+(S.show.overlay?'on':'off');drawPhoto();};
 $('#tgGuides').onclick=e=>{S.show.guides=!S.show.guides;e.target.textContent='Guides '+(S.show.guides?'on':'off');drawPhoto();};
@@ -1442,7 +1765,7 @@ function aiMeasurements(){
   const D=S.D,L=[];
   if(D.W11)L.push(`central incisor width from the scan about ${r1(D.W11)} mm; canine-to-canine half span ${r1(D.span)} mm`);
   if(D.existLen)L.push(`current central crown length (zenith to edge) ${r1(D.existLen)} mm`);
-  if(D.lipBelowEdge!==null&&D.lipBelowEdge!==undefined)L.push(`lower lip sits ${r1(D.lipBelowEdge)} mm ${D.lipBelowEdge>0?'below':'above'} the current central edge in the smile photo`);
+  if(D.lipGap!==null&&D.lipGap!==undefined)L.push(`lower lip sits ${r1(Math.abs(D.lipGap))} mm ${D.lipGap>0?'below':'above'} the current central edge in the smile photo`);
   if(D.roll)L.push(`incisal plane cant ${r1(Math.abs(D.roll/DEG))} degrees relative to the pupils`);
   if(D.midShift)L.push(`dental midline ${r1(Math.abs(D.midShift))} mm ${D.midShift>0?'left':'right'} of the facial midline`);
   if(D.brief)L.push(`patient brief: "${D.brief}"`);
@@ -1600,7 +1923,7 @@ async function offerFile(filename,data){
 const slug=()=>(S.caseName||'case').replace(/[^\w-]+/g,'_');
 async function buildZip(){
   const z=new JSZip(),base=slug();
-  const scan=closedScanTriangles(S.upper.mesh.geometry,S.baseH),teeth=teethTriangles();
+  applyCutBack(true);const scan=closedScanTriangles(S.upper.mesh.geometry,S.baseH),teeth=teethTriangles();applyCutBack();
   z.file(`${base}_DSD_print_model.stl`,stl(scan.concat(teeth),'model'));
   z.file(`${base}_DSD_teeth_only.stl`,stl(teeth,'teeth'));
   z.file(`${base}_design.json`,designJSON());
@@ -1615,7 +1938,8 @@ function renderPreview(ph){
   const map=photoMap(ph),ov=map&&renderOverlay(false,map.th);
   if(map&&ov){g.save();g.translate(W,0);if(ph.pts.lip?.length>=6){g.beginPath();ph.pts.lip.forEach((p,i)=>i?g.lineTo(...p):g.moveTo(...p));g.closePath();g.clip();}
     const [mr,mi]=map.m,a1=map.a1,p1=map.p1,ax=ov.xmin,az=-ov.zmax;
-    g.transform(mr/ov.k,mi/ov.k,-mi/ov.kz,mr/ov.kz,mr*(ax-a1[0])-mi*(az-a1[1])+p1[0],mi*(ax-a1[0])+mr*(az-a1[1])+p1[1]);g.drawImage(ov.canvas,0,0);g.restore();}
+    g.save();g.transform(mr/ov.k,mi/ov.k,-mi/ov.kz,mr/ov.kz,mr*(ax-a1[0])-mi*(az-a1[1])+p1[0],mi*(ax-a1[0])+mr*(az-a1[1])+p1[1]);g.drawImage(ov.canvas,0,0);g.restore();
+    if(ph.kind==='smile')shadeOverlay(g,ph);g.restore();}
   return cv;
 }
 $('#exportBtn').onclick=async()=>{busy(true);try{const blob=await buildZip();await offerFile(`${slug()}_Halo_DSD.zip`,blob);}catch(e){console.error(e);toast('#toast3d','Export failed: '+e.message);}busy(false);};
@@ -1626,7 +1950,7 @@ $('#jsonIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const
   for(const p of j.photos||[]){const m=S.photos.find(q=>q.name===p.name);if(m){m.kind=p.kind;m.pts=p.pts;}}
   Object.assign(S.D,j.design||{});if(S.upper)rebuildTeeth();refreshAll();toast('#toast3d','Design opened');}catch(err){toast('#toast3d','That design file could not be read');}};
 
-window.__hsd={V,S,THREE,place,toothSample,penetration,contact,handleFiles,propose,buildZip,closedScanTriangles,teethTriangles,stl,photoMap,setView,drawPhoto,fitPhoto,renderPreview,AI,aiAssess,aiRender,aiApplyPlan,renderAIReport};
+window.__hsd={V,S,THREE,cam,ctl,req,ownMaps,ownTemplate,ownFit,ownDesign,ownSample,place,toothSample,penetration,contact,handleFiles,propose,buildZip,closedScanTriangles,teethTriangles,stl,photoMap,setView,drawPhoto,fitPhoto,renderPreview,AI,aiAssess,aiRender,aiApplyPlan,renderAIReport,ownRange,applyCutBack,analyseArch,segContacts,toothMeshes,placed,OWN};
 resize3d();refreshAll();
 </script>
 
