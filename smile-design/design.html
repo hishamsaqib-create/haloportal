@@ -151,10 +151,11 @@ main.onlyph{grid-template-columns:0 1fr}
 
     <section class="sec">
       <h2>Landmarks</h2>
-      <p class="hint" id="lmHint">On the 3D scan, check the dental midline and both canine tips. Then mark each photo.</p>
+      <p class="hint" id="lmHint">Nothing is designed until the reference points are set. Confirm the midline and canine tips on the scan (auto values are suggestions), then mark the portrait and the smile photo.</p>
       <div class="lm"><span>Dental midline (11/21)</span><span class="st" id="st-mid">–</span><button class="btn" data-tool="mid">Place</button></div>
       <div class="lm"><span>Canine tip 13</span><span class="st" id="st-c13">–</span><button class="btn" data-tool="c13">Place</button></div>
       <div class="lm"><span>Canine tip 23</span><span class="st" id="st-c23">–</span><button class="btn" data-tool="c23">Place</button></div>
+      <div class="row"><button class="btn" id="acceptAuto">Accept auto midline and canines</button></div>
       <div class="lm"><span>Gingival zeniths 13 to 23</span><span class="st" id="st-zen">–</span><button class="btn" data-tool="zen">Place</button></div>
       <div class="lm"><span>Extra photo pairs</span><span class="st" id="st-pair">–</span><button class="btn" data-tool="pair">Add</button></div>
       <div class="row"><button class="btn" id="clearPairs">Clear pairs on this photo</button><span class="hint">Each pair is one click on the scan, then the same spot on the photo. Three or more sharpen the fit.</span></div>
@@ -203,6 +204,7 @@ main.onlyph{grid-template-columns:0 1fr}
       <div class="field"><label for="fMax">Max lengthen</label><input type="range" id="fMax" min="0" max="4" step="0.1" value="2"><output id="oMax">2.0</output></div>
       <div class="field"><label for="fThick">Mock-up add</label><input type="range" id="fThick" min="0" max="1.5" step="0.05" value="0.5"><output id="oThick">0.50</output></div>
       <button class="btn primary" id="proposeBtn" disabled>Propose smile</button>
+      <p class="hint" id="proposeHint"></p>
       <ul class="notes" id="notes"></ul>
     </section>
 
@@ -383,7 +385,7 @@ function makeTooth(pos,W,L,style,dsign){
 /* ---------------- anatomic library ---------------- */
 // Crowns from DentCraft's parametric anatomy library (MIT / Apache-2.0, Dr Mahmoud ElNajar), built from
 // Wheeler's Dental Anatomy averages, quadrant 1, frame +X mesial, +Y facial, +Z occlusal. Decimated to ~4k triangles.
-const LIBDATA={};fetch('/toothlib.json').then(r=>r.json()).then(d=>{Object.assign(LIBDATA,d);if(S.upper)rebuildTeeth();}).catch(()=>{});
+const LIBDATA={};fetch('/toothlib.json').then(r=>r.json()).then(d=>{Object.assign(LIBDATA,d);if(S.upper&&S.D.proposed)rebuildTeeth();}).catch(()=>{});
 const libCache={};
 function b64(s,T){const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new T(u.buffer)}
 function libSrc(v,pos){
@@ -519,7 +521,7 @@ async function handleFiles(files){
       if(land.length)land[0].kind='smile';
     }
     if(S.cur<0&&S.photos.length)S.cur=Math.max(0,S.photos.findIndex(p=>p.kind==='smile'));
-    if(stls.length&&S.upper){autoOrient();prepareArch();if(!S.D.proposed)propose(true);setView('front');}
+    if(stls.length&&S.upper){autoOrient();prepareArch();setView('front');}
     refreshAll();fitPhoto();
   }catch(err){console.error(err);toast('#toastPh','That file could not be read. Check it is an iTero ZIP, an STL or a JPEG.');}
   busy(false);
@@ -555,7 +557,7 @@ function boundaryMeanZ(geom){
 function applyOrient(m){for(const j of ['upper','lower'])if(S[j]){S[j].mesh.geometry.applyMatrix4(m);S[j].mesh.geometry.computeVertexNormals();S[j].mesh.geometry.computeBoundingBox();}}
 function orient(m){
   for(const j of ['upper','lower'])if(S[j]){S[j].mesh.geometry.applyMatrix4(m);S[j].mesh.geometry.computeVertexNormals();S[j].mesh.geometry.computeBoundingBox();}
-  S.lm3d={mid:null,c13:null,c23:null,zen:{}};prepareArch();propose(true);setView('front');refreshAll();
+  S.lm3d={mid:null,c13:null,c23:null,zen:{}};prepareArch();if(S.D.proposed&&readyToPropose().ok)propose(true);setView('front');refreshAll();
 }
 $('#rot180').onclick=()=>orient(new THREE.Matrix4().makeRotationZ(Math.PI));
 $('#flipUp').onclick=()=>orient(new THREE.Matrix4().makeRotationY(Math.PI));
@@ -820,7 +822,7 @@ function lipCurve(ph,map){
   return {a:sol[0],b:sol[1],c:sol[2],z:x=>sol[0]*x*x+sol[1]*x+sol[2],lower,upper,xl:Math.min(...pts.map(p=>p.x)),xr:Math.max(...pts.map(p=>p.x))};
 }
 function propose(silent){
-  if(!S.arch)return;
+  if(!S.arch)return;const rd=readyToPropose();if(!rd.ok){toast('#toast3d',rd.why);refreshSteps();return;}
   const D=S.D,ar=S.arch,notes=[];
   const codes=codesFor(D.count);
   const s0=sMid();
@@ -1053,7 +1055,7 @@ c3d.addEventListener('pointerup',e=>{
   if(['mid','c13','c23','zen','pair'].includes(S.tool)&&S.upper){
     const h=ray.intersectObject(S.upper.mesh)[0];if(!h)return;
     if(S.tool==='zen'){const order=['13','12','11','21','22','23'],c=order[S.zenNext];S.lm3d.zen[c]=h.point.clone();S.zenNext++;
-      if(S.zenNext>=6){setTool(null);toast('#toast3d','Zeniths set');if(S.D.proposed)propose(true);}else toast('#toast3d',`Zenith ${c} set. Now click the zenith of ${order[S.zenNext]}.`,'cyan');refreshAll();return;}
+      if(S.zenNext>=6){setTool(null);toast('#toast3d','Zeniths set');if(S.D.proposed&&readyToPropose().ok)propose(true);}else toast('#toast3d',`Zenith ${c} set. Now click the zenith of ${order[S.zenNext]}.`,'cyan');refreshAll();return;}
     if(S.tool==='pair'){S.pairPending=[h.point.x,h.point.y,h.point.z];toast('#toast3d','Point taken. Now click the same spot on the photo.','cyan');toast('#toastPh','Click the same spot here.','cyan');drawMarks();return;}
     S.lm3d[S.tool]=h.point.clone();const t=S.tool;setTool(null);toast('#toast3d',`${t==='mid'?'Midline':t==='c13'?'Canine 13':'Canine 23'} set`);refreshAll();
     return;
@@ -1191,7 +1193,7 @@ const NEED={pupils:2,face:2,pcan:3,scan2:3};
 function photoClick(x,y){
   const ph=curPh();if(!ph||!S.tool||['mid','c13','c23','zen'].includes(S.tool))return;
   const t=S.tool;
-  if(t==='pair'){if(!S.pairPending){toast('#toastPh','Click the point on the scan first.');return;}(ph.pts.pairs??=[]).push({q:S.pairPending,p:[x,y]});S.pairPending=null;toast('#toastPh',`Pair ${ph.pts.pairs.length} added. Click the next point on the scan, or Esc to finish.`,'cyan');refreshLm();drawPhoto();if(S.D.proposed)propose(true);return;}
+  if(t==='pair'){if(!S.pairPending){toast('#toastPh','Click the point on the scan first.');return;}(ph.pts.pairs??=[]).push({q:S.pairPending,p:[x,y]});S.pairPending=null;toast('#toastPh',`Pair ${ph.pts.pairs.length} added. Click the next point on the scan, or Esc to finish.`,'cyan');refreshLm();drawPhoto();if(S.D.proposed&&readyToPropose().ok)propose(true);return;}
   if(t==='lip'){delete ph._shade;(ph.pts.lip??=[]).push([x,y]);drawPhoto();refreshLm();return;}
   const arr=(ph.pts[t]&&ph.pts[t]._fresh)?ph.pts[t]:(ph.pts[t]=Object.assign([],{_fresh:true}));
   arr.push([x,y]);
@@ -1245,9 +1247,10 @@ function refreshLm(){
   drawMarks();
 }
 $$('#kindSeg button').forEach(b=>b.onclick=()=>{const ph=curPh();if(!ph)return;ph.kind=b.dataset.k;refreshAll();});
-$('#clearPairs').onclick=()=>{const ph=curPh();if(ph){ph.pts.pairs=[];refreshLm();drawPhoto();if(S.D.proposed)propose(true);}};
+$('#acceptAuto').onclick=()=>{for(const k of ['mid','c13','c23'])if(!S.lm3d[k]&&S.lmAuto[k])S.lm3d[k]=S.lmAuto[k].clone();refreshAll();toast('#toast3d','Scan landmarks confirmed');};
+$('#clearPairs').onclick=()=>{const ph=curPh();if(ph){ph.pts.pairs=[];refreshLm();drawPhoto();if(S.D.proposed&&readyToPropose().ok)propose(true);}};
 $('#tgOcc').onclick=e=>{S.show.occ=!S.show.occ;e.target.textContent='Collisions '+(S.show.occ?'on':'off');colourCollisions();};
-$('#fClear').oninput=e=>{S.D.clear=+e.target.value;$('#oClear').textContent=r2(S.D.clear);};$('#fClear').onchange=()=>S.upper&&propose();
+$('#fClear').oninput=e=>{S.D.clear=+e.target.value;$('#oClear').textContent=r2(S.D.clear);};$('#fClear').onchange=()=>S.D.proposed&&propose();
 $('#photoSel').onchange=e=>{S.cur=+e.target.value;setTool(null);refreshLm();fitPhoto();};
 
 function refreshFiles(){
@@ -1264,13 +1267,26 @@ function refreshFiles(){
   $('#empty3d').hidden=!!S.upper;
 }
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+// Teeth are only placed once the reference points exist: scan landmarks confirmed, a portrait with pupils and tooth points,
+// and a smile photo with the lip outline and tooth points.
+function readyToPropose(){
+  if(!S.upper)return {ok:false,why:'Load the upper scan first.'};
+  const miss=[];
+  if(!(S.lm3d.mid&&S.lm3d.c13&&S.lm3d.c23))miss.push('confirm the midline and both canine tips on the scan');
+  const por=S.photos.find(p=>p.kind==='portrait');
+  if(!por)miss.push('add a retracted portrait');else if(!(por.pts.pupils?.length===2&&por.pts.pcan?.length>=2))miss.push('mark the pupils and tooth points on the portrait');
+  const sm=S.photos.find(p=>p.kind==='smile');
+  if(!sm)miss.push('add a frontal smile photo');else if(!(sm.pts.lip?.length>=6&&sm.pts.scan2?.length>=2))miss.push('trace the lip and mark the tooth points on the smile');
+  return miss.length?{ok:false,why:'Before proposing: '+miss.join('; ')+'.'}:{ok:true,why:''};
+}
 function refreshSteps(){
   const por=S.photos.some(p=>p.kind==='portrait'&&p.pts.pupils?.length===2&&p.pts.pcan?.length>=2);
   const sm=S.photos.some(p=>p.kind==='smile'&&p.pts.lip?.length>=6&&p.pts.scan2?.length>=2);
-  const st={load:!!S.upper&&S.photos.length>0,mark:por&&sm,prop:S.D.proposed&&por&&sm,refine:false,export:false};
+  const st={load:!!S.upper&&S.photos.length>0,mark:readyToPropose().ok,prop:S.D.proposed&&por&&sm,refine:false,export:false};
   let now=Object.keys(st).find(k=>!st[k]);
   $$('.step').forEach(el=>{el.classList.toggle('done',!!st[el.dataset.s]);el.classList.toggle('now',el.dataset.s===now);});
-  $('#proposeBtn').disabled=!S.upper;$('#exportBtn').disabled=!S.D.proposed;$('#saveJson').disabled=!S.D.proposed;
+  const ready=readyToPropose();$('#proposeBtn').disabled=!ready.ok;$('#proposeBtn').title=ready.ok?'':ready.why;$('#proposeHint').textContent=ready.ok?'':ready.why;
+  $('#exportBtn').disabled=!S.D.proposed;$('#saveJson').disabled=!S.D.proposed;
 }
 function refreshProposal(){
   $('#notes').innerHTML=S.D.notes.map(n=>`<li>${n}</li>`).join('');
@@ -1306,17 +1322,17 @@ for(const k in SL){const [i,o,f]=SL[k];$('#'+i).addEventListener('input',e=>{
 });}
 $('#fStyle').onchange=e=>{S.D.style=e.target.value;rebuildTeeth();};
 $('#fLib').onchange=e=>{S.D.lib=e.target.value;rebuildTeeth();};
-$$('#modeSeg button').forEach(b=>b.onclick=()=>{S.D.mode=b.dataset.m;refreshMode();if(S.upper)propose();});
+$$('#modeSeg button').forEach(b=>b.onclick=()=>{S.D.mode=b.dataset.m;refreshMode();if(S.D.proposed)propose();});
 $('#fMinT').oninput=e=>{S.D.minT=+e.target.value;$('#oMinT').textContent=r2(S.D.minT);};
 $('#fMinT').onchange=()=>schedulePrep();
 const togglePrep=()=>{S.show.prep=!S.show.prep;for(const c in toothMeshes)toothMeshes[c].material=S.show.prep?ghostMat:(c===S.sel?selMat:toothMat);$('#tgPrep').textContent='Prep map '+(S.show.prep?'on':'off');$('#tgPrep2').textContent=S.show.prep?'Hide prep map':'Show prep map';$('#prepLegend').hidden=!S.show.prep;if(S.show.prep&&!S.prep)computePrep();else applyPrepColors();};
 $('#tgPrep').onclick=togglePrep;$('#tgPrep2').onclick=togglePrep;
-$('#briefBtn').onclick=()=>{applyBrief($('#brief').value);if(S.upper){for(const c in S.D.teeth)delete S.D.teeth[c].keep;propose();}else refreshAll();};
+$('#briefBtn').onclick=()=>{applyBrief($('#brief').value);if(S.D.proposed){for(const c in S.D.teeth)delete S.D.teeth[c].keep;propose();}else refreshAll();};
 $('#brief').addEventListener('change',()=>{S.D.brief=$('#brief').value;});
-$$('#countSeg button').forEach(b=>b.onclick=()=>{S.D.count=+b.dataset.n;propose();});
+$$('#countSeg button').forEach(b=>b.onclick=()=>{S.D.count=+b.dataset.n;if(S.D.proposed)propose();});
 const bindG=(id,out,key,fmt,scale=1)=>$(id).addEventListener('input',e=>{S.D[key]=+e.target.value*scale;$(out).textContent=fmt(+e.target.value);});
 bindG('#fWL','#oWL','wl',v=>v+'%',.01);bindG('#fGap','#oGap','gap',v=>r1(v));bindG('#fThick','#oThick','thick',v=>r2(v));bindG('#fMax','#oMax','maxLen',v=>r1(v));
-['#fWL','#fGap','#fThick','#fMax'].forEach(id=>$(id).addEventListener('change',()=>S.upper&&propose()));
+['#fWL','#fGap','#fThick','#fMax'].forEach(id=>$(id).addEventListener('change',()=>S.D.proposed&&propose()));
 $('#fBase').oninput=e=>{S.baseH=+e.target.value;$('#oBase').textContent=r1(S.baseH);};
 $('#proposeBtn').onclick=()=>{for(const c in S.D.teeth)delete S.D.teeth[c].keep;propose();};
 $('#tgDesign').onclick=e=>{S.show.design=!S.show.design;designGroup.visible=S.show.design;req();e.target.textContent='Design '+(S.show.design?'on':'off');};
