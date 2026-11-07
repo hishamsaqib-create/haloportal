@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Halo Smile Design</title>
-<meta name="description" content="Digital smile design from an intraoral scan and clinical photos, with occlusion and prep checks and a printable mock-up.">
+<meta name="description" content="Digital smile design from an intraoral scan and clinical photos, with AI assessment, a 2D smile render, occlusion and prep checks and a printable mock-up.">
 <style>html{color-scheme:dark light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -184,6 +184,13 @@ main.onlyph{grid-template-columns:0 1fr}
       <ul class="notes" id="briefNotes"></ul>
     </section>
 
+    <section class="sec" id="aiSec">
+      <h2>AI design <b id="aiState">offline</b></h2>
+      <p class="hint" id="aiHint">Looks at each tooth, the teeth as a set and the face, then writes a design plan in the Apa / Saleh idiom: thin veneers that hug the tooth, central dominance, soft line angles, edges on the lower lip, no bulk.</p>
+      <div class="row"><button class="btn primary" id="aiAssess" disabled>1 Assess</button><button class="btn" id="aiApply" disabled>Apply plan to 3D</button><button class="btn" id="aiRender" disabled>2 Render 2D smile</button></div>
+      <div id="aiReport" class="notes" style="padding:0;list-style:none;display:none"></div>
+    </section>
+
     <section class="sec">
       <h2>Proposal</h2>
       <div class="field"><label>Approach</label>
@@ -286,7 +293,6 @@ main.onlyph{grid-template-columns:0 1fr}
 </div>
 <div class="busy" id="busy" hidden>Working…</div>
 
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
@@ -387,7 +393,7 @@ function makeTooth(pos,W,L,style,dsign){
 /* ---------------- anatomic library ---------------- */
 // Crowns from DentCraft's parametric anatomy library (MIT / Apache-2.0, Dr Mahmoud ElNajar), built from
 // Wheeler's Dental Anatomy averages, quadrant 1, frame +X mesial, +Y facial, +Z occlusal. Decimated to ~4k triangles.
-const LIBDATA={};fetch('/toothlib.json').then(r=>r.json()).then(d=>{Object.assign(LIBDATA,d);if(S.upper&&S.D.proposed)rebuildTeeth();}).catch(()=>{});
+const LIBDATA={};fetch('/toothlib.json').then(r=>r.json()).then(d=>{Object.assign(LIBDATA,d);if(S.upper)rebuildTeeth();}).catch(()=>{});
 const libCache={};
 function b64(s,T){const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new T(u.buffer)}
 function libSrc(v,pos){
@@ -516,7 +522,7 @@ async function handleFiles(files){
       const short=im.name.split('/').pop();
       if(/^gallery_|_m\.jpg$/i.test(short))continue; // iTero model renders, not clinical photos
       const kind='other';
-      S.photos.push({name:short,img,kind,pts:{}});
+      S.photos.push({name:short,img,kind,pts:{},blob:im.blob});
     }
     if(S.photos.some(p=>p.kind==='other'))toast('#toastPh','For each photo, choose Portrait (retracted, full face) or Smile under Landmarks.','cyan');
     if(S.cur<0&&S.photos.length)S.cur=Math.max(0,S.photos.findIndex(p=>p.kind==='smile'));
@@ -863,7 +869,7 @@ function propose(silent){
   const c13=lm('c13'),c23=lm('c23');
   let span=19.5;
   if(c13&&c23){span=(Math.abs(ar.A.proj(c13.x,c13.y)-s0)+Math.abs(ar.A.proj(c23.x,c23.y)-s0))/2;}
-  const W11=clamp(span/(1+.78+.45),7.6,9.8),k=W11/8.6;
+  const W11=clamp(span/(1+.78+.45),7.6,9.8),k=W11/8.6;D.W11=W11;D.span=span;
   // central dominance: laterals about 72% of the central, canines read narrow from the front through arch curvature
   const Wt={1:W11,2:W11*.72,3:W11*.9,4:7.0*k,5:6.6*k,6:10.2*k};
   const kL=.5+.5*k,Ltyp={1:10.6*kL,2:9.0*kL,3:10.4*kL,4:8.0*kL,5:7.3*kL,6:6.6*kL};
@@ -904,7 +910,7 @@ function propose(silent){
     if(ging.length)checks.push(`<b>Gingival:</b> to level the zeniths, crown lengthening on ${ging.join(', ')}.`);else checks.push(`<b>Gingival:</b> zeniths already level within 0.3 mm.`);
   }else checks.push(`<span class="warn">Gingival zeniths not marked, so tooth lengths are textbook and the gum line is not assessed.</span>`);
   const zenC=haveZen?(zenT['11']+zenT['21'])/2:exC+Ltyp[1];
-  const eWL=zenC-W11/D.wl, eMax=exC-D.maxLen, eLip=zLipMid!==null?zLipMid+D.gap:-1e9;
+  const eWL=zenC-W11/D.wl, eMax=exC-D.maxLen, eLip=zLipMid!==null?zLipMid+D.gap:-1e9;D.exC=exC;D.lipBelowEdge=zLipMid!==null?exC-eLip:null;D.existLen=haveZen?zenC-exC:null;
   const reductive=D.mode==='reductive';
   let zC=reductive?Math.max(eWL,eMax,eLip):Math.min(exC,Math.max(eWL,eMax,eLip));
   const why=zC===exC?'already at the target':zC===eLip?`${r1(D.gap)} mm above the lower lip`:zC===eWL?`a ${Math.round(D.wl*100)}% width to length ratio`:`the ${r1(D.maxLen)} mm lengthening limit`;
@@ -921,6 +927,7 @@ function propose(silent){
     const dxc=Math.min(Math.abs(dx),span)*Math.sign(dx); // the smile arc is an anterior rule: flat beyond the canines
     let e=zC+step[p]+curv*dxc*dxc+Math.tan(roll)*dx;
     const ex=exist[c];
+    const aiT=D.aiApply&&D.ai?.teeth?.[c];if(aiT&&typeof aiT.lengthChangeMm==='number'&&ex!==null&&p<=3){e=ex-clamp(aiT.lengthChangeMm,-3,4)+Math.tan(roll)*dx*0;}
     if(p>=4&&ex!==null){ // posteriors: cusps keep their height, at most 1 mm added and 0.3 mm taken for continuity
       e=clamp(e,ex-1.0,ex+.3);if(p===6)e=ex;}
     if(ex!==null&&e>ex+.05){if(reductive)reduce.push(`${c} ${r1(e-ex)} mm`);else{held.push(`${c} (${r1(e-ex)} mm)`);e=ex;}}
@@ -1134,8 +1141,9 @@ const ovScanMat=new THREE.MeshStandardMaterial({color:0x8fd3e6,roughness:.7,tran
 const curPh=()=>S.photos[S.cur];
 function fitPhoto(){
   const ph=curPh();if(!ph)return;const r=cph.getBoundingClientRect();
-  V.s=Math.min(r.width/ph.img.naturalWidth,r.height/ph.img.naturalHeight);
-  V.x=(r.width-ph.img.naturalWidth*V.s)/2;V.y=(r.height-ph.img.naturalHeight*V.s)/2;drawPhoto();
+  const im=ph.kind==='render'&&ph.base?ph.base.img:ph.img;
+  V.s=Math.min(r.width/im.naturalWidth,r.height/im.naturalHeight);
+  V.x=(r.width-im.naturalWidth*V.s)/2;V.y=(r.height-im.naturalHeight*V.s)/2;drawPhoto();
 }
 $('#fitPh').onclick=fitPhoto;
 // Match the mock-up to the patient's own enamel: brightest third of pixels inside the lip outline, lifted slightly.
@@ -1178,6 +1186,7 @@ function drawPhoto(){
   const ph=curPh();$('#emptyPh').hidden=!!ph;if(!ph)return;
   const T=(px,py)=>[(px*V.s+V.x)*dpr,(py*V.s+V.y)*dpr];
   g.setTransform(V.s*dpr,0,0,V.s*dpr,V.x*dpr,V.y*dpr);
+  if(ph.kind==='render'&&ph.base){g.drawImage(ph.base.img,0,0);const bw=ph.base.img.naturalWidth,bh=ph.base.img.naturalHeight;g.save();g.beginPath();g.rect(bw*(1-S.wipe),0,bw,bh);g.clip();g.drawImage(ph.img,0,0,bw,bh);g.restore();drawPhotoMarks(g,ph);return;}
   g.drawImage(ph.img,0,0);
   const map=photoMap(ph);
   if(map&&S.upper&&(S.show.overlay||S.show.scanOv)){
@@ -1390,7 +1399,136 @@ $('#tgScanOv').onclick=e=>{S.show.scanOv=!S.show.scanOv;e.target.textContent='Sc
 $('#wipe').oninput=e=>{S.wipe=+e.target.value;drawPhoto();};
 const setLay=c=>{$('#stage').className=c;setTimeout(()=>{resize3d();fitPhoto();},30);};
 $('#lay3d').onclick=()=>setLay('only3d');$('#laySplit').onclick=()=>setLay('');$('#layPh').onclick=()=>setLay('onlyph');
-function refreshAll(){refreshFiles();refreshLm();refreshProposal();refreshTooth();refreshSteps();drawPhoto();}
+function refreshAll(){refreshFiles();refreshLm();refreshProposal();refreshTooth();refreshSteps();refreshAI();drawPhoto();}
+
+/* ---------------- AI design (assessment, plan, 2D render) ----------------
+   The page itself never talks to a model. When it runs inside the Halo Smile Design app, the host page answers
+   postMessage requests (upload, vision assessment, image edit) with the app's AI credits. Standalone, the buttons stay off. */
+const AI={ok:false,pend:{},n:0,busy:false};
+function aiCall(type,payload){return new Promise((res,rej)=>{const id=++AI.n;AI.pend[id]={res,rej};window.parent.postMessage({hsd:1,id,type,payload},location.origin);});}
+window.addEventListener('message',e=>{const m=e.data;if(!m||!m.hsd||e.origin!==location.origin)return;
+  if(m.type==='bridge'){AI.ok=true;refreshAI();return;}
+  const p=AI.pend[m.id];if(!p)return;delete AI.pend[m.id];m.ok?p.res(m.result):p.rej(new Error(m.error||'AI call failed'));});
+if(window.parent!==window){try{window.parent.postMessage({hsd:1,type:'hello'},location.origin);}catch(e){}}
+
+const STYLE_BRIEF=`Design idiom (Michael Apa, Sam Saleh, Rosenthal school):
+- Thin veneers that follow the patient's own tooth and arch form; the result must never look bulky, flared, denture-like or oversized.
+- Central incisor dominance: laterals about 72 to 78 percent of the central width and about 1 mm shorter; canines 0.3 to 0.5 mm short of the centrals with softened tips.
+- Incisal edges follow the lower lip (consonant smile arc) over the anterior six; posteriors keep their cusp heights.
+- Central width to length about 78 percent; lengthen only to the lower lip, not beyond.
+- Soft rounded line angles, subtle incisal translucency and surface texture, natural reflective highlights; shade bright but natural (BL2 to A1), never chalky or opaque.
+- Gingival zeniths level across 13 to 23 with laterals slightly more incisal; papillae preserved, no black triangles.
+- Mid-line on the facial mid-line within 1 mm, incisal plane parallel to the pupils, a canted smile line is corrected.
+- Enamel is traded for porcelain: reduction of 0.3 to 0.7 mm is normal, anything over 1.5 mm near the pulp is a risk and must be flagged.`;
+
+const ASSESS_SCHEMA={type:'object',properties:{
+  teeth:{type:'object',description:'One entry per visible upper tooth, FDI codes 15 to 25',additionalProperties:{type:'object',properties:{
+    findings:{type:'array',items:{type:'string'},description:'What is wrong or notable: wear, chip, rotation, tilt, shade, shape, gingival level, spacing'},
+    plan:{type:'string',description:'What the veneer does for this tooth'},
+    lengthChangeMm:{type:'number',description:'Incisal edge change in mm, positive lengthens, negative shortens'},
+    widthChangeMm:{type:'number'},labialAddMm:{type:'number',description:'Facial build-out in mm, 0 to 1'},
+    reductionRisk:{type:'string',enum:['low','moderate','high']}},required:['findings','plan','lengthChangeMm','reductionRisk']}},
+  set:{type:'object',properties:{archForm:{type:'string'},midlineDeviationMm:{type:'number'},cantDeg:{type:'number'},smileArc:{type:'string',enum:['consonant','flat','reverse']},
+    proportions:{type:'string'},buccalCorridor:{type:'string'},gingivalDisplayMm:{type:'number'},currentShade:{type:'string'},summary:{type:'string'}},required:['summary']},
+  face:{type:'object',properties:{lipLine:{type:'string',enum:['low','medium','high']},facialMidline:{type:'string'},incisalDisplay:{type:'string'},lipSupport:{type:'string'},summary:{type:'string'}},required:['summary']},
+  design:{type:'object',properties:{approach:{type:'string',enum:['additive','reductive']},toothForm:{type:'string',enum:['natural','square','oval','triangular']},
+    units:{type:'number',enum:[6,8,10,12]},centralWLPercent:{type:'number'},lateralToCentral:{type:'number'},centralLengthenMm:{type:'number'},canineSoften:{type:'boolean'},
+    labialAddMm:{type:'number'},targetShade:{type:'string'},brighter:{type:'boolean'},rationale:{type:'array',items:{type:'string'}}},required:['approach','toothForm','units','centralLengthenMm','rationale']},
+  renderPrompt:{type:'string',description:'One paragraph for an image model describing exactly how the upper teeth should look after treatment in this photo'},
+  cautions:{type:'array',items:{type:'string'}}},required:['teeth','set','face','design','renderPrompt','cautions']};
+
+function aiMeasurements(){
+  const D=S.D,L=[];
+  if(D.W11)L.push(`central incisor width from the scan about ${r1(D.W11)} mm; canine-to-canine half span ${r1(D.span)} mm`);
+  if(D.existLen)L.push(`current central crown length (zenith to edge) ${r1(D.existLen)} mm`);
+  if(D.lipBelowEdge!==null&&D.lipBelowEdge!==undefined)L.push(`lower lip sits ${r1(D.lipBelowEdge)} mm ${D.lipBelowEdge>0?'below':'above'} the current central edge in the smile photo`);
+  if(D.roll)L.push(`incisal plane cant ${r1(Math.abs(D.roll/DEG))} degrees relative to the pupils`);
+  if(D.midShift)L.push(`dental midline ${r1(Math.abs(D.midShift))} mm ${D.midShift>0?'left':'right'} of the facial midline`);
+  if(D.brief)L.push(`patient brief: "${D.brief}"`);
+  return L;
+}
+function refreshAI(){
+  const sm=S.photos.find(p=>p.kind==='smile'),por=S.photos.find(p=>p.kind==='portrait');
+  $('#aiState').textContent=AI.ok?(AI.busy?'working':'ready'):'offline';
+  $('#aiAssess').disabled=!AI.ok||AI.busy||!(sm&&por);
+  $('#aiRender').disabled=!AI.ok||AI.busy||!sm||!S.D.ai;
+  $('#aiApply').disabled=!S.D.ai||!S.D.proposed;
+  $('#aiApply').textContent=S.D.aiApply?'Plan applied to 3D':'Apply plan to 3D';
+  if(S.D.ai&&!$('#aiReport').innerHTML)renderAIReport();
+  if(!AI.ok)$('#aiHint').textContent='AI assessment and rendering run inside the Halo Smile Design app (Base44). Here the engine works from your landmarks only.';
+  else if(!(sm&&por))$('#aiHint').textContent='Set one photo to Portrait and one to Smile, then assess.';
+}
+async function blobFor(ph){if(ph.blob)return ph.blob;const cv=document.createElement('canvas');cv.width=ph.img.naturalWidth;cv.height=ph.img.naturalHeight;cv.getContext('2d').drawImage(ph.img,0,0);return new Promise(r=>cv.toBlob(r,'image/jpeg',.92));}
+async function aiUpload(ph){if(ph.url)return ph.url;const b=await blobFor(ph);ph.url=await aiCall('upload',{blob:b,name:ph.name});return ph.url;}
+async function aiAssess(){
+  const sm=S.photos.find(p=>p.kind==='smile'),por=S.photos.find(p=>p.kind==='portrait');if(!sm||!por)return;
+  AI.busy=true;refreshAI();busy(true);
+  try{
+    if(S.D.proposed===false&&readyToPropose().ok)propose(true);
+    const urls=[await aiUpload(sm),await aiUpload(por)];
+    const others=S.photos.filter(p=>p.kind==='other'&&p.blob).slice(0,2);for(const o of others)urls.push(await aiUpload(o));
+    const meas=aiMeasurements();
+    const prompt=`You are a cosmetic dentist and ceramist planning porcelain veneers for the upper teeth. Image 1 is the patient's natural smile, image 2 a retracted full-face view${others.length?', the others are extra clinical views':''}.
+Work in three passes and report all three:
+1. Each upper tooth on its own (FDI 15 to 25 as far as visible): shape, wear, chips, rotation, inclination, gingival level, shade, spacing.
+2. The teeth as a set: arch form, symmetry, proportions (width ratios, width to length), midline, cant, smile arc against the lower lip, buccal corridors, gingival display and zenith line.
+3. The teeth against the face: facial midline, interpupillary line, lip line at full smile, incisal display, lip support.
+Then write the design: how many units, additive or reductive, tooth form, how much each tooth lengthens or shortens (mm, from the current edge), lateral to central width ratio, labial build in mm, target shade, and the reasoning. Stay inside the patient's arch form and lip frame; do not design bulk. Flag any tooth where the design needs more than 1.5 mm of reduction (pulp risk) or where orthodontics, crown lengthening or lip repositioning would be the honest answer.
+Finally write renderPrompt: one paragraph telling an image-editing model exactly how the upper teeth should look in image 1 after treatment (tooth by tooth where it matters), keeping everything else in the photo identical.
+${STYLE_BRIEF}
+${meas.length?'Measured from the intraoral scan and landmarks: '+meas.join('; ')+'.':''}
+Use millimetres, be specific, no marketing language.`;
+    const res=await aiCall('assess',{prompt,urls,schema:ASSESS_SCHEMA});
+    S.D.ai=res;S.D.aiApply=false;S.D.renderUrl=null;renderAIReport();
+    toast('#toast3d','AI assessment ready. Review it, then apply the plan or render the 2D smile.','cyan');
+  }catch(e){console.error(e);toast('#toast3d','AI assessment failed: '+e.message,'warn');}
+  AI.busy=false;busy(false);refreshAI();
+}
+function renderAIReport(){
+  const a=S.D.ai,el=$('#aiReport');if(!a){el.style.display='none';el.innerHTML='';return;}
+  const li=(t)=>`<li>${t}</li>`;
+  const teeth=Object.keys(a.teeth||{}).sort((x,y)=>(x[0]===y[0]?(x[0]==='1'?y[1]-x[1]:x[1]-y[1]):x[0]-y[0]));
+  const tRows=teeth.map(c=>{const t=a.teeth[c];const d=t.lengthChangeMm;return `<tr><td style="color:var(--gold)">${c}</td><td>${esc((t.findings||[]).join('; '))}</td><td>${esc(t.plan||'')}</td><td style="text-align:right;white-space:nowrap">${d>0?'+':''}${r1(d||0)}</td><td class="${t.reductionRisk==='high'?'warn':''}">${esc(t.reductionRisk||'')}</td></tr>`}).join('');
+  const d=a.design||{};
+  el.innerHTML=`
+  <details open><summary style="cursor:pointer;color:var(--text)">Teeth individually</summary>
+  <div class="tblwrap"><table class="t"><tr><th>Tooth</th><th>Findings</th><th>Plan</th><th>Edge mm</th><th>Risk</th></tr>${tRows}</table></div></details>
+  <details><summary style="cursor:pointer;color:var(--text)">As a set</summary><ul class="notes">${li(esc(a.set?.summary||''))}${a.set?.smileArc?li('Smile arc: '+esc(a.set.smileArc)):''}${a.set?.proportions?li(esc(a.set.proportions)):''}${a.set?.currentShade?li('Current shade about '+esc(a.set.currentShade)):''}</ul></details>
+  <details><summary style="cursor:pointer;color:var(--text)">Against the face</summary><ul class="notes">${li(esc(a.face?.summary||''))}${a.face?.lipLine?li('Lip line: '+esc(a.face.lipLine)):''}${a.face?.incisalDisplay?li(esc(a.face.incisalDisplay)):''}</ul></details>
+  <details open><summary style="cursor:pointer;color:var(--text)">Design</summary><ul class="notes">${li(`<b>${esc(d.units||'')} units, ${esc(d.approach||'')}, ${esc(d.toothForm||'')} form</b>, centrals ${d.centralLengthenMm>0?'+':''}${r1(d.centralLengthenMm||0)} mm${d.lateralToCentral?`, laterals ${Math.round(d.lateralToCentral*100)}% of centrals`:''}${d.targetShade?', shade '+esc(d.targetShade):''}.`)}${(d.rationale||[]).map(x=>li(esc(x))).join('')}${(a.cautions||[]).map(x=>li('<span class="warn">'+esc(x)+'</span>')).join('')}</ul></details>`;
+  el.style.display='block';
+}
+function aiApplyPlan(){
+  const a=S.D.ai,D=S.D;if(!a)return;const d=a.design||{};
+  if(d.approach)D.mode=d.approach;if(d.toothForm)D.style=d.toothForm;if([6,8,10,12].includes(d.units))D.count=d.units;
+  if(d.centralWLPercent)D.wl=clamp(d.centralWLPercent/100,.7,.86);
+  if(typeof d.centralLengthenMm==='number')D.maxLen=clamp(Math.max(0,d.centralLengthenMm),0,4);
+  if(typeof d.labialAddMm==='number')D.thick=clamp(d.labialAddMm,0,1.5);
+  D.canineSoft=d.canineSoften?.5:0;D.shadeLift=d.brighter?1:0;
+  D.aiApply=true;
+  D.briefNotes=[...(D.briefNotes||[]).filter(n=>!n.startsWith('AI plan')),`AI plan applied: ${d.units} units, ${d.approach}, ${d.toothForm} form, per-tooth edge targets from the assessment.`];
+  $('#fWL').value=Math.round(D.wl*100);$('#oWL').textContent=Math.round(D.wl*100)+'%';$('#fMax').value=D.maxLen;$('#oMax').textContent=r1(D.maxLen);$('#fThick').value=D.thick;$('#oThick').textContent=r2(D.thick);
+  for(const c of Object.keys(D.teeth||{}))delete D.teeth[c].keep;
+  if(readyToPropose().ok)propose();refreshAll();
+}
+async function aiRender(){
+  const sm=S.photos.find(p=>p.kind==='smile'),a=S.D.ai;if(!sm||!a)return;
+  AI.busy=true;refreshAI();busy(true);
+  try{
+    const url=await aiUpload(sm);
+    const prompt=`Edit this photograph of a patient's smile to show the result of porcelain veneers on the upper teeth only. ${a.renderPrompt}
+Hard rules: change nothing but the upper teeth. The face, skin, lips and lip position, lower teeth, gums, lighting, colour balance, background, crop and camera angle stay exactly as they are. Keep the teeth inside the existing arch and lip frame; do not make them larger, whiter or flatter than a natural bright smile. ${STYLE_BRIEF.split('\n').slice(1,7).join(' ')} Photorealistic, same resolution and framing as the input.`;
+    const res=await aiCall('render',{prompt,url});
+    const img=new Image();if(res.blob){img.src=URL.createObjectURL(res.blob);}else{img.crossOrigin='anonymous';img.src=res.url;}
+    await img.decode();
+    const old=S.photos.findIndex(p=>p.kind==='render');if(old>=0)S.photos.splice(old,1);
+    S.photos.push({name:'AI smile render',img,kind:'render',pts:{},base:sm,blob:res.blob||null,url:res.url||null});
+    S.cur=S.photos.length-1;S.D.renderUrl=res.url||null;S.wipe=1;$('#wipe').value=1;
+    refreshAll();fitPhoto();toast('#toastPh','2D render ready. Drag Before/After to compare. Apply the plan for the matching 3D design.','cyan');
+  }catch(e){console.error(e);toast('#toastPh','Render failed: '+e.message,'warn');}
+  AI.busy=false;busy(false);refreshAI();
+}
+$('#aiAssess').onclick=aiAssess;$('#aiApply').onclick=aiApplyPlan;$('#aiRender').onclick=aiRender;
 
 /* ---------------- export ---------------- */
 function closedScanTriangles(geom,baseH){
@@ -1444,7 +1582,7 @@ function stl(tris,name){
   return buf;
 }
 function designJSON(){
-  const ph=S.photos.map(p=>({name:p.name,kind:p.kind,pts:p.pts}));
+  const ph=S.photos.filter(p=>p.kind!=='render').map(p=>({name:p.name,kind:p.kind,pts:p.pts}));
   const v=x=>x?[x.x,x.y,x.z]:null;
   return JSON.stringify({app:'Halo Smile Design',version:1,case:S.caseName,lm3d:{mid:v(S.lm3d.mid),c13:v(S.lm3d.c13),c23:v(S.lm3d.c23),zen:Object.fromEntries(Object.entries(S.lm3d.zen||{}).map(([k,q])=>[k,v(q)]))},photos:ph,design:S.D},null,1);
 }
@@ -1484,7 +1622,7 @@ $('#jsonIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const
   for(const p of j.photos||[]){const m=S.photos.find(q=>q.name===p.name);if(m){m.kind=p.kind;m.pts=p.pts;}}
   Object.assign(S.D,j.design||{});if(S.upper)rebuildTeeth();refreshAll();toast('#toast3d','Design opened');}catch(err){toast('#toast3d','That design file could not be read');}};
 
-window.__hsd={V,S,THREE,place,toothSample,penetration,contact,handleFiles,propose,buildZip,closedScanTriangles,teethTriangles,stl,photoMap,setView,drawPhoto,fitPhoto,renderPreview};
+window.__hsd={V,S,THREE,place,toothSample,penetration,contact,handleFiles,propose,buildZip,closedScanTriangles,teethTriangles,stl,photoMap,setView,drawPhoto,fitPhoto,renderPreview,AI,aiAssess,aiRender,aiApplyPlan,renderAIReport};
 resize3d();refreshAll();
 </script>
 
