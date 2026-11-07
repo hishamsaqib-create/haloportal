@@ -81,6 +81,7 @@ table.t td:first-child,table.t th:first-child{text-align:left}
 table.t tr.sel td{color:var(--gold)}
 .warn{color:var(--warn)}.bad{color:var(--bad)}.okc{color:var(--ok)}
 .hint{font-size:12px;color:var(--muted);margin:0}
+#aiReport table.t td,#aiReport table.t th{text-align:left;font-family:inherit;font-size:11.5px;vertical-align:top;line-height:1.35}#aiReport details{margin-top:6px}#aiReport summary{font-size:12px}
 .tblwrap{overflow-x:auto}
 main{grid-area:stage;display:grid;grid-template-columns:1fr 1fr;min-height:0;min-width:0}
 main.only3d{grid-template-columns:1fr 0}
@@ -1509,7 +1510,10 @@ function aiApplyPlan(){
   D.briefNotes=[...(D.briefNotes||[]).filter(n=>!n.startsWith('AI plan')),`AI plan applied: ${d.units} units, ${d.approach}, ${d.toothForm} form, per-tooth edge targets from the assessment.`];
   $('#fWL').value=Math.round(D.wl*100);$('#oWL').textContent=Math.round(D.wl*100)+'%';$('#fMax').value=D.maxLen;$('#oMax').textContent=r1(D.maxLen);$('#fThick').value=D.thick;$('#oThick').textContent=r2(D.thick);
   for(const c of Object.keys(D.teeth||{}))delete D.teeth[c].keep;
-  if(readyToPropose().ok)propose();refreshAll();
+  if(readyToPropose().ok)propose();
+  const missed=[];for(const c of Object.keys(D.teeth)){const t=a.teeth?.[c];if(!t||typeof t.lengthChangeMm!=='number'||D.teeth[c].exist===null)continue;const got=D.teeth[c].exist-D.teeth[c].edge;if(got<t.lengthChangeMm-.25)missed.push(`${c} ${r1(got)} of ${r1(t.lengthChangeMm)} mm`);}
+  if(missed.length)D.briefNotes.push(`<span class="warn">AI targets limited by the bite or the current edge: ${missed.join(', ')}. See Checks; allow reduction or adjust the lower incisors for more length.</span>`);
+  refreshAll();
 }
 async function aiRender(){
   const sm=S.photos.find(p=>p.kind==='smile'),a=S.D.ai;if(!sm||!a)return;
